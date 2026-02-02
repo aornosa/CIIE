@@ -10,3 +10,9 @@ class Camera:
 
     def move(self, offset):
         self.position += pygame.Vector2(offset)
+
+    def set_zoom(self, zoom):
+        self.zoom = zoom
+
+    def get_zoom(self):
+        return self.zoom

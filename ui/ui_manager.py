@@ -25,7 +25,3 @@ def draw_minimap(screen, player_position, entities, position, size):
 
 def draw_effect_icons(screen, effects, position):
     pass
-
-# Make it toggleable
-def draw_inventory(screen, inventory, position):
-    pass

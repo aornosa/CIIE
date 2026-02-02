@@ -1,27 +1,20 @@
 import pygame
 
-import utils as math
-import ui
+from game_math import utils as math
+from ui import ui_manager
 
-from object import Object
-from player import Player
-from camera import Camera
-from character_controller import CharacterController
+from core.camera import Camera
+from character_scripts.player.player import Player
+from character_scripts.character_controller import CharacterController
+from runtime.round_manager import *
 from status_effects import StatusEffect
 
-player = Player("assets/icon.png", (0.0,0.0))
+player = Player("assets/player/survivor-idle_rifle_0.png", (0.0,0.0))
 controller = CharacterController( 200, player)
 camera = Camera()
 
-### Push into round manager script
-def spawn_enemies(count): ## TESTING
-    en = []
-    for i in range(count):
-        enemy = Object("assets/icon.png", (i * 100, 100), 0, (40, 40))
-        en.append(enemy)
-    return en
-
 enemies = spawn_enemies(5)
+
 
 
 def game_loop(screen, clock, im):
@@ -70,5 +63,5 @@ def game_loop(screen, clock, im):
     player.draw(screen, camera)
 
     # Draw UI last
-    ui.draw_overlay(screen, player)
+    ui_manager.draw_overlay(screen, player)
 

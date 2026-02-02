@@ -1,17 +1,18 @@
 import pygame
 
-import character_controller
-
 pygame.init()
 
-import input_handler as ih
+if not pygame.get_init():
+    exit(-1)
+
+from core import input_handler as ih
 from game import game_loop
 from settings import *
 
 
 # Set screen
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Survival Game")
+pygame.display.set_caption("Zombie Horde Game")
 pygame.display.set_icon(pygame.image.load("assets/icon.png"))
 
 # Set clock

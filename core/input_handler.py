@@ -1,6 +1,5 @@
 import pygame
 
-
 class InputHandler:
     def __init__(self):
         self.actions = {
@@ -9,7 +8,10 @@ class InputHandler:
             "attack": False,
             "aim": False,
             "interact": False,
+            "inventory": False,
+            "pause": False,
 
+            # Lookaround -> change arrow keys to ctrl + mouse movement
             "look_x": 0,
             "look_y": 0,
         }

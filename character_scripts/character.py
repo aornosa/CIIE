@@ -1,5 +1,5 @@
 import pygame
-
+from pygame.transform import scale
 
 DEFAULT_STATS = {
     "max_health": 100,
@@ -8,10 +8,11 @@ DEFAULT_STATS = {
 
 
 class Character: # Make inherit from Object
-    def __init__(self,asset, position, rotation, name, health):
-        self.asset = pygame.transform.scale(pygame.image.load(asset), (40, 40))
+    def __init__(self,asset, position, rotation, size_scale, name, health):
+        self.asset = pygame.image.load(asset)
         self.position = pygame.Vector2(position)
         self.rotation = rotation
+        self.scale = size_scale
 
         self.name = name
 
@@ -69,4 +70,10 @@ class Character: # Make inherit from Object
         pass
 
     def draw(self, screen, camera):
-        screen.blit(pygame.transform.rotate(self.asset, self.rotation), self.position - camera.position)
+        rotated_asset = pygame.transform.rotate(self.asset, self.rotation)
+        w, h = rotated_asset.get_size()
+        print(self.scale)
+        new_w = int(w * self.scale)
+        new_h = int(h * self.scale)
+        scaled_asset = pygame.transform.scale(rotated_asset, (new_w, new_h))
+        screen.blit(scaled_asset, self.position - camera.position)
