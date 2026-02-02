@@ -10,7 +10,7 @@ from runtime.round_manager import *
 from status_effects import StatusEffect
 
 player = Player("assets/player/survivor-idle_rifle_0.png", (0.0,0.0))
-controller = CharacterController( 200, player)
+controller = CharacterController( 250, player)
 camera = Camera()
 
 enemies = spawn_enemies(5)
@@ -26,7 +26,6 @@ def game_loop(screen, clock, im):
 
     # Crosshair follows mouse
     mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
-    screen.blit(pygame.transform.scale(pygame.image.load("assets/crosshair.png"), (40, 40)), mouse_pos - (20, 20))
 
     # Hide mouse cursor
     pygame.mouse.set_visible(False)
@@ -61,6 +60,8 @@ def game_loop(screen, clock, im):
     controller.move(movement, delta_time)
     camera.move((im.actions["look_x"]* delta_time * 300, im.actions["look_y"]* delta_time * 300)) #Testing
     player.draw(screen, camera)
+
+    screen.blit(pygame.transform.scale(pygame.image.load("assets/crosshair.png"), (40, 40)), mouse_pos - (20, 20))
 
     # Draw UI last
     ui_manager.draw_overlay(screen, player)

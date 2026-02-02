@@ -72,7 +72,6 @@ class Character: # Make inherit from Object
     def draw(self, screen, camera):
         rotated_asset = pygame.transform.rotate(self.asset, self.rotation)
         w, h = rotated_asset.get_size()
-        print(self.scale)
         new_w = int(w * self.scale)
         new_h = int(h * self.scale)
         scaled_asset = pygame.transform.scale(rotated_asset, (new_w, new_h))
