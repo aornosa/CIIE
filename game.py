@@ -62,7 +62,7 @@ def game_loop(screen, clock, im):
 
 
         # Look where shooting
-        direction_to_mouse = mouse_pos - player.position
+        direction_to_mouse = mouse_pos - (player.position - camera.position)
         target_angle = direction_to_mouse.angle_to(pygame.Vector2(0, -1))  # relative to up
         player.rotation = math.lerp_angle(player.rotation, target_angle, 10 * delta_time)
     elif movement.length() > 0.:  # Only rotate if there's movement
@@ -93,7 +93,7 @@ def game_loop(screen, clock, im):
         can_attack = True
 
     # Draw crosshair
-    screen.blit(pygame.transform.scale(pygame.image.load("assets/crosshair.png"), (40, 40)), mouse_pos - (20, 20))
+    screen.blit(pygame.transform.scale(pygame.image.load("assets/crosshair.png"), (40, 40)), (mouse_pos - (20, 20)))
 
     # Draw UI last
     ui_manager.draw_overlay(screen, player)

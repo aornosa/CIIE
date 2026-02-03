@@ -1,7 +1,7 @@
 import pygame
 
 class Object:
-    def __init__(self,asset, position, rotation, scale=(40, 40)):
+    def __init__(self,asset, position=(0,0), rotation=0, scale=1):
         self.asset = pygame.image.load(asset)
         self.position = pygame.Vector2(position)
         self.rotation = rotation
@@ -18,6 +18,12 @@ class Object:
 
     def set_rotation(self, rotation):
         self.rotation = rotation
+
+    def get_scale(self):
+        return self.scale
+
+    def set_scale(self, scale):
+        self.scale = scale
 
     def draw(self, surface, camera):
         rotated_asset = pygame.transform.rotate(self.asset, self.rotation)

@@ -7,7 +7,7 @@ DEFAULT_STATS = {
 }
 
 
-class Character(Object): # Make inherit from Object
+class Character(Object):
     def __init__(self, asset, position, rotation, scale, name, health):
         super().__init__(asset, position, rotation, scale)
 

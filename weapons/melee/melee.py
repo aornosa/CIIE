@@ -1,9 +1,9 @@
 from weapons.weapon_module import Weapon
 
 class Melee(Weapon):
-    def __init__(self, name, damage, reach):
-        super().__init__(name, damage)
+    def __init__(self, asset, name, damage, reach):
+        super().__init__(asset, name, damage)
         self.reach = reach
 
     def attack(self):
-        return f"Swinging {self.name} for {self.damage} damage within {self.reach} meters!"
+        pass
