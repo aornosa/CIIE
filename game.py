@@ -7,7 +7,7 @@ from ui import ui_manager
 from core.camera import Camera
 from character_scripts.player.player import Player
 from character_scripts.character_controller import CharacterController
-from weapons.weapon_module import Weapon
+from weapons.ranged.ranged import Ranged
 from runtime.round_manager import *
 from status_effects import StatusEffect
 
@@ -17,7 +17,8 @@ camera = Camera()
 
 enemies = spawn_enemies(5)
 
-test_weapon = Weapon("assets/weapons/ak47.png", "AK-47", 30)
+test_weapon = Ranged("assets/weapons/ak47.png", "AK-47", 60, 1000,
+                     "rifle", 30, 0.1, 2)
 # Test weapon on inventory
 player.inventory.add_weapon(test_weapon, "primary")
 

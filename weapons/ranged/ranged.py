@@ -18,3 +18,6 @@ class Ranged(Weapon):
 
     def shoot(self):
         pass
+
+    def reload(self):
+        pass
