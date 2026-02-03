@@ -22,7 +22,7 @@ test_weapon = Weapon("assets/weapons/ak47.png", "AK-47", 30)
 player.inventory.add_weapon(test_weapon, "primary")
 
 
-# Bool state flags
+# Bool state flags (change into enumerated state manager later)
 inventory_is_open = False
 can_attack = True
 can_aim = True
@@ -31,6 +31,8 @@ can_aim = True
 def game_loop(screen, clock, im):
     # global vars (change later)
     global inventory_is_open
+    global can_attack
+    global can_aim
 
     # Get delta time (time between frames)
     delta_time = clock.get_time() / 1000.0
@@ -83,7 +85,12 @@ def game_loop(screen, clock, im):
 
     # Draw inventory on top if open
     if inventory_is_open:
+        can_aim = False
+        can_attack = False
         show_inventory(screen, player)
+    else:
+        can_aim = True
+        can_attack = True
 
     # Draw crosshair
     screen.blit(pygame.transform.scale(pygame.image.load("assets/crosshair.png"), (40, 40)), mouse_pos - (20, 20))

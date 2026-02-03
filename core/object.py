@@ -2,7 +2,7 @@ import pygame
 
 class Object:
     def __init__(self,asset, position, rotation, scale=(40, 40)):
-        self.asset = pygame.transform.scale(pygame.image.load(asset), scale)
+        self.asset = pygame.image.load(asset)
         self.position = pygame.Vector2(position)
         self.rotation = rotation
         self.scale = scale
@@ -20,6 +20,9 @@ class Object:
         self.rotation = rotation
 
     def draw(self, surface, camera):
-        scaled_asset = pygame.transform.scale(self.asset, self.scale)
-        rotated_asset = pygame.transform.rotate(scaled_asset, self.rotation)
-        surface.blit(rotated_asset, self.position - camera.position)
+        rotated_asset = pygame.transform.rotate(self.asset, self.rotation)
+        w, h = rotated_asset.get_size()
+        new_w = int(w * self.scale)
+        new_h = int(h * self.scale)
+        scaled_asset = pygame.transform.scale(rotated_asset, (new_w, new_h))
+        surface.blit(scaled_asset, self.position - camera.position)
