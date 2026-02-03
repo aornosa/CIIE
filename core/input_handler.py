@@ -5,6 +5,7 @@ class InputHandler:
         self.actions = {
             "move_x": 0,
             "move_y": 0,
+            "swap_weapon": 0,
             "attack": False,
             "aim": False,
             "interact": False,
@@ -43,6 +44,7 @@ class InputHandler:
 
             elif event.key == pygame.K_ESCAPE:
                 pygame.event.post(pygame.event.Event(pygame.QUIT))
+
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_a:
                 self.actions["move_x"] += 1
@@ -69,10 +71,15 @@ class InputHandler:
                 self.actions["attack"] = True
             if event.button == 3:  # Right click
                 self.actions["aim"] = True
+
         elif event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:  # Left click
                 self.actions["attack"] = False
             if event.button == 3:  # Right click
                 self.actions["aim"] = False
+
         elif event.type == pygame.MOUSEMOTION:
             self.mouse_position = pygame.Vector2(event.pos)
+
+        elif event.type == pygame.MOUSEWHEEL: # Scrollwheel
+            self.actions["swap_weapon"] = event.y

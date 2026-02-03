@@ -6,7 +6,18 @@ def draw_weapon_box(screen, weapon, position):
     draw_box(screen, position, box_size, (50, 50, 50))
     # Draw weapon representation (placeholder)
     if weapon:
-        draw_box(screen, (position[0] + 50, position[1] + 50), (400, 300), (100, 100, 100))
+        screen.blit(weapon.asset, (position[0] + 100, position[1] + 150))
+        # Draw weapon name
+        font = pygame.font.SysFont("consolas", 30)
+        font.bold = True
+        text_surface = font.render(weapon.name, True, (255, 255, 255))
+        screen.blit(text_surface, (position[0] + 30, position[1] + 40))
+        # Draw weapon damage
+        font = pygame.font.SysFont("consolas", 25)
+        font.bold = True
+        damage_text = f"Damage: {weapon.damage}"
+        text_surface = font.render(damage_text, True, (200, 200, 200))
+        screen.blit(text_surface, (position[0] + 40, position[1] + 80))
     else:
         # Draw none text
         font = pygame.font.SysFont("consolas", 25)

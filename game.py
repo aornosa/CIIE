@@ -7,6 +7,7 @@ from ui import ui_manager
 from core.camera import Camera
 from character_scripts.player.player import Player
 from character_scripts.character_controller import CharacterController
+from weapons.weapon_module import Weapon
 from runtime.round_manager import *
 from status_effects import StatusEffect
 
@@ -16,7 +17,15 @@ camera = Camera()
 
 enemies = spawn_enemies(5)
 
+test_weapon = Weapon("assets/weapons/ak47.png", "AK-47", 30)
+# Test weapon on inventory
+player.inventory.add_weapon(test_weapon, "primary")
+
+
+# Bool state flags
 inventory_is_open = False
+can_attack = True
+can_aim = True
 
 # Main game loop
 def game_loop(screen, clock, im):
@@ -38,6 +47,7 @@ def game_loop(screen, clock, im):
     # Get current speed before calculating
     controller.speed = player.get_stat("speed")
 
+    # Toggle inventory
     if im.actions["inventory"]:
         im.actions["inventory"] = False  # Reset action
         inventory_is_open = not inventory_is_open
