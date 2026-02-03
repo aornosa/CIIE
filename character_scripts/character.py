@@ -1,18 +1,17 @@
 import pygame
-from pygame.transform import scale
 
 DEFAULT_STATS = {
     "max_health": 100,
-    "speed": 150,
+    "speed": 200,
 }
 
 
 class Character: # Make inherit from Object
-    def __init__(self,asset, position, rotation, size_scale, name, health):
+    def __init__(self,asset, position, rotation, scale, name, health):
         self.asset = pygame.image.load(asset)
         self.position = pygame.Vector2(position)
         self.rotation = rotation
-        self.scale = size_scale
+        self.scale = scale
 
         self.name = name
 

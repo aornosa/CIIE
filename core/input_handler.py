@@ -29,7 +29,7 @@ class InputHandler:
                 self.actions["move_y"] += 1
             elif event.key == pygame.K_e:
                 self.actions["interact"] = True
-            elif event.key == pygame.K_i:
+            elif event.key == pygame.K_q:
                 self.actions["inventory"] = True
 
             elif event.key == pygame.K_UP:
