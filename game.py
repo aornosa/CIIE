@@ -1,5 +1,6 @@
 import pygame
 
+from character_scripts.player.inventory import show_inventory
 from game_math import utils as math
 from ui import ui_manager
 
@@ -15,9 +16,13 @@ camera = Camera()
 
 enemies = spawn_enemies(5)
 
+inventory_is_open = False
 
-
+# Main game loop
 def game_loop(screen, clock, im):
+    # global vars (change later)
+    global inventory_is_open
+
     # Get delta time (time between frames)
     delta_time = clock.get_time() / 1000.0
 
@@ -33,10 +38,15 @@ def game_loop(screen, clock, im):
     # Get current speed before calculating
     controller.speed = player.get_stat("speed")
 
+    if im.actions["inventory"]:
+        im.actions["inventory"] = False  # Reset action
+        inventory_is_open = not inventory_is_open
+        print("Inventory toggled:", inventory_is_open)
+
     # Player game logic
     if im.actions["attack"] or im.actions["aim"]:
         # Slow player
-        player.add_effect(StatusEffect("","Aiming Down Sights", {"speed": -70}, -1))
+        player.add_effect(StatusEffect("assets/effects/ads","Aiming Down Sights", {"speed": -70}, -1))
 
 
         # Look where shooting
@@ -61,6 +71,11 @@ def game_loop(screen, clock, im):
     camera.move((im.actions["look_x"]* delta_time * 300, im.actions["look_y"]* delta_time * 300)) #Testing
     player.draw(screen, camera)
 
+    # Draw inventory on top if open
+    if inventory_is_open:
+        show_inventory(screen, player)
+
+    # Draw crosshair
     screen.blit(pygame.transform.scale(pygame.image.load("assets/crosshair.png"), (40, 40)), mouse_pos - (20, 20))
 
     # Draw UI last

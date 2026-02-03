@@ -41,10 +41,16 @@ class Inventory:
     def check_full(self):
         return len(self.items) >= self.max_size
 
-def open_inventory(screen, player):
+def show_inventory(screen, player):
     menu.draw_weapon_box(screen, player.inventory.primary_weapon, (100, 100))
-    menu.draw_weapon_box(screen, player.inventory.secondary_weapon, (300, 100))
-    for index, item in enumerate(player.inventory.items):
-        x = 100 + (index % 4) * 70
-        y = 300 + (index // 4) * 70
-        menu.draw_item_box(screen, item, (x, y))
+    menu.draw_weapon_box(screen, player.inventory.secondary_weapon, (700, 100))
+    menu.draw_player_status(screen, player, (1300, 100))
+
+    for i in range(player.inventory.max_size):
+        x = 100 + (i % 6) * 110
+        y = 550 + (i // 6) * 110
+        if i < len(player.inventory.items):
+            item = player.inventory.items[i]
+            menu.draw_item_box(screen, item, (x, y))
+        else:
+            menu.draw_item_box(screen, None, (x, y))
