@@ -2,6 +2,7 @@ import pygame
 
 from character_scripts.player.inventory import show_inventory
 from game_math import utils as math
+from settings import SCREEN_WIDTH, SCREEN_HEIGHT, _CAM_BORDER_RADIUS
 from ui import ui_manager
 
 from core.camera import Camera
@@ -43,6 +44,14 @@ def game_loop(screen, clock, im):
 
     # Crosshair follows mouse
     mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
+
+
+    # Make camera follow player
+    if im.actions["look_around"]:
+        camera_follow(mouse_pos, camera, delta_time) # FIXME: lookaround on mouse cursor does not work
+    else:
+        camera_follow(player.position, camera, delta_time)
+
 
     # Hide mouse cursor
     pygame.mouse.set_visible(False)
@@ -99,3 +108,18 @@ def game_loop(screen, clock, im):
     # Draw UI last
     ui_manager.draw_overlay(screen, player)
 
+
+def camera_follow(target, cam, delta_time):
+    target_relative_pos = target - cam.position
+    camera_center = pygame.Vector2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+    center_offset = target_relative_pos - camera_center
+
+    distance_from_center = center_offset.length()
+    if distance_from_center > _CAM_BORDER_RADIUS:
+        # Calculate how much to move camera
+        excess_distance = distance_from_center - _CAM_BORDER_RADIUS
+        move_direction = center_offset.normalize()
+
+        # Move camera towards player smoothly
+        camera_move = move_direction * excess_distance * 10 * delta_time  # Adjust multiplier for smoothness
+        camera.move(camera_move)

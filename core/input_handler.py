@@ -11,6 +11,7 @@ class InputHandler:
             "interact": False,
             "inventory": False,
             "pause": False,
+            "look_around": False,
 
             # Lookaround -> change arrow keys to ctrl + mouse movement
             "look_x": 0,
@@ -41,6 +42,8 @@ class InputHandler:
                 self.actions["look_x"] += -1
             elif event.key == pygame.K_RIGHT:
                 self.actions["look_x"] += 1
+            elif event.key == pygame.K_RCTRL:
+                self.actions["look_around"] = True
 
             elif event.key == pygame.K_ESCAPE:
                 pygame.event.post(pygame.event.Event(pygame.QUIT))
@@ -56,6 +59,8 @@ class InputHandler:
                 self.actions["move_y"] += -1
             elif event.key == pygame.K_e:
                 self.actions["interact"] = False
+            elif event.key == pygame.K_RCTRL:
+                self.actions["look_around"] = False
 
             elif event.key == pygame.K_UP:
                 self.actions["look_y"] += 1
