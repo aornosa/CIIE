@@ -42,7 +42,7 @@ class InputHandler:
                 self.actions["look_x"] += -1
             elif event.key == pygame.K_RIGHT:
                 self.actions["look_x"] += 1
-            elif event.key == pygame.K_RCTRL:
+            elif event.key == pygame.K_LCTRL:
                 self.actions["look_around"] = True
 
             elif event.key == pygame.K_ESCAPE:
@@ -59,7 +59,7 @@ class InputHandler:
                 self.actions["move_y"] += -1
             elif event.key == pygame.K_e:
                 self.actions["interact"] = False
-            elif event.key == pygame.K_RCTRL:
+            elif event.key == pygame.K_LCTRL:
                 self.actions["look_around"] = False
 
             elif event.key == pygame.K_UP:

@@ -48,7 +48,7 @@ def game_loop(screen, clock, im):
 
     # Make camera follow player
     if im.actions["look_around"]:
-        camera_follow(mouse_pos, camera, delta_time) # FIXME: lookaround on mouse cursor does not work
+        camera_follow(mouse_pos, camera, delta_time, speed=5,position_relative=False)
     else:
         camera_follow(player.position, camera, delta_time)
 
@@ -109,8 +109,8 @@ def game_loop(screen, clock, im):
     ui_manager.draw_overlay(screen, player)
 
 
-def camera_follow(target, cam, delta_time):
-    target_relative_pos = target - cam.position
+def camera_follow(target, cam, delta_time, speed=10, position_relative=True):
+    target_relative_pos = target - cam.position if position_relative else target
     camera_center = pygame.Vector2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
     center_offset = target_relative_pos - camera_center
 
@@ -121,5 +121,5 @@ def camera_follow(target, cam, delta_time):
         move_direction = center_offset.normalize()
 
         # Move camera towards player smoothly
-        camera_move = move_direction * excess_distance * 10 * delta_time  # Adjust multiplier for smoothness
+        camera_move = move_direction * excess_distance * speed * delta_time  # Bigger = snappier
         camera.move(camera_move)
