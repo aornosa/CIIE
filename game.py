@@ -74,13 +74,13 @@ def game_loop(screen, clock, im):
         # Look where shooting
         direction_to_mouse = mouse_pos - (player.position - camera.position)
         target_angle = direction_to_mouse.angle_to(pygame.Vector2(0, -1))  # relative to up
-        player.rotation = math.lerp_angle(player.rotation, target_angle, 10 * delta_time)
+        player.rotation = math.lerp_angle(player.rotation, target_angle, 10 * delta_time)+0.164 # add offset to account for sprite
 
         # Shoot if attacking
         if im.actions["attack"] and can_attack:
             direction = pygame.Vector2(0, -1).rotate(-player.rotation)
             player.inventory.primary_weapon.play_trail_effect(screen, (player.position - camera.position)
-                                                              + direction * 35 #+ direction.rotate(90) * 15
+                                                              + direction * 35 + direction.rotate(90) * 15
                                                               , direction)
 
     elif movement.length() > 0.:  # Only rotate if there's movement
