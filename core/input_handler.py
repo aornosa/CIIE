@@ -5,7 +5,7 @@ class InputHandler:
         self.actions = {
             "move_x": 0,
             "move_y": 0,
-            "swap_weapon": 0,
+            "swap_weapon": False,
             "attack": False,
             "aim": False,
             "interact": False,
@@ -32,6 +32,8 @@ class InputHandler:
             elif event.key == pygame.K_e:
                 self.actions["interact"] = True
             elif event.key == pygame.K_q:
+                self.actions["swap_weapon"] = True
+            elif event.key == pygame.K_TAB:
                 self.actions["inventory"] = True
 
             elif event.key == pygame.K_UP:
@@ -86,5 +88,5 @@ class InputHandler:
         elif event.type == pygame.MOUSEMOTION:
             self.mouse_position = pygame.Vector2(event.pos)
 
-        elif event.type == pygame.MOUSEWHEEL: # Scrollwheel
-            self.actions["swap_weapon"] = event.y
+        #elif event.type == pygame.MOUSEWHEEL: # Scrollwheel
+        #   self.actions["swap_weapon"] = event.y

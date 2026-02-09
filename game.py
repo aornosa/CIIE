@@ -27,6 +27,7 @@ player.inventory.add_weapon(test_weapon, "primary")
 # Bool state flags (change into enumerated state manager later)
 inventory_is_open = False
 can_attack = True
+attack_ready_time = 0
 can_aim = True
 
 # Main game loop
@@ -65,6 +66,13 @@ def game_loop(screen, clock, im):
         inventory_is_open = not inventory_is_open
         print("Inventory toggled:", inventory_is_open)
 
+    if im.actions["swap_weapon"]:
+        im.actions["swap_weapon"] = False
+        player.inventory.swap_weapons()
+        print("Active slot:", player.inventory.active_weapon_slot)
+
+    active_weapon = player.inventory.get_weapon(player.inventory.active_weapon_slot)
+
     # Player game logic
     if im.actions["attack"] or im.actions["aim"]:
         # Slow player
@@ -79,9 +87,10 @@ def game_loop(screen, clock, im):
         # Shoot if attacking
         if im.actions["attack"] and can_attack:
             direction = pygame.Vector2(0, -1).rotate(-player.rotation)
-            player.inventory.primary_weapon.play_trail_effect(screen, (player.position - camera.position)
-                                                              + direction * 35 + direction.rotate(90) * 15
-                                                              , direction)
+            if isinstance(active_weapon, Ranged):
+                active_weapon.play_trail_effect(screen, (player.position - camera.position)
+                                                                  + direction * 35 + direction.rotate(90) * 15
+                                                                  , direction)
 
     elif movement.length() > 0.:  # Only rotate if there's movement
         target_angle = movement.angle_to(pygame.Vector2(0, -1)) # relative to up
