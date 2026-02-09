@@ -7,6 +7,7 @@ from ui import ui_manager
 
 from core.camera import Camera
 from character_scripts.player.player import Player
+from character_scripts.player.fog_of_war import *
 from character_scripts.character_controller import CharacterController
 from weapons.ranged.ranged import Ranged
 from runtime.round_manager import *
@@ -46,7 +47,6 @@ def game_loop(screen, clock, im):
     # Crosshair follows mouse
     mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
 
-
     # Make camera follow player
     if im.actions["look_around"]:
         camera_follow(mouse_pos, camera, delta_time, speed=5, position_relative=False)
@@ -59,6 +59,11 @@ def game_loop(screen, clock, im):
 
     # Get current speed before calculating
     controller.speed = player.get_stat("speed")
+
+    # create fog of war
+    vision_mask = create_vision_mask(screen, player, 200, 70, 100)
+
+    #screen.blit(vision_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
     # Toggle inventory
     if im.actions["inventory"]:
