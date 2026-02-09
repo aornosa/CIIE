@@ -60,12 +60,6 @@ def game_loop(screen, clock, im):
     # Get current speed before calculating
     controller.speed = player.get_stat("speed")
 
-    # create fog of war
-    vision_mask = create_vision_mask(screen, player, camera, 1800, 250, 80)
-    vision_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
-    vision_surface.blit(vision_mask, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-    screen.blit(vision_surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-
     # Toggle inventory
     if im.actions["inventory"]:
         im.actions["inventory"] = False  # Reset action
@@ -110,6 +104,11 @@ def game_loop(screen, clock, im):
     for enemy in enemies:
         enemy.draw(screen, camera)
 
+    # create fog of war
+    vision_mask = create_vision_mask(screen, player, camera, 1800, 250, 80)
+    vision_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+    vision_surface.blit(vision_mask, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    screen.blit(vision_surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT) # Comment to toggle FOW
 
     # Move and draw player
     controller.move(movement, delta_time)
