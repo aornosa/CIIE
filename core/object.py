@@ -27,8 +27,16 @@ class Object:
 
     def draw(self, surface, camera):
         rotated_asset = pygame.transform.rotate(self.asset, self.rotation)
+
+        # Scaling
         w, h = rotated_asset.get_size()
-        new_w = int(w * self.scale)
-        new_h = int(h * self.scale)
-        scaled_asset = pygame.transform.scale(rotated_asset, (new_w, new_h))
-        surface.blit(scaled_asset, self.position - camera.position)
+        scaled_asset = pygame.transform.scale(
+            rotated_asset,
+            (int(w * self.scale), int(h * self.scale))
+        )
+
+        # Screen position (centered)
+        screen_pos = self.position - camera.position
+        rect = scaled_asset.get_rect(center=screen_pos)
+
+        surface.blit(scaled_asset, rect)

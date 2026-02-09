@@ -1,3 +1,5 @@
+import pygame.draw
+
 from weapons.weapon_module import Weapon
 
 class Ranged(Weapon):
@@ -17,7 +19,19 @@ class Ranged(Weapon):
         self.current_clip = self.clip_size
 
     def shoot(self):
-        pass
+        if self.current_clip > 0:
+            self.current_clip -= 1
+            # Implement shooting logic (raycasting, bullet instantiation, etc.)
+        else:
+            # play dry fire
+            print("Out of ammo! Reload needed.")
+
 
     def reload(self):
-        pass
+        # find ammo in inventory and reload, for now just reset clip
+        self.current_clip = self.clip_size
+
+
+    def play_trail_effect(self, screen, start_pos, direction):
+        # For testing, draw a simple line representing the bullet trail
+        pygame.draw.line(screen, pygame.Color("red"), start_pos, start_pos + direction * self.max_range, 2)

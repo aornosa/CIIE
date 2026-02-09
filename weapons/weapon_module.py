@@ -2,9 +2,9 @@ import pygame
 from core.object import Object
 
 AMMO_TYPES = {
-    "low_caliber": "assets/ammo/bullet_clip.png",
-    "high_caliber": "assets/ammo/high_caliber_clip.png",
-    "shell": "assets/ammo/shell.png",
+    "low_caliber": "assets/ammo/9x19",
+    "high_caliber": "assets/ammo/7.62",
+    "shell": "assets/ammo/12Gauge",
 }
 
 class Weapon:

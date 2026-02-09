@@ -13,7 +13,7 @@ class InputHandler:
             "pause": False,
             "look_around": False,
 
-            # Lookaround -> change arrow keys to ctrl + mouse movement
+            # Lookaround -> changed arrow keys to ctrl + mouse movement
             "look_x": 0,
             "look_y": 0,
         }
