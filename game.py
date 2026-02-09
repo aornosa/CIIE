@@ -7,6 +7,7 @@ from ui import ui_manager
 
 from core.camera import Camera
 from character_scripts.player.player import Player
+from character_scripts.player.fog_of_war import *
 from character_scripts.character_controller import CharacterController
 from weapons.ranged.ranged import Ranged
 from runtime.round_manager import *
@@ -27,6 +28,7 @@ player.inventory.add_weapon(test_weapon, "primary")
 # Bool state flags (change into enumerated state manager later)
 inventory_is_open = False
 can_attack = True
+attack_ready_time = 0
 can_aim = True
 
 # Main game loop
@@ -45,7 +47,6 @@ def game_loop(screen, clock, im):
     # Crosshair follows mouse
     mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
 
-
     # Make camera follow player
     if im.actions["look_around"]:
         camera_follow(mouse_pos, camera, delta_time, speed=5, position_relative=False)
@@ -59,11 +60,23 @@ def game_loop(screen, clock, im):
     # Get current speed before calculating
     controller.speed = player.get_stat("speed")
 
+    # create fog of war
+    vision_mask = create_vision_mask(screen, player, 200, 70, 100)
+
+    #screen.blit(vision_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
     # Toggle inventory
     if im.actions["inventory"]:
         im.actions["inventory"] = False  # Reset action
         inventory_is_open = not inventory_is_open
         print("Inventory toggled:", inventory_is_open)
+
+    if im.actions["swap_weapon"]:
+        im.actions["swap_weapon"] = False
+        player.inventory.swap_weapons()
+        print("Active slot:", player.inventory.active_weapon_slot)
+
+    active_weapon = player.inventory.get_weapon(player.inventory.active_weapon_slot)
 
     # Player game logic
     if im.actions["attack"] or im.actions["aim"]:
@@ -74,14 +87,15 @@ def game_loop(screen, clock, im):
         # Look where shooting
         direction_to_mouse = mouse_pos - (player.position - camera.position)
         target_angle = direction_to_mouse.angle_to(pygame.Vector2(0, -1))  # relative to up
-        player.rotation = math.lerp_angle(player.rotation, target_angle, 10 * delta_time)
+        player.rotation = math.lerp_angle(player.rotation, target_angle, 10 * delta_time)+0.164 # add offset to account for sprite
 
         # Shoot if attacking
         if im.actions["attack"] and can_attack:
             direction = pygame.Vector2(0, -1).rotate(-player.rotation)
-            player.inventory.primary_weapon.play_trail_effect(screen, (player.position - camera.position)
-                                                              + direction * 35 #+ direction.rotate(90) * 15
-                                                              , direction)
+            if isinstance(active_weapon, Ranged):
+                active_weapon.play_trail_effect(screen, (player.position - camera.position)
+                                                                  + direction * 35 + direction.rotate(90) * 15
+                                                                  , direction)
 
     elif movement.length() > 0.:  # Only rotate if there's movement
         target_angle = movement.angle_to(pygame.Vector2(0, -1)) # relative to up

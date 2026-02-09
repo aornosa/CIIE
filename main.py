@@ -35,4 +35,8 @@ while running:
 
 
     pygame.display.flip()
-    clock.tick(FPS)
+
+    if FPS > 0:
+        clock.tick(FPS)
+    else :
+        clock.tick()  # No limit on FPS
