@@ -1,13 +1,6 @@
 import ui.inventory_menu as menu
-
-WEAPON_SLOTS = {
-    "primary" : 0,
-    "secondary" : 1,
-}
-
 class Inventory:
     def __init__(self):
-        self.active_weapon_slot = "primary"
         self.primary_weapon = None
         self.secondary_weapon = None
         self.max_size = 12
@@ -22,13 +15,6 @@ class Inventory:
                 self.secondary_weapon = weapon
             else:
                 self.drop_weapon(slot)
-
-    def get_weapon(self, slot):
-        if slot == "primary":
-            return self.primary_weapon
-        elif slot == "secondary":
-            return self.secondary_weapon
-        return None
 
     def drop_weapon(self, slot):
         if slot == "primary":
@@ -54,9 +40,6 @@ class Inventory:
 
     def check_full(self):
         return len(self.items) >= self.max_size
-
-    def swap_weapons(self):
-        self.active_weapon_slot = "secondary" if self.active_weapon_slot == "primary" else "primary"
 
 def show_inventory(screen, player):
     menu.draw_weapon_box(screen, player.inventory.primary_weapon, (100, 100))
