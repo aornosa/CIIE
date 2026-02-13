@@ -11,17 +11,17 @@ class Pool:
     def add_new_object(self) -> PoolableObject:
         return self.object_type()
 
-    def check_available(self, obj: PoolableObject) -> bool:
+    def _check_available(self, obj: PoolableObject) -> bool:
         return obj in self.pool and obj.is_active() == False
 
-    def get_available(self) -> PoolableObject:
-        if len(self.pool) > 0 and self.check_available(self.pool[0]):
+    def _get_available(self) -> PoolableObject:
+        if len(self.pool) > 0 and self._check_available(self.pool[0]):
             return self.pool.popleft()
         else:
             return self.add_new_object()
 
     def acquire(self):
-        obj = self.get_available()
+        obj = self._get_available()
         obj.set_active(True)
 
         # Move to the back of the pool to indicate it's in use
