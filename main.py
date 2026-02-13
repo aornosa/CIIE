@@ -1,21 +1,28 @@
 import pygame
+import pygame._sdl2 as sdl2
 
 pygame.init()
 
 if not pygame.get_init():
     exit(-1)
 
+from settings import *
+
+# Set screen
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), flags=pygame.SCALED | pygame.HIDDEN)
+window = sdl2.Window.from_display_module()
+window.size = (int(SCREEN_WIDTH * SCREEN_SCALE), int(SCREEN_HEIGHT * SCREEN_SCALE))
+window.position = sdl2.WINDOWPOS_CENTERED
+window.show()
+
 from core import input_handler as ih
 from game import game_loop
-from settings import *
 
 from core.monolite_behaviour import MonoliteBehaviour
 
 
-# Set screen
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Zombie Horde Game")
-pygame.display.set_icon(pygame.image.load("assets/icon.png"))
+pygame.display.set_icon(pygame.image.load("assets/icon.png").convert())
 
 # Set clock
 clock = pygame.time.Clock()

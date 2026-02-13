@@ -23,12 +23,21 @@ test_weapon = Ranged("assets/weapons/ak47.png", "AK-47", 60, 1000,
 # Test weapon on inventory
 player.inventory.add_weapon(test_weapon, "primary")
 
+# Make crosshair
+crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
+
+# Status effects
+ads_se = StatusEffect("assets/effects/ads","Aiming Down Sights", {"speed": -70}, -1)
+
+
 
 # Bool state flags (change into enumerated state manager later)
 inventory_is_open = False
 can_attack = True
 attack_ready_time = 0
 can_aim = True
+
+FOG_ENABLE = 0
 
 # Monolite Build Order
 FPS_Counter()
@@ -78,7 +87,7 @@ def game_loop(screen, clock, im):
     # Player game logic
     if im.actions["attack"] or im.actions["aim"]:
         # Slow player
-        player.add_effect(StatusEffect("assets/effects/ads","Aiming Down Sights", {"speed": -70}, -1))
+        player.add_effect(ads_se)
 
 
         # Look where shooting
@@ -103,10 +112,12 @@ def game_loop(screen, clock, im):
 
 
     # create fog of war
-    #fog_mask = create_vision_mask(screen, player, camera, 1800, 250, 80)
-    #screen.blit(fog_mask, (0, 0))
+    visibility_mask = None
+    if FOG_ENABLE:
+        fog_mask = create_vision_mask(screen, player, camera, 1800, 250, 80)
+        screen.blit(fog_mask, (0, 0))
 
-    #visibility_mask = create_visibility_mask(screen, player, camera, 1800, 250, 80)
+        visibility_mask = create_visibility_mask(screen, player, camera, 1800, 250, 80)
 
     entity_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
 
@@ -114,8 +125,9 @@ def game_loop(screen, clock, im):
     for enemy in enemies:
         enemy.draw(entity_surface, camera)
 
-    # clip entities using mask
-    #entity_surface.blit(visibility_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    if FOG_ENABLE:
+        # clip entities using mask
+        entity_surface.blit(visibility_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
     # draw result
     screen.blit(entity_surface, (0, 0))
@@ -135,7 +147,8 @@ def game_loop(screen, clock, im):
         can_attack = True
 
     # Draw crosshair
-    screen.blit(pygame.transform.scale(pygame.image.load("assets/crosshair.png"), (40, 40)), (mouse_pos - (20, 20)))
+    screen.blit(pygame.transform.scale(crosshair, (40, 40)),
+                (mouse_pos - (20, 20)))
 
     # Draw UI last
     ui_manager.draw_overlay(screen, player)

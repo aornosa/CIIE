@@ -1,8 +1,9 @@
 import pygame
+from settings import *
 
 class Object:
-    def __init__(self,asset, position=(0,0), rotation=0, scale=1):
-        self.asset = pygame.image.load(asset)
+    def __init__(self, asset, position=(0,0), rotation=0, scale=1):
+        self.asset = pygame.image.load(asset).convert_alpha()
         self.position = pygame.Vector2(position)
         self.rotation = rotation
         self.scale = scale
