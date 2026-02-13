@@ -2,6 +2,7 @@ from character_scripts.player.inventory import show_inventory
 from game_math import utils as math
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT, _CAM_BORDER_RADIUS
 from ui import ui_manager
+from ui.fps_counter import FPS_Counter
 
 from core.camera import Camera
 from character_scripts.player.player import Player
@@ -28,6 +29,9 @@ inventory_is_open = False
 can_attack = True
 attack_ready_time = 0
 can_aim = True
+
+# Monolite Build Order
+FPS_Counter()
 
 # Main game loop
 def game_loop(screen, clock, im):
@@ -99,10 +103,10 @@ def game_loop(screen, clock, im):
 
 
     # create fog of war
-    fog_mask = create_vision_mask(screen, player, camera, 1800, 250, 80)
-    screen.blit(fog_mask, (0, 0))
+    #fog_mask = create_vision_mask(screen, player, camera, 1800, 250, 80)
+    #screen.blit(fog_mask, (0, 0))
 
-    visibility_mask = create_visibility_mask(screen, player, camera, 1800, 250, 80)
+    #visibility_mask = create_visibility_mask(screen, player, camera, 1800, 250, 80)
 
     entity_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
 
@@ -111,7 +115,7 @@ def game_loop(screen, clock, im):
         enemy.draw(entity_surface, camera)
 
     # clip entities using mask
-    entity_surface.blit(visibility_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    #entity_surface.blit(visibility_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
     # draw result
     screen.blit(entity_surface, (0, 0))

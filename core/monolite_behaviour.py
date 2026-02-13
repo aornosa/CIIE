@@ -1,6 +1,7 @@
 ## Based on Unity's MonoBehaviour adapted to Python for game development.
 
 class MonoliteBehaviour:
+    _subclasses = []  # Class variable to track subclasses
     _instances = []  # Global class variable for running instances
     delta_time = 0  # Class variable to hold delta time for all instances
 
@@ -13,6 +14,10 @@ class MonoliteBehaviour:
         MonoliteBehaviour._instances.append(self)  # Add instance to the global list
 
         self._call_awake()
+
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        MonoliteBehaviour._subclasses.append(cls)
 
     def _call_awake(self):
         if not self._awakened:
@@ -57,6 +62,11 @@ class MonoliteBehaviour:
 
     def on_destroy(self):
         pass
+
+    @classmethod
+    def instantiate_all(cls):
+        for sub in cls._subclasses:
+            sub()
 
     @classmethod
     def update_all(cls, dt):

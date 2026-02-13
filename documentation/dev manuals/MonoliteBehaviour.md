@@ -42,6 +42,27 @@ class Enemy(MonoliteBehaviour):
     def on_destroy():
         drop_loot()
 ```
+In `main.py`:
+```python
+from enemy import Enemy
+from ui import UI
+from other import Etc
+
+# Your monolite execution order
+Enemy()
+UI()
+Etc()
+```
+
+
+**IMPORTANT!**
+*Any class that inherits from `MonoliteBehaviour` must be imported in `main.py` directly or
+indirectly, otherwise the lifecycle methods will not be triggered.*
+
+#### Note
+Optionally, you can call before execution of the app `MonoliteBehaviour.initialize_all()` to 
+initialize all MonoliteBehaviours in the project instead of referencing them in the code.
+However, you will lose build order, maybe resulting in unexpected behaviour
 
 ### How it Works
 When a class inherits from `MonoliteBehaviour`, any lifecycle methods mentioned above,

@@ -24,6 +24,9 @@ im = ih.InputHandler()
 # render loop
 running = True
 
+# Monolite Behavior initialization
+#MonoliteBehaviour.instantiate_all()
+
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -36,7 +39,7 @@ while running:
     game_loop(screen, clock, im)
 
     # Monolite Behavior update
-    MonoliteBehaviour.update_all(clock.get_time())
+    MonoliteBehaviour.update_all(clock.get_time()/1000)
 
     pygame.display.flip()
 
