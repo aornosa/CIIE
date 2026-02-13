@@ -1,5 +1,3 @@
-import pygame
-
 from character_scripts.player.inventory import show_inventory
 from game_math import utils as math
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT, _CAM_BORDER_RADIUS
@@ -11,7 +9,7 @@ from character_scripts.player.fog_of_war import *
 from character_scripts.character_controller import CharacterController
 from weapons.ranged.ranged import Ranged
 from runtime.round_manager import *
-from status_effects import StatusEffect
+from core.status_effects import StatusEffect
 
 player = Player("assets/player/survivor-idle_rifle_0.png", (0.0,0.0))
 controller = CharacterController( 250, player)
