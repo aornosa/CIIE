@@ -19,9 +19,9 @@ camera = Camera()
 enemies = spawn_enemies(5)
 
 test_weapon = Ranged("assets/weapons/ak47.png", "AK-47", 60, 1000,
-                     "rifle", 30, 0.1, 2)
+                     "rifle", 30, 0.1, 2, muzzle_offset=(20, 20))
 
-
+test_weapon.parent = player
 
 # Test weapon on inventory
 player.inventory.add_weapon(player, test_weapon, "primary")
@@ -91,6 +91,11 @@ def game_loop(screen, clock, im):
         print("Active slot:", player.inventory.active_weapon_slot)
 
     active_weapon = player.inventory.get_weapon(player.inventory.active_weapon_slot)
+
+    if im.actions["reload"]:
+        im.actions["reload"] = False
+        if active_weapon is not None:
+            active_weapon.reload()
 
     # Player game logic
     if im.actions["attack"] or im.actions["aim"]:

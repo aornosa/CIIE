@@ -28,6 +28,9 @@ of the lifecycle methods as needed. For example:
 from core.monolite_behaviour import MonoliteBehaviour
 
 class Enemy(MonoliteBehaviour):
+    def __init__(self):
+        MonoliteBehaviour.__init__(self)
+    
     def awake(self):
         enemy_health = 100
         spawn_enemy()
@@ -42,6 +45,10 @@ class Enemy(MonoliteBehaviour):
     def on_destroy():
         drop_loot()
 ```
+**IMPORTANT** Classes that inherit from several superclasses must explicitly call the `__init__`
+method of `MonoliteBehaviour` in their own `__init__` method, otherwise the lifecycle methods will
+not be triggered.
+
 In `main.py`:
 ```python
 from enemy import Enemy

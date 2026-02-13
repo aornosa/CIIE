@@ -9,7 +9,7 @@ class Particle(PoolableObject):
         self.asset = asset
         self.position = (0, 0)
         self.rotation = 0
-        self.scale = 1
+        self.scale = 0.2
         self.velocity = (0, 0)
         self.age = lifespan
 

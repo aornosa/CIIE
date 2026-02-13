@@ -10,6 +10,7 @@ class InputHandler:
             "aim": False,
             "interact": False,
             "inventory": False,
+            "reload": False,
             "pause": False,
             "look_around": False,
 
@@ -31,6 +32,8 @@ class InputHandler:
                 self.actions["move_y"] += 1
             elif event.key == pygame.K_e:
                 self.actions["interact"] = True
+            elif event.key == pygame.K_r:
+                self.actions["reload"] = True
             elif event.key == pygame.K_q:
                 self.actions["swap_weapon"] = True
             elif event.key == pygame.K_TAB:
