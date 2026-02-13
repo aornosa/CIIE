@@ -98,15 +98,23 @@ def game_loop(screen, clock, im):
         player.remove_effect("Aiming Down Sights")
 
 
-    # Draw enemies for testing
-    for enemy in enemies:
-        enemy.draw(screen, camera)
-
     # create fog of war
-    vision_mask = create_vision_mask(screen, player, camera, 1800, 250, 80)
-    vision_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
-    vision_surface.blit(vision_mask, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-    screen.blit(vision_surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT) # Comment to toggle FOW
+    fog_mask = create_vision_mask(screen, player, camera, 1800, 250, 80)
+    screen.blit(fog_mask, (0, 0))
+
+    visibility_mask = create_visibility_mask(screen, player, camera, 1800, 250, 80)
+
+    entity_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+
+    # draw enemies/items onto entity surface
+    for enemy in enemies:
+        enemy.draw(entity_surface, camera)
+
+    # clip entities using mask
+    entity_surface.blit(visibility_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+    # draw result
+    screen.blit(entity_surface, (0, 0))
 
     # Move and draw player
     controller.move(movement, delta_time)
