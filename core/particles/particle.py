@@ -9,6 +9,7 @@ class Particle(PoolableObject):
         self.asset = asset
         self.position = (0, 0)
         self.rotation = 0
+        self.scale = 1
         self.velocity = (0, 0)
         self.age = lifespan
 
@@ -21,4 +22,5 @@ class Particle(PoolableObject):
             self.set_active(False)
             self.emitter.kill_particle(self)
 
-        self.position += self.velocity * MonoliteBehaviour.delta_time
+        self.position += (MonoliteBehaviour.delta_time * self.velocity[0],
+                          MonoliteBehaviour.delta_time * self.velocity[1])

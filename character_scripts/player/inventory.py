@@ -13,7 +13,9 @@ class Inventory:
         self.max_size = 12
         self.items = []
 
-    def add_weapon(self, weapon, slot):
+    def add_weapon(self, player, weapon, slot):
+        weapon.parent = player
+
         if slot == "primary":
             if self.primary_weapon is None:
                 self.primary_weapon = weapon

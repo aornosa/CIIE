@@ -12,6 +12,7 @@ class MonoliteBehaviour:
         self._started = False  # To track if start() has been called
 
         MonoliteBehaviour._instances.append(self)  # Add instance to the global list
+        print(self.__class__.__name__ + " - subscribed to MonoliteBehaviour")
 
         self._call_awake()
 

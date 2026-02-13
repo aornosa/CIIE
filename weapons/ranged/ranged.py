@@ -1,14 +1,14 @@
 import json
-import os
 
 import pygame.draw
 
+from core.monolite_behaviour import MonoliteBehaviour
 from core.particles.particle_emitter import ParticleEmitter
 from core.particles.particle import Particle
 from weapons.weapon_module import Weapon, AMMO_TYPES
 
 
-class Ranged(Weapon):
+class Ranged(Weapon, MonoliteBehaviour):
     def __init__(self, asset, name, damage, max_range, ammo_type, clip_size, fire_rate, reload_time, lock_time=0):
         super().__init__(asset, name, damage)
         self.max_range = max_range      # Maximum effective range in meters before bullet despawns
@@ -24,9 +24,13 @@ class Ranged(Weapon):
 
         self.current_clip = self.clip_size
 
+        self.parent = None  # Will be set when equipped by a character
+
+        self._last_shot_time = 0
+
         particle_asset = self._load_ammo_particle()
-        particle_factory = lambda: Particle(particle_asset, lifespan=self.max_range)
-        self.emitter = ParticleEmitter(particle_factory)
+        particle_factory = lambda: Particle(particle_asset)
+        self.emitter = ParticleEmitter(particle_factory, lifespan=0.5)
 
     def _load_ammo_particle(self):
         # Return a particle configuration based on ammo type
@@ -36,11 +40,24 @@ class Ranged(Weapon):
         asset = pygame.image.load(ammo_data["asset_particle_path"]).convert_alpha()
         return asset
 
+    def update(self):
+        print("Updating Ranged Weapon")
+        if self.parent is not None:
+            self.emitter.set_position(self.parent.position)
+            self.emitter.set_rotation(self.parent.rotation)
+
 
     def shoot(self):
         if self.current_clip > 0:
-            self.current_clip -= 1
-            # Implement shooting logic (raycasting, bullet instantiation, etc.)
+            if self._last_shot_time + self.fire_rate * 1000 <= pygame.time.get_ticks():
+                self._last_shot_time = pygame.time.get_ticks()
+                self.current_clip -= 1
+                # Implement shooting logic (raycasting, bullet instantiation, etc.)
+
+                self.emitter.set_position(self.parent.position)
+                self.emitter.set_rotation(self.parent.rotation)
+
+                self.emitter.emit()
         else:
             # play dry fire
             print("Out of ammo! Reload needed.")

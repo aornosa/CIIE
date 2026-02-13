@@ -20,8 +20,11 @@ enemies = spawn_enemies(5)
 
 test_weapon = Ranged("assets/weapons/ak47.png", "AK-47", 60, 1000,
                      "rifle", 30, 0.1, 2)
+
+
+
 # Test weapon on inventory
-player.inventory.add_weapon(test_weapon, "primary")
+player.inventory.add_weapon(player, test_weapon, "primary")
 
 # Make crosshair
 crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
@@ -48,6 +51,11 @@ def game_loop(screen, clock, im):
     global inventory_is_open
     global can_attack
     global can_aim
+    global attack_ready_time
+
+    # Refactor to render independently
+    test_weapon.emitter.surface = screen
+    test_weapon.emitter.camera = camera
 
     # Get delta time (time between frames)
     delta_time = clock.get_time() / 1000.0
@@ -102,6 +110,8 @@ def game_loop(screen, clock, im):
                 active_weapon.play_trail_effect(screen, (player.position - camera.position)
                                                                   + direction * 35 + direction.rotate(90) * 15
                                                                   , direction)
+            if active_weapon is not None and can_attack:
+                active_weapon.shoot()
 
     elif movement.length() > 0.:  # Only rotate if there's movement
         target_angle = movement.angle_to(pygame.Vector2(0, -1)) # relative to up
