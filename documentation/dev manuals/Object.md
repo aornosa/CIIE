@@ -7,6 +7,8 @@ The `Object` class is conformed by a set of base attributes (position, rotation,
 the transformations of a certain asset in the game world. With the aid of a few external and internal
 functions, any `Object` can be safely and efficiently rendered, managed and updated in the game loop.
 
+For Objects that do not require rendering, check out the `VirtualObject` class.
+
 ### Methods
 - `set_position(position)`: Sets the position (2-tuple) of the object in the game world.
 - `set_rotation(angle)`: Sets the rotation of the object in degrees.

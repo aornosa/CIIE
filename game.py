@@ -18,7 +18,7 @@ camera = Camera()
 
 enemies = spawn_enemies(5)
 
-test_weapon = Ranged("assets/weapons/ak47.png", "AK-47", 60, 1000,
+test_weapon = Ranged("assets/weapons/ak47.png", "AK-47", 60, 1500,
                      "rifle", 30, 0.1, 2, muzzle_offset=(20, 20))
 
 
@@ -39,7 +39,7 @@ can_attack = True
 attack_ready_time = 0
 can_aim = True
 
-FOG_ENABLE = 0
+FOG_ENABLE = 0 # Very resource intensive, need to optimize before enabling.
 
 # Monolite Build Order
 FPS_Counter()
