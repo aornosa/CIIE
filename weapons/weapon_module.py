@@ -2,9 +2,9 @@ import pygame
 from core.object import Object
 
 AMMO_TYPES = {
-    "pistol": "assets/ammo/9x19/9x19.json",
-    "rifle": "assets/ammo/7.62/7.62.json",
-    "shell": "assets/ammo/12Gauge/12Gauge.json",
+    "pistol": "assets/ammo/9x19/data.json",
+    "rifle": "assets/ammo/7.62/data.json",
+    "shell": "assets/ammo/12Gauge/data.json",
 }
 
 class Weapon:
