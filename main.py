@@ -9,6 +9,8 @@ from core import input_handler as ih
 from game import game_loop
 from settings import *
 
+from core.monolite_behaviour import MonoliteBehaviour
+
 
 # Set screen
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -33,6 +35,8 @@ while running:
     # main loop
     game_loop(screen, clock, im)
 
+    # Monolite Behavior update
+    MonoliteBehaviour.update_all(clock.get_time())
 
     pygame.display.flip()
 

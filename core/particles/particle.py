@@ -10,11 +10,11 @@ class Particle(PoolableObject, MonoliteBehaviour):
         self.velocity = velocity
         self.age = lifespan
 
-    def update(self, delta_time):
+    def update(self):
         if not self.is_active():
             return
-        self.age -= delta_time
+        self.age -= MonoliteBehaviour.delta_time
         if self.age <= 0:
             self.set_active(False)
 
-        self.position += self.velocity * delta_time
+        self.position += self.velocity * MonoliteBehaviour.delta_time

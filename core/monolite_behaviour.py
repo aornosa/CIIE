@@ -2,6 +2,7 @@
 
 class MonoliteBehaviour:
     _instances = []  # Global class variable for running instances
+    delta_time = 0  # Class variable to hold delta time for all instances
 
     def __init__(self):
         self._enabled = True  # Whether the behaviour is active
@@ -25,7 +26,7 @@ class MonoliteBehaviour:
     def start(self):
         pass
 
-    def update(self, delta_time):
+    def update(self):
         pass
 
     def on_enable(self):
@@ -58,10 +59,11 @@ class MonoliteBehaviour:
         pass
 
     @classmethod
-    def update_all(cls, delta_time):
+    def update_all(cls, dt):
+        cls.delta_time = dt
         for instance in cls._instances:
             if instance.enabled:
-                instance.update(delta_time)
+                instance.update()
 
             if not instance.enabled:
                 continue
