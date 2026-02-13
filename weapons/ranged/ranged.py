@@ -1,6 +1,11 @@
+import json
+
 import pygame.draw
 
-from weapons.weapon_module import Weapon
+from core.particles.particle_emitter import ParticleEmitter
+from core.particles.particle import Particle
+from weapons.weapon_module import Weapon, AMMO_TYPES
+
 
 class Ranged(Weapon):
     def __init__(self, asset, name, damage, max_range, ammo_type, clip_size, fire_rate, reload_time, lock_time=0):
@@ -17,6 +22,15 @@ class Ranged(Weapon):
         self.lock_time = lock_time
 
         self.current_clip = self.clip_size
+        # self.emitter = ParticleEmitter((0,0), self._get_ammo_particle())
+
+    def _get_ammo_particle(self):
+        # Return a particle configuration based on ammo type
+        ammo_data = json.loads(AMMO_TYPES[self.ammo_type])
+        asset = pygame.image.load(ammo_data["asset_particle_path"]).convert_alpha()
+
+        return Particle(asset, lifespan=self.max_range)
+
 
     def shoot(self):
         if self.current_clip > 0:

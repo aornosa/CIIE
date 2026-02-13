@@ -3,7 +3,7 @@ from core.poolable_object import PoolableObject
 
 
 class Particle(PoolableObject, MonoliteBehaviour):
-    def __init__(self, asset, position, velocity, lifespan):
+    def __init__(self, asset, position=(0,0), velocity=(0,0), lifespan=10):
         super().__init__()
         self.asset = asset
         self.position = position
