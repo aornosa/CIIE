@@ -21,7 +21,6 @@ enemies = spawn_enemies(5)
 test_weapon = Ranged("assets/weapons/ak47.png", "AK-47", 60, 1000,
                      "rifle", 30, 0.1, 2, muzzle_offset=(20, 20))
 
-test_weapon.parent = player
 
 # Test weapon on inventory
 player.inventory.add_weapon(player, test_weapon, "primary")
