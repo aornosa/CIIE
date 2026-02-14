@@ -19,9 +19,17 @@ class InputHandler:
             "look_y": 0,
         }
         self.mouse_position = pygame.Vector2(0, 0)
+        self.keys_just_pressed = {}  # Track keys pressed this frame
+        
+    def reset_frame(self):
+        """Call at the start of each frame to clear single-frame inputs"""
+        self.keys_just_pressed.clear()
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
+            # Track this key as just pressed
+            self.keys_just_pressed[event.key] = True
+            
             if event.key == pygame.K_a:
                 self.actions["move_x"] += -1
             elif event.key == pygame.K_d:
@@ -93,3 +101,11 @@ class InputHandler:
 
         #elif event.type == pygame.MOUSEWHEEL: # Scrollwheel
         #   self.actions["swap_weapon"] = event.y
+    
+    def get_keys_pressed(self):
+        """Get current state of all keys"""
+        return pygame.key.get_pressed()
+    
+    def get_keys_just_pressed(self):
+        """Get dictionary of keys pressed this frame"""
+        return self.keys_just_pressed

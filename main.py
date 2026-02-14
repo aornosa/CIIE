@@ -35,6 +35,7 @@ running = True
 #MonoliteBehaviour.instantiate_all()
 
 while running:
+    im.reset_frame()  # Clear single-frame inputs
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False

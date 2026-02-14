@@ -3,6 +3,7 @@ from game_math import utils as math
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT, _CAM_BORDER_RADIUS
 from ui import ui_manager
 from ui.fps_counter import FPS_Counter
+from ui.dialog import draw_dialog_ui
 
 from core.camera import Camera
 from character_scripts.player.player import Player
@@ -11,6 +12,9 @@ from character_scripts.character_controller import CharacterController
 from weapons.ranged.ranged import Ranged
 from runtime.round_manager import *
 from core.status_effects import StatusEffect
+from dialogs.dialog_manager import DialogManager
+from dialogs.test_dialogs import create_test_dialog_simple
+from map.interactables.npc import NPC
 
 player = Player("assets/player/survivor-idle_rifle_0.png", (0.0,0.0))
 controller = CharacterController( 250, player)
@@ -18,7 +22,7 @@ camera = Camera()
 
 enemies = spawn_enemies(5)
 
-test_weapon = Ranged("assets/weapons/ak47.png", "AK-47", 60, 1500,
+test_weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
                      "rifle", 30, 0.1, 2, muzzle_offset=(20, 20))
 
 
@@ -31,7 +35,15 @@ crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
 # Status effects
 ads_se = StatusEffect("assets/effects/ads","Aiming Down Sights", {"speed": -70}, -1)
 
+# Dialog System
+dialog_manager = DialogManager()
 
+# Test NPC with dialog
+test_npc = NPC(
+    name="npc",
+    dialog_tree=create_test_dialog_simple(),
+    position=(300, 200)
+)
 
 # Bool state flags (change into enumerated state manager later)
 inventory_is_open = False
@@ -58,9 +70,17 @@ def game_loop(screen, clock, im):
 
     # Get delta time (time between frames)
     delta_time = clock.get_time() / 1000.0
+    
+    # Handle dialog input (takes priority when active)
+    # InputHandler now manages all key state
+    dialog_manager.input_handler = im  # Set reference
+    dialog_manager.handle_input(im.get_keys_pressed(), im.get_keys_just_pressed())
 
-    # Update Movement
-    movement = pygame.Vector2(im.actions["move_x"], im.actions["move_y"])
+    # Update Movement (disabled during dialog)
+    if dialog_manager.is_dialog_active:
+        movement = pygame.Vector2(0, 0)
+    else:
+        movement = pygame.Vector2(im.actions["move_x"], im.actions["move_y"])
 
     # Crosshair follows mouse
     mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
@@ -78,8 +98,14 @@ def game_loop(screen, clock, im):
     # Get current speed before calculating
     controller.speed = player.get_stat("speed")
 
-    # Toggle inventory
-    if im.actions["inventory"]:
+    # Check NPC interaction
+    if im.actions["interact"] and not dialog_manager.is_dialog_active:
+        im.actions["interact"] = False
+        if test_npc.is_player_in_range(player.position):
+            test_npc.interact(player)
+    
+    # Toggle inventory (disabled during dialog)
+    if im.actions["inventory"] and not dialog_manager.is_dialog_active:
         im.actions["inventory"] = False  # Reset action
         inventory_is_open = not inventory_is_open
         print("Inventory toggled:", inventory_is_open)
@@ -138,6 +164,9 @@ def game_loop(screen, clock, im):
     # draw enemies/items onto entity surface
     for enemy in enemies:
         enemy.draw(entity_surface, camera)
+    
+    # Draw NPC
+    test_npc.draw(entity_surface, camera)
 
     if FOG_ENABLE:
         # clip entities using mask
@@ -166,6 +195,9 @@ def game_loop(screen, clock, im):
 
     # Draw UI last
     ui_manager.draw_overlay(screen, player)
+    
+    # Draw dialog UI (must be last, on top of everything)
+    draw_dialog_ui(screen, dialog_manager)
 
 
 def camera_follow(target, cam, delta_time, speed=10, position_relative=True):
