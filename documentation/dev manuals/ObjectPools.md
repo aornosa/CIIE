@@ -34,15 +34,17 @@ To use an `ObjectPool`, you only need to declare an instance of such, and then c
 to get an object from the pool, and `release(obj)` to return it when you're done.
 
 ```python
-from core.object_pool import Pool
-from core.poolable_object import PoolableObject
+from core.pools.object_pool import Pool
+from core.pools.poolable_object import PoolableObject
+
 
 class PoolableExample(PoolableObject):
     def __init__(self):
         super().__init__()
-        
+
+
 # Optional starting size, default is 10
-my_pool = Pool(PoolableExample, starting_size=10) 
+my_pool = Pool(PoolableExample, starting_size=10)
 
 # Acquire an object from the pool
 obj = my_pool.acquire()

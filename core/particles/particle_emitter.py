@@ -1,7 +1,7 @@
 import pygame
 
 from core.monolite_behaviour import MonoliteBehaviour
-from core.object_pool import Pool
+from core.pools.object_pool import Pool
 from core.virtual_object import VirtualObject
 
 

@@ -1,5 +1,5 @@
 from core.monolite_behaviour import MonoliteBehaviour
-from core.poolable_object import PoolableObject
+from core.pools.poolable_object import PoolableObject
 
 
 class Particle(PoolableObject):
