@@ -21,7 +21,7 @@ from game import game_loop
 from core.monolite_behaviour import MonoliteBehaviour
 
 
-pygame.display.set_caption("Zombie Horde Game")
+pygame.display.set_caption("Armengard")
 pygame.display.set_icon(pygame.image.load("assets/icon.png").convert())
 
 # Set clock

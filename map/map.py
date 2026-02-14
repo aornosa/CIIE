@@ -1,3 +1,6 @@
+from map_chunk import Chunk
+
+
 class Map:
     def __init__(self, width, height):
         self.width = width
@@ -12,3 +15,9 @@ class Map:
 
     def get_tile(self, x, y):
         return self.tiles[y][x]
+
+    def set_chunk(self, chunk: Chunk, chunk_pos):
+        pass
+
+    def get_chunk(self, chunk_pos) -> Chunk:
+        pass
