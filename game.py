@@ -1,5 +1,9 @@
 from character_scripts.player.inventory import show_inventory
+from core.collision.collision_manager import CollisionManager
+from core.collision.quadtree import Rectangle
+
 from game_math import utils as math
+
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT, _CAM_BORDER_RADIUS
 from ui import ui_manager
 from ui.fps_counter import FPS_Counter
@@ -15,6 +19,7 @@ from core.status_effects import StatusEffect
 from dialogs.dialog_manager import DialogManager
 from dialogs.test_dialogs import create_test_dialog_simple
 from map.interactables.npc import NPC
+
 
 player = Player("assets/player/survivor-idle_rifle_0.png", (0.0,0.0))
 controller = CharacterController( 250, player)
@@ -53,7 +58,10 @@ can_aim = True
 
 FOG_ENABLE = 0 # Very resource intensive, need to optimize before enabling.
 
+world_bounds = Rectangle(-2000, -2000, 4000, 4000)
+
 # Monolite Build Order
+CollisionManager(world_bounds, camera)
 FPS_Counter()
 
 # Main game loop

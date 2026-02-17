@@ -1,5 +1,7 @@
 import pygame
 from core.object import Object
+from core.collision.collider import Collider
+from core.collision.quadtree import Rectangle
 
 DEFAULT_STATS = {
     "max_health": 100,
@@ -20,6 +22,7 @@ class Character(Object):
         self.current_stats = dict(DEFAULT_STATS)
 
         self.effects = {}
+        self.collider = Collider(self, Rectangle.from_rect(self.asset.get_rect()))
 
     def attack(self, other, damage):
         other.take_damage(damage)
@@ -62,6 +65,3 @@ class Character(Object):
 
     def get_stat(self, key):
         return self.current_stats.get(key, 0)
-
-    def update(self, delta_time):
-        pass
