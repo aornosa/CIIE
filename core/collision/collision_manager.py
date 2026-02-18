@@ -2,7 +2,7 @@ import pygame
 
 from core.collision.quadtree import QuadTree
 from core.monolite_behaviour import MonoliteBehaviour
-
+from settings import ENABLE_COLLISION_DEBUG
 
 
 class CollisionManager(MonoliteBehaviour):
@@ -36,7 +36,8 @@ class CollisionManager(MonoliteBehaviour):
             # make sure collider rect is inside world bounds; you may want to clamp or expand bounds instead
             self.quadtree.insert(c)
             c.sync_with_owner() # TODO: Move later into character update loop
-        self.draw_debug_boxes(pygame.display.get_surface(), self.camera)
+        if ENABLE_COLLISION_DEBUG:
+            self.draw_debug_boxes(pygame.display.get_surface(), self.camera)
 
     def draw_debug_boxes(self, surface, camera=None, color=(255, 0, 255)):
         self._draw_node(surface, self.quadtree, color, camera)

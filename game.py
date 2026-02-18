@@ -187,7 +187,6 @@ def game_loop(screen, clock, im):
     controller.move(movement, delta_time)
     player.draw(screen, camera)
 
-    print(player.collider.check_collision())
 
     # Draw inventory on top if open
     if inventory_is_open:
