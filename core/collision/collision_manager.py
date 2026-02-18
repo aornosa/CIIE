@@ -15,6 +15,10 @@ class CollisionManager(MonoliteBehaviour):
         self.world_bounds = world_bounds
         self.quadtree = QuadTree(self.world_bounds, 4)
 
+        # Replaces quadtree
+        self.static_qtree = QuadTree(self.world_bounds, 4)
+        self.dynamic_qtree = QuadTree(self.world_bounds, 4)
+
         if set_active:
             CollisionManager._active = self
 

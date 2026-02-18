@@ -4,11 +4,13 @@ from core.collision.collision_manager import CollisionManager
 
 
 class Collider:
-    def __init__(self, owner, rect, layer=0, tag=None):
+    def __init__(self, owner, rect, *, layer=0, tag=None, static=False):
         self.owner = owner
         self.rect = rect
         self.layer = layer
         self.tag = tag
+
+        self.static = static
 
         CollisionManager.colliders.append(self)
 
