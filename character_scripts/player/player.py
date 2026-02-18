@@ -1,5 +1,6 @@
 from character_scripts.character import Character, DEFAULT_STATS
 from character_scripts.player.inventory import Inventory
+from core.collision.layers import LAYERS
 
 DEFAULT_STATS = {
     **DEFAULT_STATS,
@@ -14,6 +15,7 @@ class Player(Character):
         super().__init__(asset, position, rotation, scale, name, health)
         self.score = 0
         self.inventory = Inventory()
+        self.collider.layer = LAYERS["player"]
 
     def add_score(self, points):
         self.score += points

@@ -1,5 +1,6 @@
 import pygame
 
+from core.collision.layers import LAYERS, get_layer_name
 from core.collision.quadtree import QuadTree
 from core.monolite_behaviour import MonoliteBehaviour
 from settings import ENABLE_COLLISION_DEBUG
@@ -70,6 +71,7 @@ class CollisionManager(MonoliteBehaviour):
                 if camera is not None:
                     r = r.move(-camera.position[0], -camera.position[1])
                 pygame.draw.rect(surface, (255, 0, 0), r, 1)
+                self._draw_collider_label(surface, r, c)
 
         if self.static_colliders:
             for c in self.static_colliders:
@@ -77,6 +79,7 @@ class CollisionManager(MonoliteBehaviour):
                 if camera is not None:
                     r = r.move(-camera.position[0], -camera.position[1])
                 pygame.draw.rect(surface, (0, 150, 255), r, 1)
+                self._draw_collider_label(surface, r, c)
 
 
     def _draw_node(self, surface: pygame.Surface, node: QuadTree, color, camera=None):
@@ -88,6 +91,18 @@ class CollisionManager(MonoliteBehaviour):
             for child in (node.northeast, node.northwest, node.southeast, node.southwest):
                 if child:
                     self._draw_node(surface, child, color, camera)
+
+    @staticmethod
+    def _draw_collider_label(surface: pygame.Surface, rect: pygame.Rect, collider):
+        text = f"L:{get_layer_name(collider.layer)}"
+        img = pygame.font.SysFont("consolas", 16).render(text, True, (255, 255, 255))
+        pad = 2
+
+        bg = img.get_rect(topleft=(rect.x, rect.y - img.get_height() - pad))
+        bg.inflate_ip(pad * 2, pad * 2)
+        pygame.draw.rect(surface, (0, 0, 0), bg)
+
+        surface.blit(img, (bg.x + pad, bg.y + pad))
 
     @classmethod
     def query_collider(cls, collider):
