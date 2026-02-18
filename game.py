@@ -20,10 +20,17 @@ from dialogs.dialog_manager import DialogManager
 from dialogs.test_dialogs import create_test_dialog_simple
 from map.interactables.npc import NPC
 
+# Predeclaration
+world_bounds = Rectangle(-2000, -2000, 4000, 4000)
+camera = Camera()
+
+# Monolite Build Order
+CollisionManager(world_bounds, camera)
+FPS_Counter()
+
 
 player = Player("assets/player/survivor-idle_rifle_0.png", (0.0,0.0))
 controller = CharacterController( 250, player)
-camera = Camera()
 
 enemies = spawn_enemies(5)
 
@@ -58,11 +65,7 @@ can_aim = True
 
 FOG_ENABLE = 0 # Very resource intensive, need to optimize before enabling.
 
-world_bounds = Rectangle(-2000, -2000, 4000, 4000)
 
-# Monolite Build Order
-CollisionManager(world_bounds, camera)
-FPS_Counter()
 
 # Main game loop
 def game_loop(screen, clock, im):

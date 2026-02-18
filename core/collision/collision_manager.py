@@ -34,17 +34,26 @@ class CollisionManager(MonoliteBehaviour):
             raise RuntimeError("No active CollisionManager instance is set")
         return cls._active
 
+    @classmethod
+    def add_collider(cls, collider):
+        if collider.static:
+            cls.active().static_qtree.insert(collider)
+        else:
+            cls.colliders.append(collider)
+            cls.active().dynamic_qtree.insert(collider)
+
     def update(self):
-        self.quadtree.clear()
+        self.dynamic_qtree.clear()
         for c in self.colliders:
             # make sure collider rect is inside world bounds; you may want to clamp or expand bounds instead
-            self.quadtree.insert(c)
+            self.dynamic_qtree.insert(c)
             c.sync_with_owner() # TODO: Move later into character update loop
         if ENABLE_COLLISION_DEBUG:
             self.draw_debug_boxes(pygame.display.get_surface(), self.camera)
 
     def draw_debug_boxes(self, surface, camera=None, color=(255, 0, 255)):
-        self._draw_node(surface, self.quadtree, color, camera)
+        self._draw_node(surface, self.dynamic_qtree, color, camera)
+        self._draw_node(surface, self.static_qtree, (0, 255, 255), camera)
         if self.colliders:
             for c in self.colliders:
                 r = c.rect.to_rect()
@@ -76,8 +85,13 @@ class CollisionManager(MonoliteBehaviour):
         return cls.active().collides_any(collider, layers=layers, tags=tags, include_self=include_self)
 
     def get_collisions(self, collider, *, layers=None, tags=None, include_self=False):
-        candidates = self.quadtree.query(collider.rect)
         results = []
+
+        if collider.static:
+            candidates = self.dynamic_qtree.query(collider.rect)
+        else:
+            candidates = (self.dynamic_qtree.query(collider.rect) +
+                          self.static_qtree.query(collider.rect))
 
         for other in candidates:
             # Skip self unless explicitly included

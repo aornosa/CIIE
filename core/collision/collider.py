@@ -12,7 +12,8 @@ class Collider:
 
         self.static = static
 
-        CollisionManager.colliders.append(self)
+        CollisionManager.add_collider(self)
+
 
     def sync_with_owner(self, sync_position=True, sync_rotation=False, sync_scale=True):
         # Sync the collider's position with its owner's position
