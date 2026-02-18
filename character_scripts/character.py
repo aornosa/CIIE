@@ -23,7 +23,6 @@ class Character(Object):
 
         self.effects = {}
         self.collider = Collider(self, Rectangle.from_rect(self.asset.get_rect()))
-        self.collider.rect.owner = self.collider #Fix
 
     def attack(self, other, damage):
         other.take_damage(damage)

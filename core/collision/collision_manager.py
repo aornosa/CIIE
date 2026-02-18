@@ -8,19 +8,34 @@ from core.monolite_behaviour import MonoliteBehaviour
 class CollisionManager(MonoliteBehaviour):
     colliders = []
 
-    def __init__(self, world_bounds, camera=None):
+    _active = None
+
+    def __init__(self, world_bounds, camera=None, set_active=True):
         MonoliteBehaviour.__init__(self)
         self.world_bounds = world_bounds
         self.quadtree = QuadTree(self.world_bounds, 4)
 
+        if set_active:
+            CollisionManager._active = self
+
         self.camera = camera
+
+    @classmethod
+    def set_active(cls, instance):
+        cls._active = instance
+
+    @classmethod
+    def active(cls):
+        if cls._active is None:
+            raise RuntimeError("No active CollisionManager instance is set")
+        return cls._active
 
     def update(self):
         self.quadtree.clear()
         for c in self.colliders:
             # make sure collider rect is inside world bounds; you may want to clamp or expand bounds instead
             self.quadtree.insert(c)
-            c.sync_with_owner() # FIXME: Move later into character update loop
+            c.sync_with_owner() # TODO: Move later into character update loop
         self.draw_debug_boxes(pygame.display.get_surface(), self.camera)
 
     def draw_debug_boxes(self, surface, camera=None, color=(255, 0, 255)):
@@ -43,58 +58,84 @@ class CollisionManager(MonoliteBehaviour):
                 if child:
                     self._draw_node(surface, child, color, camera)
 
+    @classmethod
+    def query_collider(cls, collider):
+        return cls.active().quadtree.query(collider.rect)
 
-    def query_colliders(self, collider):
-        return self.quadtree.query(collider.rect)
+    @classmethod
+    def get_collisions_active(cls, collider, *, layers=None, tags=None, include_self=False):
+        return cls.active().get_collisions(collider, layers=layers, tags=tags, include_self=include_self)
 
+    @classmethod
+    def collides_any_active(cls, collider, *, layers=None, tags=None, include_self=False):
+        return cls.active().collides_any(collider, layers=layers, tags=tags, include_self=include_self)
 
     def get_collisions(self, collider, *, layers=None, tags=None, include_self=False):
-        result = []
-        seen = set()
+        candidates = self.quadtree.query(collider.rect)
+        results = []
 
-        my_rect = collider.rect.to_rect()
-
-        for rect in self.quadtree.query(collider.rect):
-            other = self._rect_to_collider.get(id(rect))
-            if other is None:
-                continue
-
+        for other in candidates:
+            # Skip self unless explicitly included
             if not include_self and other is collider:
                 continue
 
-            if layers is not None and other.layer not in layers:
-                continue
+            # Layer filtering
+            if layers is not None:
+                if isinstance(layers, (list, tuple, set)):
+                    if other.layer not in layers:
+                        continue
+                else:
+                    if other.layer != layers:
+                        continue
 
-            if tags is not None and other.tag not in tags:
-                continue
+            # Tag filtering
+            if tags is not None:
+                if isinstance(tags, (list, tuple, set)):
+                    if other.tag not in tags:
+                        continue
+                else:
+                    if other.tag != tags:
+                        continue
 
-            if my_rect.colliderect(other.rect.to_rect()):
-                oid = id(other)
-                if oid not in seen:
-                    seen.add(oid)
-                    result.append(other)
+            # Narrow-phase precise check (rectangle intersection)
+            if (
+                    collider.rect.contains(other.rect)
+                    or collider.rect.fully_contains(other.rect)
+                    or other.rect.contains(collider.rect)
+            ):
+                results.append(other)
 
-        return result
+        return results
 
     def collides_any(self, collider, *, layers=None, tags=None, include_self=False):
-        """Returns True if `collider` collides with at least one other collider."""
-        my_rect = collider.rect.to_rect()
+        candidates = self.quadtree.query(collider.rect)
 
-        for rect in self.quadtree.query(collider.rect):
-            other = self._rect_to_collider.get(id(rect)) #FIXME: Retrieve collider
-            if other is None:
-                continue
-
+        #FIXME: Duplicated code
+        for other in candidates:
             if not include_self and other is collider:
                 continue
 
-            if layers is not None and other.layer not in layers:
-                continue
+            if layers is not None:
+                if isinstance(layers, (list, tuple, set)):
+                    if other.layer not in layers:
+                        continue
+                else:
+                    if other.layer != layers:
+                        continue
 
-            if tags is not None and other.tag not in tags:
-                continue
+            if tags is not None:
+                if isinstance(tags, (list, tuple, set)):
+                    if other.tag not in tags:
+                        continue
+                else:
+                    if other.tag != tags:
+                        continue
 
-            if my_rect.colliderect(other.rect.to_rect()):
+            if (
+                    collider.rect.contains(other.rect)
+                    or collider.rect.fully_contains(other.rect)
+                    or other.rect.contains(collider.rect)
+            ):
                 return True
 
         return False

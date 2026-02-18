@@ -23,3 +23,6 @@ class Collider:
             s = self.owner.scale
             self.rect.h = s * self.owner.asset.get_height() * 0.5
             self.rect.w = s * self.owner.asset.get_width() * 0.5
+
+    def check_collision(self, layers=None, tags=None, include_self=False):
+        return CollisionManager.get_collisions_active(self, layers=layers, tags=tags, include_self=include_self)

@@ -12,8 +12,6 @@ class Rectangle:
         self.h = h
         self.w = w
 
-        self.owner = owner
-
     def bounds(self):
         left = self.x - self.w
         right = self.x + self.w
@@ -121,14 +119,14 @@ class QuadTree:
 
         # Check items at this node
         for item in self.items:
-            if range_rect.contains(item) or range_rect.fully_contains(item) or item.fully_contains(range_rect):
+            if range_rect.contains(item.rect) or range_rect.fully_contains(item.rect) or item.rect.fully_contains(range_rect):
                 found.append(item)
 
         # Check children
         if self.is_divided:
-            self.northwest.query(range_rect, found)
-            self.northeast.query(range_rect, found)
-            self.southwest.query(range_rect, found)
-            self.southeast.query(range_rect, found)
+            found.extend(self.northwest.query(range_rect))
+            found.extend(self.northeast.query(range_rect))
+            found.extend(self.southwest.query(range_rect))
+            found.extend(self.southeast.query(range_rect))
 
         return found

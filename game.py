@@ -174,7 +174,7 @@ def game_loop(screen, clock, im):
         enemy.draw(entity_surface, camera)
     
     # Draw NPC
-    test_npc.draw(entity_surface, camera)
+    #test_npc.draw(entity_surface, camera)
 
     if FOG_ENABLE:
         # clip entities using mask
@@ -185,8 +185,9 @@ def game_loop(screen, clock, im):
 
     # Move and draw player
     controller.move(movement, delta_time)
-    camera.move((im.actions["look_x"]* delta_time * 300, im.actions["look_y"]* delta_time * 300)) #Testing
     player.draw(screen, camera)
+
+    print(player.collider.check_collision())
 
     # Draw inventory on top if open
     if inventory_is_open:
