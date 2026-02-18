@@ -1,5 +1,6 @@
 import json
 from character_scripts.character import Character
+from core.collision.layers import LAYERS
 
 # Substitute with JSON type object
 ENEMY_TYPES = {
@@ -19,6 +20,7 @@ class Enemy(Character):
         super().__init__(asset, position, rotation, scale, name, health)
         self.strength = strength
         self.behavior = None  # Placeholder for AI behavior
+        self.collider.layer = LAYERS["enemy"]
 
     def is_alive(self):
         return self.health > 0
