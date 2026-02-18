@@ -6,7 +6,7 @@ if TYPE_CHECKING:
 
 
 class Rectangle:
-    def __init__(self, x, y, h, w, owner=None):
+    def __init__(self, x, y, h, w):
         self.x = x
         self.y = y
         self.h = h
@@ -41,12 +41,12 @@ class Rectangle:
         return pygame.Rect(self.x - self.w, self.y - self.h, self.w * 2, self.h * 2)
 
     @staticmethod
-    def from_rect(rect: pygame.Rect, owner=None):
+    def from_rect(rect: pygame.Rect):
         x = rect.x + rect.width / 2
         y = rect.y + rect.height / 2
         w = rect.width / 2
         h = rect.height / 2
-        return Rectangle(x, y, h, w, owner)
+        return Rectangle(x, y, h, w)
 
 
 class QuadTree:
