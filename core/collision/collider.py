@@ -10,9 +10,26 @@ class Collider:
         self.layer = layer
         self.tag = tag
 
-        self.static = static
+        self._static = static
 
         CollisionManager.add_collider(self)
+
+    @property
+    def static(self):
+        return self._static
+
+    @static.setter
+    def static(self, value):
+        if self._static != value:
+            self._static = value
+            # Reinsert into the correct quadtree
+            if value:
+                CollisionManager.dynamic_colliders.discard(self)
+                CollisionManager.active().dynamic_qtree.clear()
+            else:
+                CollisionManager.static_colliders.discard(self)
+                CollisionManager.active().static_qtree.remove(self)
+            CollisionManager.add_collider(self)
 
 
     def sync_with_owner(self, sync_position=True, sync_rotation=False, sync_scale=True):

@@ -110,6 +110,23 @@ class QuadTree:
             self.southwest.clear()
             self.southeast.clear()
 
+    def remove(self, item: Collider):
+        if item in self.items:
+            self.items.remove(item)
+            return True
+
+        if self.is_divided:
+            if self.northwest.remove(item):
+                return True
+            if self.northeast.remove(item):
+                return True
+            if self.southwest.remove(item):
+                return True
+            if self.southeast.remove(item):
+                return True
+
+        return False
+
     def query(self, range_rect: Rectangle):
         found = []
 

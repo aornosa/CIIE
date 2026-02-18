@@ -27,7 +27,7 @@ class CharacterController:
         coll = self.character.collider
         old_pos = pygame.Vector2(self.character.position)
 
-        coll.sync_with_owner()
+        coll.sync_with_owner()  # WILL OVERRIDE STATIC (DO NOT USE WITH STATIC COLLIDERS)
 
         # Handle x axis
         self.character.position = pygame.Vector2(old_pos.x + delta.x, old_pos.y)
