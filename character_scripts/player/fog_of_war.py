@@ -1,55 +1,79 @@
 import pygame
 
+from core.monolite_behaviour import MonoliteBehaviour
+
 OPACITY = 0.6
 
-def create_vision_mask(screen, player, camera, radius, player_radius, angle):
-    opacity = int(255 * OPACITY)
-    screen_size = screen.get_size()
-    mask = pygame.Surface(screen_size, pygame.SRCALPHA)
-    mask.fill((0, 0, 0, opacity))
+class FogOfWar(MonoliteBehaviour):
+    def __init__(self, player, camera):
+        MonoliteBehaviour.__init__(self)
+        self.player = player
+        self.camera = camera
+        self.angle = 80
 
-    # Draw circle around the player
-    pygame.draw.circle(mask, (255, 255, 255, 0), player.position-camera.position, player_radius)
+        self.arc_template = self.build_arc_points()
 
-    points = [player.position-camera.position+pygame.Vector2(player_radius, 0).rotate(-player.rotation),
-              player.position-camera.position+pygame.Vector2(-player_radius, 0).rotate(-player.rotation)]
+        screen = pygame.display.get_surface()
+        screen.get_size()
 
-    start_angle = -player.rotation - angle / 2 -90
-    end_angle = -player.rotation + angle / 2 -90
+        self.fog_mask = pygame.Surface(screen.get_size(), pygame.SRCALPHA).convert_alpha()
+        self.visibility_mask = pygame.Surface(screen.get_size(), pygame.SRCALPHA).convert_alpha()
 
-    for a in range(int(start_angle), int(end_angle) + 1, 2):
-        vec = pygame.Vector2(1, 0).rotate(a)
-        points.append(player.position -camera.position + vec * radius)
+    def update(self):
+        screen = pygame.display.get_surface()
+        self.update_vision_mask(1800, 250)
+        self.update_visibility_mask(1800, 250)
+        screen.blit(self.fog_mask, (0, 0))
 
-    pygame.draw.polygon(mask, (0, 0, 0, 0), points)
 
-    return mask
+    def build_arc_points(self, step=2):
+        half = self.angle / 2
+        points = []
+        for a in range(int(-half - 90), int(half - 90) + 1, step):
+            vec = pygame.Vector2(1, 0).rotate(a)
+            points.append(vec)
+        return points
 
-## Duplicated code. Fix later
-def create_visibility_mask(screen, player, camera, radius, player_radius, angle):
-    screen_size = screen.get_size()
 
-    mask = pygame.Surface(screen_size, pygame.SRCALPHA)
-    mask.fill((255, 255, 255, 0))
+    def update_vision_mask(self, radius=1800, player_radius=250):
+        opacity = int(255 * OPACITY)
+        self.fog_mask.fill((0, 0, 0, opacity))
 
-    player_pos = player.position - camera.position
+        player_pos = self.player.position - self.camera.position
 
-    # visible circle
-    pygame.draw.circle(mask, (255, 255, 255, 255), player_pos, player_radius)
+        # Clear circle around player
+        pygame.draw.circle(self.fog_mask, (0, 0, 0, 0), player_pos, player_radius)
 
-    points = [
-        player_pos + pygame.Vector2(player_radius, 0).rotate(-player.rotation),
-        player_pos + pygame.Vector2(-player_radius, 0).rotate(-player.rotation)
-    ]
+        # Starting edge points
+        points = [
+            player_pos + pygame.Vector2(player_radius, 0).rotate(-self.player.rotation),
+            player_pos + pygame.Vector2(-player_radius, 0).rotate(-self.player.rotation)
+        ]
 
-    start_angle = -player.rotation - angle / 2 - 90
-    end_angle = -player.rotation + angle / 2 - 90
+        # Rotate precomputed arc instead of recomputing trig
+        rot = -self.player.rotation
+        for vec in self.arc_template:
+            points.append(player_pos + vec.rotate(rot) * radius)
 
-    for a in range(int(start_angle), int(end_angle) + 1, 2):
-        vec = pygame.Vector2(1, 0).rotate(a)
-        points.append(player_pos + vec * radius)
+        pygame.draw.polygon(self.fog_mask, (0, 0, 0, 0), points)
 
-    pygame.draw.polygon(mask, (255, 255, 255, 255), points)
+    ## Duplicated code. Fix later
+    def update_visibility_mask(self, radius=1800, player_radius=250):
+        self.visibility_mask.fill((255, 255, 255, 0))
 
-    return mask
+        player_pos = self.player.position - self.camera.position
 
+        # visible circle
+        pygame.draw.circle(self.visibility_mask, (255, 255, 255, 255), player_pos, player_radius)
+
+        points = [
+            player_pos + pygame.Vector2(player_radius, 0).rotate(-self.player.rotation),
+            player_pos + pygame.Vector2(-player_radius, 0).rotate(-self.player.rotation)
+        ]
+
+        # Rotate precomputed arc instead of recomputing trig
+        rot = -self.player.rotation
+        for vec in self.arc_template:
+            points.append(player_pos + vec.rotate(rot) * radius)
+
+        pygame.draw.polygon(self.visibility_mask, (255, 255, 255, 255), points)

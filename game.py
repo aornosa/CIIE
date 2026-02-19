@@ -26,7 +26,6 @@ camera = Camera()
 
 # Monolite Build Order
 CollisionManager(world_bounds, camera)
-FPS_Counter()
 
 
 player = Player("assets/player/survivor-idle_rifle_0.png", (0.0,0.0))
@@ -63,9 +62,11 @@ can_attack = True
 attack_ready_time = 0
 can_aim = True
 
-FOG_ENABLE = 0 # Very resource intensive, need to optimize before enabling.
+FOG_ENABLE = 1 # Very resource intensive, need to optimize before enabling.
 
 
+fow = FogOfWar(player, camera)
+FPS_Counter()
 
 # Main game loop
 def game_loop(screen, clock, im):
@@ -74,6 +75,7 @@ def game_loop(screen, clock, im):
     global can_attack
     global can_aim
     global attack_ready_time
+    global fow
 
     # Refactor to render independently
     test_weapon.emitter.surface = screen
@@ -165,10 +167,7 @@ def game_loop(screen, clock, im):
     # create fog of war
     visibility_mask = None
     if FOG_ENABLE:
-        fog_mask = create_vision_mask(screen, player, camera, 1800, 250, 80)
-        screen.blit(fog_mask, (0, 0))
-
-        visibility_mask = create_visibility_mask(screen, player, camera, 1800, 250, 80)
+        visibility_mask = fow.visibility_mask
 
     entity_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
 
