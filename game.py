@@ -18,7 +18,7 @@ from runtime.round_manager import *
 from core.status_effects import StatusEffect
 from dialogs.dialog_manager import DialogManager
 from dialogs.test_dialogs import create_test_dialog_simple
-from map.interactables.npc import NPC
+from character_scripts.npc.npc import NPC
 
 # Predeclaration
 world_bounds = Rectangle(-2000, -2000, 4000, 4000)
@@ -53,8 +53,8 @@ dialog_manager = DialogManager()
 # Test NPC with dialog
 test_npc = NPC(
     name="npc",
-    dialog_tree=create_test_dialog_simple(),
-    position=(300, 200)
+    position=(300, 200),
+    dialog_tree=create_test_dialog_simple()
 )
 
 # Bool state flags (change into enumerated state manager later)

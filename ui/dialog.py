@@ -28,7 +28,17 @@ def draw_dialog_ui(screen, dialog_manager):
     if not current_node:
         return
     
+    # Calculate position
     box_y = SCREEN_HEIGHT - DIALOG_BOX_HEIGHT - DIALOG_BOX_MARGIN - DIALOG_BOX_Y_OFFSET
+    
+    # Check if we have a valid cached surface
+    cached_surface = dialog_manager.get_cached_surface()
+    if cached_surface:
+        # Use cached surface - no rendering needed!
+        screen.blit(cached_surface, (DIALOG_BOX_MARGIN, box_y))
+        return
+    
+    # Cache miss - need to render
     box_width = SCREEN_WIDTH - (DIALOG_BOX_MARGIN * 2)
     
     dialog_surface = pygame.Surface((box_width, DIALOG_BOX_HEIGHT), pygame.SRCALPHA)
@@ -92,6 +102,9 @@ def draw_dialog_ui(screen, dialog_manager):
         font_small = pygame.font.Font(None, 24)
         prompt = font_small.render("Press [E] or [Enter] to continue...", True, COLOR_OPTION_NORMAL)
         dialog_surface.blit(prompt, (text_x, text_y))
+    
+    # Cache the rendered surface for next frame
+    dialog_manager.set_cached_surface(dialog_surface)
     
     screen.blit(dialog_surface, (DIALOG_BOX_MARGIN, box_y))
 
