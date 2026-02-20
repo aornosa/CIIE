@@ -3,6 +3,7 @@ from core.collision.collision_manager import CollisionManager
 from core.collision.quadtree import Rectangle
 
 from game_math import utils as math
+from item.item_loader import ItemRegistry
 
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT, _CAM_BORDER_RADIUS
 from ui import ui_manager
@@ -26,6 +27,8 @@ camera = Camera()
 
 # Monolite Build Order
 CollisionManager(world_bounds, camera)
+ItemRegistry()
+ItemRegistry.load("assets/items/item_data.json")
 
 
 player = Player("assets/player/survivor-idle_rifle_0.png", (0.0,0.0))
@@ -39,8 +42,8 @@ test_weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
 
 # Test weapon on inventory
 player.inventory.add_weapon(player, test_weapon, "primary")
-player.inventory.add_item("9mm_ammo_clip")
-player.inventory.add_item("health_injector")
+player.inventory.add_item(ItemRegistry.get("ammo_clip_9mm"))
+player.inventory.add_item(ItemRegistry.get("health_injector"))
 
 # Make crosshair
 crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
