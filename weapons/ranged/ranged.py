@@ -68,7 +68,11 @@ class Ranged(Weapon, MonoliteBehaviour):
 
 
     def reload(self):
-        # find ammo in inventory and reload, for now just reset clip
+        if not self.parent: #or self.current_clip == self.clip_size:
+            return
+        print(self.parent.inventory.items)
+        for item in self.parent.inventory.items:
+            print(item)
         self.current_clip = self.clip_size
 
 

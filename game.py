@@ -39,6 +39,8 @@ test_weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
 
 # Test weapon on inventory
 player.inventory.add_weapon(player, test_weapon, "primary")
+player.inventory.add_item("9mm_ammo_clip")
+player.inventory.add_item("health_injector")
 
 # Make crosshair
 crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
@@ -62,10 +64,10 @@ can_attack = True
 attack_ready_time = 0
 can_aim = True
 
-FOG_ENABLE = 1 # Very resource intensive, need to optimize before enabling.
+FOG_ENABLE = 0 # Very resource intensive, need to optimize before enabling.
 
-
-fow = FogOfWar(player, camera)
+if FOG_ENABLE:
+    fow = FogOfWar(player, camera)
 FPS_Counter()
 
 # Main game loop
