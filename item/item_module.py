@@ -2,8 +2,11 @@ from core.object import Object
 
 
 class Item(Object):
-    def __init__(self, asset, position=(0, 0), rotation=0, scale=1, name="", description=""):
-        super().__init__(asset, position, rotation, scale)
+    def __init__(self, asset, item_id, name, item_type, **attributes):
+        super().__init__(asset, (0, 0), 0, 1)
+
+        self.id = item_id
         self.name = name
-        self.description = description
+        self.type = item_type
+        self.attributes = attributes
             
