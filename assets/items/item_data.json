@@ -1,0 +1,42 @@
+{
+  "ammo_clip_9mm": {
+    "asset": "assets/ammo/9x19/clip.png",
+    "name": "9mm Ammo Clip",
+    "description": "Standard low caliber ammunition",
+    "type": "ammo_clip",
+    "ammo": {
+      "ammo_type": "9x19",
+      "capacity": 15
+    }
+  },
+
+  "ammo_clip_12gauge": {
+    "asset": "assets/ammo/12Gauge/clip.png",
+    "name": "12 Gauge Shotgun Shells",
+    "description": "Powerful shotgun shells for close combat",
+    "type": "ammo_clip",
+    "ammo": {
+      "ammo_type": "12gauge",
+      "capacity": 8
+    }
+  },
+
+  "ammo_clip_762" : {
+    "asset": "assets/ammo/7.62/clip.png",
+    "name": "7.62mm Rifle Ammo",
+    "description": "High caliber rounds for assault rifles and sniper rifles",
+    "type": "ammo_clip",
+    "ammo": {
+      "ammo_type": "7.62",
+      "capacity": 30
+    }
+  },
+
+  "health_injector": {
+    "asset": "assets/items/phoenix_injector/injector.png",
+    "name": "Phoenix Injector",
+    "description": "A high-tech medical device that rapidly regenerates health when used.",
+    "type": "consumable",
+    "effect": "regen_health"
+  }
+}

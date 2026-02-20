@@ -1,49 +1,48 @@
 import json
-import copy
-from item.item_module import Item
 
-_items_cache = {}
+import pygame.image
 
+from core.monolite_behaviour import MonoliteBehaviour
+from item.item_type_data import *
 
-def load_items(path="assets/items/items.json"):
-    """
-    Carga el JSON y crea instancias de Item (o subclases específicas).
-    No vuelve a crear items ya presentes en _items_cache.
-    """
-    global _items_cache
-    with open(path, 'r', encoding='utf-8') as f:
-        items_data = json.load(f)
+class ItemRegistry(MonoliteBehaviour):
+    _items: dict[str, ItemDefinition] = {}
 
-    for key, info in items_data.items():
-        name = info.get("name", key)
-        if name in _items_cache:
-            continue
+    def __init__(self):
+        super().__init__()
 
-        item_type = info.get("type")
-        if item_type == "ammo":
-            # Caso específico para ammo; ajusta los argumentos según tu clase real
-            try:
-                from item.ammo_clip_item import AmmoClip
-                item = AmmoClip(
-                    info.get("asset"),
-                    info.get("name"),
-                    info.get("damage"),
-                    info.get("ammo_type")
-                )
-            except Exception:
-                # Si falla, caer a Item genérico (evita romper la carga)
-                item = Item(info)
-        else:
-            # fallback genérico
-            item = Item(info)
+    def start(self):
+        self.load("assets/items/item_data.json")
 
-        _items_cache[name] = item
+    @classmethod
+    def load(cls, filepath: str):
+        with open(filepath, "r") as f:
+            data = json.load(f)
 
-def get_item(name, as_copy=True):
-    item = _items_cache.get(name)
-    if item is None:
-        return None
-    return copy.deepcopy(item) if as_copy else item
+        for item_id, raw in data.items():
 
-def clear_cache():
-    _items_cache.clear()
+            ammo_data = None
+            if "ammo" in raw:
+                ammo_data = AmmoData(**raw["ammo"])
+
+            effect = None
+            if "effect" in raw:
+                effect = raw["effect"]
+
+            item = ItemDefinition(
+                id=item_id,
+                asset=pygame.image.load(raw["asset"]).convert_alpha(),
+                name=raw["name"],
+                description=raw["description"],
+                type=raw["type"],
+                ammo=ammo_data,
+                effect=effect
+            )
+
+            cls._items[item_id] = item
+
+    @classmethod
+    def get(cls, item_id: str) -> ItemDefinition:
+        if item_id not in cls._items:
+            raise ValueError(f"Item ID '{item_id}' not found in registry.")
+        return cls._items[item_id]
