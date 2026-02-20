@@ -37,12 +37,12 @@ controller = CharacterController( 250, player)
 enemies = spawn_enemies(5)
 
 test_weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
-                     "rifle", 30, 0.1, 2, muzzle_offset=(20, 20))
+                     "7.62", 30, 0.1, 2, muzzle_offset=(20, 20))
 
 
 # Test weapon on inventory
 player.inventory.add_weapon(player, test_weapon, "primary")
-player.inventory.add_item(ItemRegistry.get("ammo_clip_9mm"))
+player.inventory.add_item(ItemRegistry.get("ammo_clip_762"))
 player.inventory.add_item(ItemRegistry.get("health_injector"))
 
 # Make crosshair

@@ -54,6 +54,11 @@ class Inventory:
         if item in self.items:
             self.items.remove(item)
 
+    # Consume item
+    def remove_item(self, item):
+        if item in self.items:
+            self.items.remove(item)
+
     def check_full(self):
         return len(self.items) >= self.max_size
 
