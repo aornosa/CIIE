@@ -1,23 +1,45 @@
 import pygame
+from pygame.examples.music_drop_fade import volume
 
+from core.audio.audio_emitter import AudioEmitter
+from core.audio.audio_mixer_category import SoundCategory
 from settings import MAX_AUDIO_CHANNELS
 from audio_clip import AudioClip
 
 class AudioManager:
+    _instance = None
+
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
     def __init__(self):
-        self.mixer = pygame.mixer
-        self.mixer.init()
-        self.mixer.set_num_channels(MAX_AUDIO_CHANNELS)
+        pygame.mixer.set_num_channels(MAX_AUDIO_CHANNELS)
 
-        self.channels = {}
+        self.listener = None
+        self.master_volume = 1.0
+        self.mixer_volumes = {
+            SoundCategory.MUSIC: 1.0,
+            SoundCategory.SFX: 1.0,
+        }
+        self.active_channels = {}
+
+    def set_listener(self, listener):
+        self.listener = listener
+
+    def set_master_volume(self, volume):
+        self.master_volume = max(0.0, min(1.0, volume))
+
+    def set_mixer_volume(self, category, volume):
+        if category in self.mixer_volumes:
+            self.mixer_volumes[category] = max(0.0, min(1.0, volume))
 
 
-    def play_audio_clip(self, clip):
-        channel = self._get_channel()
-        if channel:
-            channel.play(clip)
+    def play_sound(self, audio_clip: AudioClip, emitter: AudioEmitter):
+        if self.listener is None:
+            return
 
-    def _get_channel(self):
-        for channel in self.channels:
-            pass
-        return self.mixer.Channel(0)
+        volume = self.master_volume * self.mixer_volumes.get(audio_clip.category, 1.0)
+
