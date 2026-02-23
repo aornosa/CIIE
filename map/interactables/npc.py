@@ -27,10 +27,9 @@ class NPC(Interactable):
         pygame.draw.rect(self.sprite, (100, 100, 200), (22, 50, 8, 10))  # Right leg
         self.sprite_rect = self.sprite.get_rect(center=self.position)
     
-    def interact(self, player):
-        from dialogs.dialog_manager import DialogManager
-        dialog_manager = DialogManager()
-        dialog_manager.start_dialog(self.dialog_tree)
+    def interact(self, player, dialog_manager=None):
+        if dialog_manager is not None:
+            dialog_manager.start_dialog(self.dialog_tree)
     
     def draw(self, screen, camera):
         if self.sprite and self.sprite_rect:

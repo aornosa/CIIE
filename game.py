@@ -146,7 +146,7 @@ def game_update(delta_time, im):
     if im.actions["interact"] and not dialog_manager.is_dialog_active:
         im.actions["interact"] = False
         if test_npc.is_player_in_range(player.position):
-            test_npc.interact(player)
+            test_npc.interact(player, dialog_manager)
     
     # Toggle inventory (disabled during dialog)
     if im.actions["inventory"] and not dialog_manager.is_dialog_active:

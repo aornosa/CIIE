@@ -8,15 +8,15 @@ class EventScene(Scene):
     """Generic stacked scene for scripted events with dialog.
 
     The game scene passed as 'game_scene' is rendered frozen underneath.
-    A fresh DialogManager drives the dialog. When the dialog ends the scene
-    pops itself and returns control to the game.
+    An independent DialogManager drives the dialog. When the dialog ends the
+    scene pops itself and returns control to the game.
     """
 
     def __init__(self, game_scene, dialog_tree):
         super().__init__()
         self.game_scene = game_scene
 
-        # Create a standalone DialogManager for this event (not the global singleton)
+        # Each EventScene owns its own DialogManager instance — no shared state
         self.dialog_manager = DialogManager()
         self.dialog_manager.start_dialog(dialog_tree)
 

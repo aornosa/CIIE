@@ -46,7 +46,7 @@ class BlueZoneEventScene(Scene):
         self.enemy_move_timer = 0.0
         self.enemy_target = pygame.Vector2(0, 0)  # Set when movement starts
 
-        # DialogManager (singleton) – start with the intro dialog
+        # Independent DialogManager for this scripted event
         self.dialog_manager = DialogManager()
         self.dialog_manager.start_dialog(create_blue_zone_intro_dialog())
 

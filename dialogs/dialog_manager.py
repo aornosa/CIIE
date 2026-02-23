@@ -1,22 +1,11 @@
-from core.monolite_behaviour import MonoliteBehaviour
 import pygame
 
-class DialogManager(MonoliteBehaviour):
-    _instance = None
-    
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(DialogManager, cls).__new__(cls)
-        return cls._instance
-    
+class DialogManager:
     def __init__(self):
-        if not hasattr(self, '_initialized'):
-            super().__init__()
-            self.active_dialog = None
-            self.is_dialog_active = False
-            self.selected_option = 0
-            self.input_handler = None
-            self._initialized = True
+        self.active_dialog = None
+        self.is_dialog_active = False
+        self.selected_option = 0
+        self.input_handler = None
     
     def start_dialog(self, dialog_tree):
         self.active_dialog = dialog_tree
