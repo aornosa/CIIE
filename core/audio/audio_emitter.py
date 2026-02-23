@@ -4,6 +4,14 @@ class AudioEmitter:
         self.audio_clip = audio_clip
         self.loop = loop
         self.channel = None
+        self.max_distance = 500  # Max distance for sound attenuation
+
+    def set_position(self, position):
+        self.position = position
+
+    def get_position(self):
+        return self.position
+
 
     def play(self):
         if self.channel is None or not self.channel.get_busy():
