@@ -17,7 +17,7 @@ from weapons.ranged.ranged import Ranged
 from runtime.round_manager import *
 from core.status_effects import StatusEffect
 from dialogs.dialog_manager import DialogManager
-from dialogs.test_dialogs import create_test_dialog_simple
+from dialogs.test_dialogs import create_test_dialog_simple, create_blue_zone_intro_dialog
 from map.interactables.npc import NPC
 
 # Predeclaration
@@ -65,43 +65,76 @@ can_aim = True
 
 FOG_ENABLE = 0 # Very resource intensive, need to optimize before enabling.
 
+# --- Red zone trigger -------------------------------------------------------
+class TriggerZone:
+    """Circular world-space zone that fires once when the player enters it."""
+    def __init__(self, center, radius, dialog_tree):
+        self.center = pygame.Vector2(center)
+        self.radius = radius
+        self.dialog_tree = dialog_tree
+        self.triggered = False   # Fires only the first time
+        self.pending = False     # Set to True for one frame so GameScene can read it
+
+    def check(self, player_pos):
+        if self.triggered:
+            return
+        if pygame.Vector2(player_pos).distance_to(self.center) <= self.radius:
+            self.triggered = True
+            self.pending = True
+
+    def consume(self):
+        """Called by GameScene after it reads the trigger."""
+        self.pending = False
 
 
-# Main game loop
-def game_loop(screen, clock, im):
-    # global vars (change later)
+red_zone = TriggerZone(
+    center=(400, 400),
+    radius=120,
+    dialog_tree=None,
+)
+
+blue_zone = TriggerZone(
+    center=(700, 400),
+    radius=120,
+    dialog_tree=create_blue_zone_intro_dialog(),  # Not used directly – scene manages dialogs
+)
+# ---------------------------------------------------------------------------
+
+# Shared state updated by game_update, read by game_render
+_last_movement = pygame.Vector2(0, 0)
+_last_mouse_pos = pygame.Vector2(0, 0)
+
+
+def game_update(delta_time, im):
+    """Update all game logic (input, movement, combat, AI). No drawing."""
     global inventory_is_open
     global can_attack
     global can_aim
     global attack_ready_time
+    global _last_movement
+    global _last_mouse_pos
 
-    # Refactor to render independently
-    test_weapon.emitter.surface = screen
-    test_weapon.emitter.camera = camera
-
-    # Get delta time (time between frames)
-    delta_time = clock.get_time() / 1000.0
-    
     # Handle dialog input (takes priority when active)
-    # InputHandler now manages all key state
-    dialog_manager.input_handler = im  # Set reference
+    dialog_manager.input_handler = im
     dialog_manager.handle_input(im.get_keys_pressed(), im.get_keys_just_pressed())
 
     # Update Movement (disabled during dialog)
     if dialog_manager.is_dialog_active:
-        movement = pygame.Vector2(0, 0)
+        _last_movement = pygame.Vector2(0, 0)
     else:
-        movement = pygame.Vector2(im.actions["move_x"], im.actions["move_y"])
+        _last_movement = pygame.Vector2(im.actions["move_x"], im.actions["move_y"])
+
+    movement = _last_movement
 
     # Crosshair follows mouse
-    mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
+    _last_mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
+    mouse_pos = _last_mouse_pos
 
     # Make camera follow player
     if im.actions["look_around"]:
         camera_follow(mouse_pos, camera, delta_time, speed=5, position_relative=False)
     else:
         camera_follow(player.position, camera, delta_time)
-
 
     # Hide mouse cursor
     pygame.mouse.set_visible(False)
@@ -117,7 +150,7 @@ def game_loop(screen, clock, im):
     
     # Toggle inventory (disabled during dialog)
     if im.actions["inventory"] and not dialog_manager.is_dialog_active:
-        im.actions["inventory"] = False  # Reset action
+        im.actions["inventory"] = False
         inventory_is_open = not inventory_is_open
         print("Inventory toggled:", inventory_is_open)
 
@@ -135,70 +168,106 @@ def game_loop(screen, clock, im):
 
     # Player game logic
     if im.actions["attack"] or im.actions["aim"]:
-        # Slow player
         player.add_effect(ads_se)
 
-
-        # Look where shooting
         direction_to_mouse = mouse_pos - (player.position - camera.position)
-        target_angle = direction_to_mouse.angle_to(pygame.Vector2(0, -1))  # relative to up
+        target_angle = direction_to_mouse.angle_to(pygame.Vector2(0, -1))
         player.set_rotation(math.lerp_angle(player.rotation, target_angle, 10 * delta_time)+0.164)
 
-        # Shoot if attacking
         if im.actions["attack"] and can_attack:
-            direction = pygame.Vector2(0, -1).rotate(-player.rotation)
-            if isinstance(active_weapon, Ranged):
-                active_weapon.play_trail_effect(screen, (player.position - camera.position)
-                                                                  + direction * 35 + direction.rotate(90) * 15
-                                                                  , direction)
             if active_weapon is not None and can_attack:
                 active_weapon.shoot()
 
-    elif movement.length() > 0.:  # Only rotate if there's movement
-        target_angle = movement.angle_to(pygame.Vector2(0, -1)) # relative to up
+    elif movement.length() > 0.:
+        target_angle = movement.angle_to(pygame.Vector2(0, -1))
         player.rotation = math.lerp_angle(player.rotation, target_angle, 7.5 * delta_time)
 
     if not im.actions["attack"] and not im.actions["aim"]:
         player.remove_effect("Aiming Down Sights")
 
+    # Move player
+    controller.move(movement, delta_time)
 
-    # create fog of war
+    # Inventory state
+    if inventory_is_open:
+        can_aim = False
+        can_attack = False
+    else:
+        can_aim = True
+        can_attack = True
+
+    # Trigger zone checks
+    red_zone.check(player.position)
+    blue_zone.check(player.position)
+
+
+def game_render(screen):
+    """Draw the current game state. No logic updates."""
+    mouse_pos = _last_mouse_pos
+
+    # Weapon particle emitter needs screen ref
+    test_weapon.emitter.surface = screen
+    test_weapon.emitter.camera = camera
+
+    # Trail effect (visual only – uses last known state)
+    active_weapon = player.inventory.get_weapon(player.inventory.active_weapon_slot)
+    if active_weapon and isinstance(active_weapon, Ranged):
+        direction = pygame.Vector2(0, -1).rotate(-player.rotation)
+        # Only play trail when attacking (check mouse button directly)
+        if pygame.mouse.get_pressed()[0]:
+            active_weapon.play_trail_effect(
+                screen,
+                (player.position - camera.position) + direction * 35 + direction.rotate(90) * 15,
+                direction,
+            )
+
+    # Fog of war
     visibility_mask = None
     if FOG_ENABLE:
         fog_mask = create_vision_mask(screen, player, camera, 1800, 250, 80)
         screen.blit(fog_mask, (0, 0))
-
         visibility_mask = create_visibility_mask(screen, player, camera, 1800, 250, 80)
 
     entity_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
 
-    # draw enemies/items onto entity surface
+    # Draw red trigger zone
+    zone_screen_pos = red_zone.center - camera.position
+    zone_surface = pygame.Surface((red_zone.radius * 2, red_zone.radius * 2), pygame.SRCALPHA)
+    if red_zone.triggered:
+        pygame.draw.circle(zone_surface, (180, 0, 0, 60), (red_zone.radius, red_zone.radius), red_zone.radius)
+        pygame.draw.circle(zone_surface, (220, 0, 0, 160), (red_zone.radius, red_zone.radius), red_zone.radius, 3)
+    else:
+        pygame.draw.circle(zone_surface, (255, 0, 0, 80), (red_zone.radius, red_zone.radius), red_zone.radius)
+        pygame.draw.circle(zone_surface, (255, 50, 50, 200), (red_zone.radius, red_zone.radius), red_zone.radius, 3)
+    entity_surface.blit(zone_surface, (zone_screen_pos.x - red_zone.radius, zone_screen_pos.y - red_zone.radius))
+
+    # Draw blue trigger zone
+    bzone_screen_pos = blue_zone.center - camera.position
+    bzone_surface = pygame.Surface((blue_zone.radius * 2, blue_zone.radius * 2), pygame.SRCALPHA)
+    if blue_zone.triggered:
+        pygame.draw.circle(bzone_surface, (0, 0, 180, 60), (blue_zone.radius, blue_zone.radius), blue_zone.radius)
+        pygame.draw.circle(bzone_surface, (0, 0, 220, 160), (blue_zone.radius, blue_zone.radius), blue_zone.radius, 3)
+    else:
+        pygame.draw.circle(bzone_surface, (0, 80, 255, 80), (blue_zone.radius, blue_zone.radius), blue_zone.radius)
+        pygame.draw.circle(bzone_surface, (50, 130, 255, 200), (blue_zone.radius, blue_zone.radius), blue_zone.radius, 3)
+    entity_surface.blit(bzone_surface, (bzone_screen_pos.x - blue_zone.radius, bzone_screen_pos.y - blue_zone.radius))
+
     for enemy in enemies:
         enemy.draw(entity_surface, camera)
-    
-    # Draw NPC
+
     #test_npc.draw(entity_surface, camera)
 
     if FOG_ENABLE:
-        # clip entities using mask
         entity_surface.blit(visibility_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
-    # draw result
     screen.blit(entity_surface, (0, 0))
 
-    # Move and draw player
-    controller.move(movement, delta_time)
+    # Draw player
     player.draw(screen, camera)
-
 
     # Draw inventory on top if open
     if inventory_is_open:
-        can_aim = False
-        can_attack = False
         show_inventory(screen, player)
-    else:
-        can_aim = True
-        can_attack = True
 
     # Draw crosshair
     screen.blit(pygame.transform.scale(crosshair, (40, 40)),
@@ -206,9 +275,16 @@ def game_loop(screen, clock, im):
 
     # Draw UI last
     ui_manager.draw_overlay(screen, player)
-    
+
     # Draw dialog UI (must be last, on top of everything)
     draw_dialog_ui(screen, dialog_manager)
+
+
+# Legacy wrapper – keeps old call sites working if needed
+def game_loop(screen, clock, im):
+    delta_time = clock.get_time() / 1000.0
+    game_update(delta_time, im)
+    game_render(screen)
 
 
 def camera_follow(target, cam, delta_time, speed=10, position_relative=True):
