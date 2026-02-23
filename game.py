@@ -1,13 +1,8 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
 
 from character_scripts.player.inventory import show_inventory
 
-if TYPE_CHECKING:
-    from core.audio.audio_manager import AudioManager
-
 from core.audio.audio_manager import AudioManager
-from core.audio.sound_cache import SOUNDS
 from core.collision.collision_manager import CollisionManager
 from core.collision.quadtree import Rectangle
 
