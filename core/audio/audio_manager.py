@@ -1,5 +1,4 @@
 import pygame
-from pygame.examples.music_drop_fade import volume
 
 from core.audio.audio_emitter import AudioEmitter
 from core.audio.audio_mixer_category import SoundCategory
