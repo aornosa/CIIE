@@ -15,6 +15,7 @@ class Inventory:
 
     def add_weapon(self, player, weapon, slot):
         weapon.parent = player
+        weapon.audio_emitter = player.audio_emitter
 
         if slot == "primary":
             if self.primary_weapon is None:

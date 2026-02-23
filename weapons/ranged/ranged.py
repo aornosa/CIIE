@@ -2,6 +2,7 @@ import json
 
 import pygame.draw
 
+from core.audio.sound_cache import SOUNDS
 from core.monolite_behaviour import MonoliteBehaviour
 from core.particles.particle_emitter import ParticleEmitter
 from core.particles.particle import Particle
@@ -28,8 +29,6 @@ class Ranged(Weapon, MonoliteBehaviour):
         self.lock_time = lock_time
 
         self.current_clip = self.clip_size
-
-        self.parent = None  # Will be set when equipped by a character
 
         self._last_shot_time = 0
 
@@ -62,6 +61,9 @@ class Ranged(Weapon, MonoliteBehaviour):
                 # Implement shooting logic (raycasting, bullet instantiation, etc.)
 
                 self.emitter.emit()
+
+                self.audio_emitter.audio_clip = SOUNDS["player_hurt"]
+                self.audio_emitter.play()
         else:
             # play dry fire
             print("Out of ammo! Reload needed.")

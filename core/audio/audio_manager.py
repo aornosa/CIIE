@@ -1,10 +1,14 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import pygame
 
-from core.audio.audio_emitter import AudioEmitter
+if TYPE_CHECKING:
+    from core.audio.audio_emitter import AudioEmitter
 from core.audio.audio_mixer_category import SoundCategory
 from core.monolite_behaviour import MonoliteBehaviour
 from settings import MAX_AUDIO_CHANNELS
-from audio_clip import AudioClip
+from core.audio.audio_clip import AudioClip
 
 class AudioManager(MonoliteBehaviour):
     _instance = None
@@ -14,6 +18,9 @@ class AudioManager(MonoliteBehaviour):
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
+
+    def start(self):
+        AudioManager.instance()
 
     def __init__(self):
         MonoliteBehaviour.__init__(self)
@@ -40,6 +47,7 @@ class AudioManager(MonoliteBehaviour):
 
     def play_sound(self, audio_clip: AudioClip, emitter: AudioEmitter):
         if self.listener is None:
+            print("AudioManager: No listener available")
             return
 
         distance = self.listener.get_position().distance_to(emitter.get_position())

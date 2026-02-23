@@ -1,4 +1,6 @@
 import pygame
+
+from core.audio.audio_emitter import AudioEmitter
 from core.object import Object
 
 AMMO_TYPES = {
@@ -14,3 +16,7 @@ class Weapon:
         self.damage = damage
         self.object = Object(asset, (0, 0), 0, 1)
         self.pullout_time = pullout_time    # Time in seconds to pull out the weapon
+
+        # Will be set when equipped by a character
+        self.parent = None
+        self.audio_emitter = None

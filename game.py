@@ -1,4 +1,13 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 from character_scripts.player.inventory import show_inventory
+
+if TYPE_CHECKING:
+    from core.audio.audio_manager import AudioManager
+
+from core.audio.audio_manager import AudioManager
+from core.audio.sound_cache import SOUNDS
 from core.collision.collision_manager import CollisionManager
 from core.collision.quadtree import Rectangle
 
@@ -30,6 +39,8 @@ CollisionManager(world_bounds, camera)
 ItemRegistry()
 ItemRegistry.load("assets/items/item_data.json")
 
+AudioManager()
+
 
 player = Player("assets/player/survivor-idle_rifle_0.png", (0.0,0.0))
 controller = CharacterController( 250, player)
@@ -44,6 +55,8 @@ test_weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
 player.inventory.add_weapon(player, test_weapon, "primary")
 player.inventory.add_item(ItemRegistry.get("ammo_clip_762"))
 player.inventory.add_item(ItemRegistry.get("health_injector"))
+
+AudioManager.instance().set_listener(player.audio_listener)
 
 # Make crosshair
 crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
@@ -160,6 +173,8 @@ def game_loop(screen, clock, im):
                                                                   , direction)
             if active_weapon is not None and can_attack:
                 active_weapon.shoot()
+                player.audio_emitter.audio_clip = SOUNDS["player_hurt"]
+                player.audio_emitter.play() # Placeholder sound effect
 
     elif movement.length() > 0.:  # Only rotate if there's movement
         target_angle = movement.angle_to(pygame.Vector2(0, -1)) # relative to up

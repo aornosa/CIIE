@@ -1,5 +1,11 @@
-class AudioEmitter:
-    def __init__(self, position, audio_clip, loop=False):
+from core.audio.audio_manager import AudioManager
+from core.monolite_behaviour import MonoliteBehaviour
+
+
+class AudioEmitter(MonoliteBehaviour):
+    def __init__(self, owner, position, audio_clip, loop=False):
+        MonoliteBehaviour.__init__(self)
+        self.owner = owner
         self.position = position
         self.audio_clip = audio_clip
         self.loop = loop
@@ -12,12 +18,16 @@ class AudioEmitter:
     def get_position(self):
         return self.position
 
+    def sync_with_owner(self):
+        if self.owner is not None:
+            self.position = self.owner.get_position()
 
     def play(self):
-        if self.channel is None or not self.channel.get_busy():
-            loops = -1 if self.loop else 0
-            self.channel = self.audio_clip.source.play(loops=loops)
+        AudioManager.instance().play_sound(self.audio_clip, self)
 
     def stop(self):
         if self.channel is not None:
             self.channel.stop()
+
+    def update(self):
+        self.sync_with_owner()
