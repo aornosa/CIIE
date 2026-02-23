@@ -79,6 +79,7 @@ class AudioManager(MonoliteBehaviour):
 
         channel.set_volume(left, right)
         channel.play(audio_clip.source)
+        #print("Playing:" , audio_clip.source, "@", volume, "{", left, ",", right, "}")
 
         self.active_channels[channel] = {
             "emitter": emitter,

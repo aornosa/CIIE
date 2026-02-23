@@ -18,8 +18,8 @@ SOUNDS = {
     #"9mm_reload": AudioClip("assets/ammo/9x19/sfx/reload.wav", priority=0),
 #
     ## 7.62
-    #"7.62mm_shoot": AudioClip("assets/ammo/7.62/sfx/shoot.wav", priority=0),
-    #"7.62mm_reload": AudioClip("assets/ammo/7.62/sfx/reload.wav", priority=0),
+    "7.62_shoot": AudioClip("assets/ammo/7.62/sfx/shoot.mp3", priority=0),
+    #"7.62_reload": AudioClip("assets/ammo/7.62/sfx/reload.wav", priority=0),
 #
     ## 12 gauge
     #"12gauge_shoot":   AudioClip("assets/ammo/12gauge/sfx/shoot.wav",priority=0),

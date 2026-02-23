@@ -173,8 +173,6 @@ def game_loop(screen, clock, im):
                                                                   , direction)
             if active_weapon is not None and can_attack:
                 active_weapon.shoot()
-                player.audio_emitter.audio_clip = SOUNDS["player_hurt"]
-                player.audio_emitter.play() # Placeholder sound effect
 
     elif movement.length() > 0.:  # Only rotate if there's movement
         target_angle = movement.angle_to(pygame.Vector2(0, -1)) # relative to up

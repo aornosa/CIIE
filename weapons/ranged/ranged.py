@@ -62,7 +62,7 @@ class Ranged(Weapon, MonoliteBehaviour):
 
                 self.emitter.emit()
 
-                self.audio_emitter.audio_clip = SOUNDS["player_hurt"]
+                self.audio_emitter.audio_clip = SOUNDS["7.62_shoot"] #Swap to use each their own
                 self.audio_emitter.play()
         else:
             # play dry fire
