@@ -19,10 +19,11 @@ class GameScene(Scene):
             self.director.push(PauseScene(self))
             return
 
-        # TEST
+        # DEBUG: Temporary development shortcut to open BlueZoneEventScene with F12.
+        # Remove this binding or guard it behind a debug flag before production release.
         if input_handler.keys_just_pressed.get(pygame.K_F12):
-             from scenes.blue_zone_event_scene import BlueZoneEventScene
-             self.director.push(BlueZoneEventScene(self))
+            from scenes.blue_zone_event_scene import BlueZoneEventScene
+            self.director.push(BlueZoneEventScene(self))
 
     def update(self, delta_time):
         game.game_update(delta_time, self._get_input_handler())
