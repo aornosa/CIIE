@@ -2,6 +2,7 @@ import json
 
 import pygame.draw
 
+from core.audio.sound_cache import SOUNDS
 from core.monolite_behaviour import MonoliteBehaviour
 from core.particles.particle_emitter import ParticleEmitter
 from core.particles.particle import Particle
@@ -28,8 +29,6 @@ class Ranged(Weapon, MonoliteBehaviour):
         self.lock_time = lock_time
 
         self.current_clip = self.clip_size
-
-        self.parent = None  # Will be set when equipped by a character
 
         self._last_shot_time = 0
 
@@ -62,14 +61,27 @@ class Ranged(Weapon, MonoliteBehaviour):
                 # Implement shooting logic (raycasting, bullet instantiation, etc.)
 
                 self.emitter.emit()
+
+                self.audio_emitter.audio_clip = SOUNDS["7.62_shoot"] #Swap to use each their own
+                self.audio_emitter.play()
         else:
             # play dry fire
             print("Out of ammo! Reload needed.")
 
 
     def reload(self):
-        # find ammo in inventory and reload, for now just reset clip
-        self.current_clip = self.clip_size
+        if not self.parent: #or self.current_clip == self.clip_size:
+            return
+        for item in self.parent.inventory.items:
+            if item.ammo and item.ammo.ammo_type == self.ammo_type:
+                needed = self.clip_size - self.current_clip
+                to_load = min(needed, item.ammo.capacity)
+                self.current_clip += to_load
+                item.ammo.capacity -= to_load
+                if item.ammo.capacity <= 0:
+                    self.parent.inventory.remove_item(item)
+                print(f"Reloaded [{to_load}] {self.ammo_type} rounds. Current clip: {self.current_clip}")
+                break
 
 
     def play_trail_effect(self, screen, start_pos, direction):

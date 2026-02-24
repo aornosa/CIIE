@@ -1,4 +1,6 @@
 import pygame
+
+from core.audio.audio_emitter import AudioEmitter
 from core.object import Object
 from core.collision.collider import Collider
 from core.collision.quadtree import Rectangle
@@ -23,6 +25,7 @@ class Character(Object):
 
         self.effects = {}
         self.collider = Collider(self, Rectangle.from_rect(self.asset.get_rect()))
+        self.audio_emitter = AudioEmitter(self, position, None)
 
     def attack(self, other, damage):
         other.take_damage(damage)

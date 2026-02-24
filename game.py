@@ -1,4 +1,8 @@
+from __future__ import annotations
+
 from character_scripts.player.inventory import show_inventory
+
+from core.audio.audio_manager import AudioManager
 from core.collision.collision_manager import CollisionManager
 from core.collision.quadtree import Rectangle
 
@@ -30,6 +34,8 @@ CollisionManager(world_bounds, camera)
 ItemRegistry()
 ItemRegistry.load("assets/items/item_data.json")
 
+AudioManager()
+
 
 player = Player("assets/player/survivor-idle_rifle_0.png", (0.0,0.0))
 controller = CharacterController( 250, player)
@@ -37,13 +43,15 @@ controller = CharacterController( 250, player)
 enemies = spawn_enemies(5)
 
 test_weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
-                     "rifle", 30, 0.1, 2, muzzle_offset=(20, 20))
+                     "7.62", 30, 0.1, 2, muzzle_offset=(20, 20))
 
 
 # Test weapon on inventory
 player.inventory.add_weapon(player, test_weapon, "primary")
-player.inventory.add_item(ItemRegistry.get("ammo_clip_9mm"))
+player.inventory.add_item(ItemRegistry.get("ammo_clip_762"))
 player.inventory.add_item(ItemRegistry.get("health_injector"))
+
+AudioManager.instance().set_listener(player.audio_listener)
 
 # Make crosshair
 crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
