@@ -101,9 +101,6 @@ def game_update(delta_time, im):
     else:
         camera_follow(player.position, camera, delta_time)
 
-    # Hide mouse cursor
-    pygame.mouse.set_visible(False)
-
     # Get current speed before calculating
     controller.speed = player.get_stat("speed")
 
