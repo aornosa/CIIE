@@ -17,7 +17,7 @@ from weapons.ranged.ranged import Ranged
 from runtime.round_manager import *
 from core.status_effects import StatusEffect
 from dialogs.dialog_manager import DialogManager
-from dialogs.test_dialogs import create_test_dialog_simple, create_blue_zone_intro_dialog
+from dialogs.test_dialogs import create_test_dialog_simple
 from map.interactables.npc import NPC
 
 # Predeclaration
@@ -64,41 +64,6 @@ attack_ready_time = 0
 can_aim = True
 
 FOG_ENABLE = 0 # Very resource intensive, need to optimize before enabling.
-
-# --- Red zone trigger -------------------------------------------------------
-class TriggerZone:
-    """Circular world-space zone that fires once when the player enters it."""
-    def __init__(self, center, radius, dialog_tree):
-        self.center = pygame.Vector2(center)
-        self.radius = radius
-        self.dialog_tree = dialog_tree
-        self.triggered = False   # Fires only the first time
-        self.pending = False     # Set to True for one frame so GameScene can read it
-
-    def check(self, player_pos):
-        if self.triggered:
-            return
-        if pygame.Vector2(player_pos).distance_to(self.center) <= self.radius:
-            self.triggered = True
-            self.pending = True
-
-    def consume(self):
-        """Called by GameScene after it reads the trigger."""
-        self.pending = False
-
-
-red_zone = TriggerZone(
-    center=(400, 400),
-    radius=120,
-    dialog_tree=None,
-)
-
-blue_zone = TriggerZone(
-    center=(700, 400),
-    radius=120,
-    dialog_tree=create_blue_zone_intro_dialog(),  # Not used directly – scene manages dialogs
-)
-# ---------------------------------------------------------------------------
 
 # Shared state updated by game_update, read by game_render
 _last_movement = pygame.Vector2(0, 0)
@@ -196,10 +161,6 @@ def game_update(delta_time, im):
         can_aim = True
         can_attack = True
 
-    # Trigger zone checks
-    red_zone.check(player.position)
-    blue_zone.check(player.position)
-
 
 def game_render(screen):
     """Draw the current game state. No logic updates."""
@@ -229,28 +190,6 @@ def game_render(screen):
         visibility_mask = create_visibility_mask(screen, player, camera, 1800, 250, 80)
 
     entity_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
-
-    # Draw red trigger zone
-    zone_screen_pos = red_zone.center - camera.position
-    zone_surface = pygame.Surface((red_zone.radius * 2, red_zone.radius * 2), pygame.SRCALPHA)
-    if red_zone.triggered:
-        pygame.draw.circle(zone_surface, (180, 0, 0, 60), (red_zone.radius, red_zone.radius), red_zone.radius)
-        pygame.draw.circle(zone_surface, (220, 0, 0, 160), (red_zone.radius, red_zone.radius), red_zone.radius, 3)
-    else:
-        pygame.draw.circle(zone_surface, (255, 0, 0, 80), (red_zone.radius, red_zone.radius), red_zone.radius)
-        pygame.draw.circle(zone_surface, (255, 50, 50, 200), (red_zone.radius, red_zone.radius), red_zone.radius, 3)
-    entity_surface.blit(zone_surface, (zone_screen_pos.x - red_zone.radius, zone_screen_pos.y - red_zone.radius))
-
-    # Draw blue trigger zone
-    bzone_screen_pos = blue_zone.center - camera.position
-    bzone_surface = pygame.Surface((blue_zone.radius * 2, blue_zone.radius * 2), pygame.SRCALPHA)
-    if blue_zone.triggered:
-        pygame.draw.circle(bzone_surface, (0, 0, 180, 60), (blue_zone.radius, blue_zone.radius), blue_zone.radius)
-        pygame.draw.circle(bzone_surface, (0, 0, 220, 160), (blue_zone.radius, blue_zone.radius), blue_zone.radius, 3)
-    else:
-        pygame.draw.circle(bzone_surface, (0, 80, 255, 80), (blue_zone.radius, blue_zone.radius), blue_zone.radius)
-        pygame.draw.circle(bzone_surface, (50, 130, 255, 200), (blue_zone.radius, blue_zone.radius), blue_zone.radius, 3)
-    entity_surface.blit(bzone_surface, (bzone_screen_pos.x - blue_zone.radius, bzone_screen_pos.y - blue_zone.radius))
 
     for enemy in enemies:
         enemy.draw(entity_surface, camera)
