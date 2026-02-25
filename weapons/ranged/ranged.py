@@ -74,7 +74,7 @@ class Ranged(Weapon, MonoliteBehaviour):
 
                 if hit and hit[0] is not None:
                     print(f"Hit {hit[0]} at {hit[1]} with t={hit[2]:.2f}")
-                    if hit[0] and hasattr(hit[0], "owner") and hit[0].owner:
+                    if hasattr(hit[0], "owner") and hit[0].owner:
                         if hasattr(hit[0].owner, "take_damage"):
                             hit[0].owner.take_damage(self.damage)
 
