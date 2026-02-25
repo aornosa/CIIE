@@ -43,7 +43,7 @@ controller = CharacterController( 250, player)
 enemies = spawn_enemies(5)
 
 test_weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
-                     "7.62", 30, 0.1, 2, muzzle_offset=(20, 20))
+                     "7.62", 30, 0.1, 2, muzzle_offset=(35, 15))
 
 
 # Test weapon on inventory
@@ -164,8 +164,9 @@ def game_loop(screen, clock, im):
             direction = pygame.Vector2(0, -1).rotate(-player.rotation)
             if isinstance(active_weapon, Ranged):
                 active_weapon.play_trail_effect(screen, (player.position - camera.position)
-                                                                  + direction * 35 + direction.rotate(90) * 15
-                                                                  , direction)
+                                                            + direction * active_weapon.muzzle_offset[0]
+                                                            + direction.rotate(90) * active_weapon.muzzle_offset[1]
+                                                            , direction)
             if active_weapon is not None and can_attack:
                 active_weapon.shoot()
 

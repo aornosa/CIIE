@@ -38,6 +38,13 @@ class Character(Object):
         self.health -= amount
         if self.health < 0:
             self.health = 0
+        if self.health == 0:
+            self.die()
+
+    def die(self):
+        # Placeholder for death logic (e.g., play animation, drop loot)
+        print(f"{self.name} has died.")
+        pass
 
     def heal(self, amount):
         self.health += amount

@@ -3,6 +3,8 @@ import json
 import pygame.draw
 
 from core.audio.sound_cache import SOUNDS
+from core.collision.layers import LAYERS
+from core.collision.raycast import raycast_segment
 from core.monolite_behaviour import MonoliteBehaviour
 from core.particles.particle_emitter import ParticleEmitter
 from core.particles.particle import Particle
@@ -62,7 +64,22 @@ class Ranged(Weapon, MonoliteBehaviour):
 
                 self.emitter.emit()
 
-                self.audio_emitter.audio_clip = SOUNDS["7.62_shoot"] #Swap to use each their own
+                forward = pygame.math.Vector2(0, -1).rotate(-self.parent.rotation)
+
+                end = self.parent.position + forward * self.max_range
+                start = (self.parent.position + forward * self.muzzle_offset[0]
+                         + forward.rotate(90) * self.muzzle_offset[1])
+
+                hit = raycast_segment(start, end, layers=[LAYERS["enemy"], LAYERS["terrain"]])
+
+                if hit and hit[0] is not None:
+                    print(f"Hit {hit[0]} at {hit[1]} with t={hit[2]:.2f}")
+                    if hasattr(hit[0], "owner") and hit[0].owner:
+                        if hasattr(hit[0].owner, "take_damage"):
+                            hit[0].owner.take_damage(self.damage)
+
+
+                self.audio_emitter.audio_clip = SOUNDS["7.62_shoot"]  # Swap to use each their own
                 self.audio_emitter.play()
         else:
             # play dry fire
