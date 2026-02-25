@@ -1,4 +1,6 @@
 import pygame
+
+from core.audio.audio_emitter import AudioEmitter
 from core.object import Object
 from core.collision.collider import Collider
 from core.collision.quadtree import Rectangle
@@ -23,6 +25,7 @@ class Character(Object):
 
         self.effects = {}
         self.collider = Collider(self, Rectangle.from_rect(self.asset.get_rect()))
+        self.audio_emitter = AudioEmitter(self, position, None)
 
     def attack(self, other, damage):
         other.take_damage(damage)
@@ -35,6 +38,13 @@ class Character(Object):
         self.health -= amount
         if self.health < 0:
             self.health = 0
+        if self.health == 0:
+            self.die()
+
+    def die(self):
+        # Placeholder for death logic (e.g., play animation, drop loot)
+        print(f"{self.name} has died.")
+        pass
 
     def heal(self, amount):
         self.health += amount

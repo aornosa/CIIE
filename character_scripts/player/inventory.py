@@ -15,6 +15,7 @@ class Inventory:
 
     def add_weapon(self, player, weapon, slot):
         weapon.parent = player
+        weapon.audio_emitter = player.audio_emitter
 
         if slot == "primary":
             if self.primary_weapon is None:
@@ -51,6 +52,11 @@ class Inventory:
         # instance item to ground (implement)
 
         # Remove from inventory
+        if item in self.items:
+            self.items.remove(item)
+
+    # Consume item
+    def remove_item(self, item):
         if item in self.items:
             self.items.remove(item)
 

@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 from character_scripts.player.inventory import show_inventory
+
+from core.audio.audio_manager import AudioManager
 from core.collision.collision_manager import CollisionManager
 from core.collision.quadtree import Rectangle
 
 from game_math import utils as math
+from item.item_loader import ItemRegistry
 
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT, _CAM_BORDER_RADIUS
 from ui import ui_manager
@@ -18,7 +23,7 @@ from runtime.round_manager import *
 from core.status_effects import StatusEffect
 from dialogs.dialog_manager import DialogManager
 from dialogs.test_dialogs import create_test_dialog_simple
-from map.interactables.npc import NPC
+from character_scripts.npc.npc import NPC
 
 # Predeclaration
 world_bounds = Rectangle(-2000, -2000, 4000, 4000)
@@ -26,7 +31,10 @@ camera = Camera()
 
 # Monolite Build Order
 CollisionManager(world_bounds, camera)
-FPS_Counter()
+ItemRegistry()
+ItemRegistry.load("assets/items/item_data.json")
+
+AudioManager()
 
 
 player = Player("assets/player/survivor-idle_rifle_0.png", (0.0,0.0))
@@ -35,11 +43,15 @@ controller = CharacterController( 250, player)
 enemies = spawn_enemies(5)
 
 test_weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
-                     "rifle", 30, 0.1, 2, muzzle_offset=(20, 20))
+                     "7.62", 30, 0.1, 2, muzzle_offset=(35, 15))
 
 
 # Test weapon on inventory
 player.inventory.add_weapon(player, test_weapon, "primary")
+player.inventory.add_item(ItemRegistry.get("ammo_clip_762"))
+player.inventory.add_item(ItemRegistry.get("health_injector"))
+
+AudioManager.instance().set_listener(player.audio_listener)
 
 # Make crosshair
 crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
@@ -53,8 +65,8 @@ dialog_manager = DialogManager()
 # Test NPC with dialog
 test_npc = NPC(
     name="npc",
-    dialog_tree=create_test_dialog_simple(),
-    position=(300, 200)
+    position=(300, 200),
+    dialog_tree=create_test_dialog_simple()
 )
 
 # Bool state flags (change into enumerated state manager later)
@@ -69,6 +81,7 @@ FOG_ENABLE = 0 # Very resource intensive, need to optimize before enabling.
 _last_movement = pygame.Vector2(0, 0)
 _last_mouse_pos = pygame.Vector2(0, 0)
 
+FPS_Counter()
 
 def game_update(delta_time, im):
     """Update all game logic (input, movement, combat, AI). No drawing."""
