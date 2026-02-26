@@ -1,5 +1,5 @@
 import pygame
-import pygame._sdl2 as sdl2
+import pygame._sdl2 as sdl2   
 
 pygame.init()
 
