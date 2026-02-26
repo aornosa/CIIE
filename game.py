@@ -21,6 +21,20 @@ from dialogs.dialog_manager import DialogManager
 from dialogs.test_dialogs import create_test_dialog_simple
 from character_scripts.npc.npc import NPC
 
+#nuevo
+from settings import TILE_SIZE, CHUNK_SIZE
+from map.map_loader import MapLoader
+map_loader = MapLoader()
+loaded_map = map_loader.load_map("test.json")
+map_loader.map = loaded_map 
+
+
+tile_images = {
+    #0: pygame.Surface((TILE_SIZE, TILE_SIZE)),  # Negro/vacío
+    1: pygame.image.load("assets/tiles/tile1.png").convert_alpha(),  
+    2: pygame.image.load("assets/tiles/tile2.png").convert_alpha(),
+}
+
 # Predeclaration
 world_bounds = Rectangle(-2000, -2000, 4000, 4000)
 camera = Camera()
@@ -31,7 +45,7 @@ ItemRegistry()
 ItemRegistry.load("assets/items/item_data.json")
 
 
-player = Player("assets/player/survivor-idle_rifle_0.png", (0.0,0.0))
+player = Player("assets/player/survivor-idle_rifle_0.png", (1600.0,800.0))
 controller = CharacterController( 250, player)
 
 enemies = spawn_enemies(5)
@@ -88,6 +102,15 @@ def game_loop(screen, clock, im):
 
     # Get delta time (time between frames)
     delta_time = clock.get_time() / 1000.0
+
+    #nuevo
+    map_loader.draw_active_chunks(screen, camera.position, tile_images, player)
+    #print(f"Player pos: {player.position.x:.0f}, {player.position.y:.0f}")
+    #print(f"Player chunk: cx={int((player.position.x // TILE_SIZE) // CHUNK_SIZE)}, cy={int((player.position.y // TILE_SIZE) // CHUNK_SIZE)}")
+    #print(f"Active chunks: {len(map_loader.active_chunks)} positions: {list(map_loader.active_chunks.keys())[:16]}...")
+    #print(f"Chunks activos: {len(map_loader.active_chunks)} / total {len(map_loader.map.chunks)}")
+    #print(f"Player chunk: ({player.position.x // TILE_SIZE // CHUNK_SIZE}, {player.position.y // TILE_SIZE // CHUNK_SIZE})")
+    print(f"Player pixels: ({player.position.x}, {player.position.y})")
     
     # Handle dialog input (takes priority when active)
     # InputHandler now manages all key state
