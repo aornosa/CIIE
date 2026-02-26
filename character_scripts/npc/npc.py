@@ -65,17 +65,17 @@ class NPC(Character):
         
         return temp_path
     
-    def interact(self, player, dialog_manager=None):
+    def interact(self, player):
         """
         Initiate dialog with the NPC (if available).
         
         Args:
             player: The player character interacting with this NPC
-            dialog_manager: DialogManager instance to start the dialog on
         """
         if self.dialog_tree:
-            if dialog_manager is not None:
-                dialog_manager.start_dialog(self.dialog_tree)
+            from dialogs.dialog_manager import DialogManager
+            dialog_manager = DialogManager()
+            dialog_manager.start_dialog(self.dialog_tree)
         else:
             # NPC sin diálogo - puedes agregar lógica personalizada aquí
             print(f"{self.name} doesn't have anything to say.")

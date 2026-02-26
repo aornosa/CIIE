@@ -30,12 +30,12 @@ from settings import TILE_SIZE, CHUNK_SIZE
 from map.map_loader import MapLoader
 map_loader = MapLoader()
 loaded_map = map_loader.load_map("test.json")
-map_loader.map = loaded_map 
+map_loader.map = loaded_map
 
 
 tile_images = {
     #0: pygame.Surface((TILE_SIZE, TILE_SIZE)),  # Negro/vacío
-    1: pygame.image.load("assets/tiles/tile1.png").convert_alpha(),  
+    1: pygame.image.load("assets/tiles/tile1.png").convert_alpha(),
     2: pygame.image.load("assets/tiles/tile2.png").convert_alpha(),
 }
 
@@ -91,14 +91,13 @@ can_aim = True
 
 FOG_ENABLE = 0 # Very resource intensive, need to optimize before enabling.
 
-# Shared state updated by game_update, read by game_render
-_last_movement = pygame.Vector2(0, 0)
-_last_mouse_pos = pygame.Vector2(0, 0)
-
+if FOG_ENABLE:
+    fow = FogOfWar(player, camera)
 FPS_Counter()
 
-def game_update(delta_time, im):
-    """Update all game logic (input, movement, combat, AI). No drawing."""
+# Main game loop
+def game_loop(screen, clock, im):
+    # global vars (change later)
     global inventory_is_open
     global can_attack
     global can_aim
@@ -121,9 +120,16 @@ def game_update(delta_time, im):
     #print(f"Chunks activos: {len(map_loader.active_chunks)} / total {len(map_loader.map.chunks)}")
     #print(f"Player chunk: ({player.position.x // TILE_SIZE // CHUNK_SIZE}, {player.position.y // TILE_SIZE // CHUNK_SIZE})")
     print(f"Player pixels: ({player.position.x}, {player.position.y})")
-    
+
     global _last_movement
     global _last_mouse_pos
+
+    # Refactor to render independently
+    test_weapon.emitter.surface = screen
+    test_weapon.emitter.camera = camera
+
+    # Get delta time (time between frames)
+    delta_time = clock.get_time() / 1000.0
 
     # Handle dialog input (takes priority when active)
     dialog_manager.input_handler = im
@@ -131,21 +137,22 @@ def game_update(delta_time, im):
 
     # Update Movement (disabled during dialog)
     if dialog_manager.is_dialog_active:
-        _last_movement = pygame.Vector2(0, 0)
+        movement = pygame.Vector2(0, 0)
     else:
-        _last_movement = pygame.Vector2(im.actions["move_x"], im.actions["move_y"])
-
-    movement = _last_movement
+        movement = pygame.Vector2(im.actions["move_x"], im.actions["move_y"])
 
     # Crosshair follows mouse
-    _last_mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
-    mouse_pos = _last_mouse_pos
+    mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
 
     # Make camera follow player
     if im.actions["look_around"]:
         camera_follow(mouse_pos, camera, delta_time, speed=5, position_relative=False)
     else:
         camera_follow(player.position, camera, delta_time)
+
+
+    # Hide mouse cursor
+    pygame.mouse.set_visible(False)
 
     # Get current speed before calculating
     controller.speed = player.get_stat("speed")
@@ -154,11 +161,11 @@ def game_update(delta_time, im):
     if im.actions["interact"] and not dialog_manager.is_dialog_active:
         im.actions["interact"] = False
         if test_npc.is_player_in_range(player.position):
-            test_npc.interact(player, dialog_manager)
+            test_npc.interact(player)
     
     # Toggle inventory (disabled during dialog)
     if im.actions["inventory"] and not dialog_manager.is_dialog_active:
-        im.actions["inventory"] = False
+        im.actions["inventory"] = False  # Reset action
         inventory_is_open = not inventory_is_open
         print("Inventory toggled:", inventory_is_open)
 
@@ -176,18 +183,28 @@ def game_update(delta_time, im):
 
     # Player game logic
     if im.actions["attack"] or im.actions["aim"]:
+        # Slow player
         player.add_effect(ads_se)
 
+
+        # Look where shooting
         direction_to_mouse = mouse_pos - (player.position - camera.position)
-        target_angle = direction_to_mouse.angle_to(pygame.Vector2(0, -1))
+        target_angle = direction_to_mouse.angle_to(pygame.Vector2(0, -1))  # relative to up
         player.set_rotation(math.lerp_angle(player.rotation, target_angle, 10 * delta_time)+0.164)
 
+        # Shoot if attacking
         if im.actions["attack"] and can_attack:
+            direction = pygame.Vector2(0, -1).rotate(-player.rotation)
+            if isinstance(active_weapon, Ranged):
+                active_weapon.play_trail_effect(screen, (player.position - camera.position)
+                                                            + direction * active_weapon.muzzle_offset[0]
+                                                            + direction.rotate(90) * active_weapon.muzzle_offset[1]
+                                                            , direction)
             if active_weapon is not None and can_attack:
                 active_weapon.shoot()
 
-    elif movement.length() > 0.:
-        target_angle = movement.angle_to(pygame.Vector2(0, -1))
+    elif movement.length() > 0.:  # Only rotate if there's movement
+        target_angle = movement.angle_to(pygame.Vector2(0, -1)) # relative to up
         player.rotation = math.lerp_angle(player.rotation, target_angle, 7.5 * delta_time)
 
     if not im.actions["attack"] and not im.actions["aim"]:
@@ -204,52 +221,40 @@ def game_update(delta_time, im):
         can_aim = True
         can_attack = True
 
-
-def game_render(screen):
-    """Draw the current game state. No logic updates."""
-    mouse_pos = _last_mouse_pos
-
-    # Weapon particle emitter needs screen ref
-    test_weapon.emitter.surface = screen
-    test_weapon.emitter.camera = camera
-
-    # Trail effect (visual only – uses last known state)
-    active_weapon = player.inventory.get_weapon(player.inventory.active_weapon_slot)
-    if active_weapon and isinstance(active_weapon, Ranged):
-        direction = pygame.Vector2(0, -1).rotate(-player.rotation)
-        # Only play trail when attacking (check mouse button directly)
-        if pygame.mouse.get_pressed()[0]:
-            active_weapon.play_trail_effect(
-                screen,
-                (player.position - camera.position) + direction * 35 + direction.rotate(90) * 15,
-                direction,
-            )
-
-    # Fog of war
+    # create fog of war
     visibility_mask = None
     if FOG_ENABLE:
-        fog_mask = create_vision_mask(screen, player, camera, 1800, 250, 80)
-        screen.blit(fog_mask, (0, 0))
-        visibility_mask = create_visibility_mask(screen, player, camera, 1800, 250, 80)
+        visibility_mask = fow.visibility_mask
 
     entity_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
 
+    # draw enemies/items onto entity surface
     for enemy in enemies:
         enemy.draw(entity_surface, camera)
 
+    # Draw NPC
     #test_npc.draw(entity_surface, camera)
 
     if FOG_ENABLE:
+        # clip entities using mask
         entity_surface.blit(visibility_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
+    # draw result
     screen.blit(entity_surface, (0, 0))
 
-    # Draw player
+    # Move and draw player
+    controller.move(movement, delta_time)
     player.draw(screen, camera)
+
 
     # Draw inventory on top if open
     if inventory_is_open:
+        can_aim = False
+        can_attack = False
         show_inventory(screen, player)
+    else:
+        can_aim = True
+        can_attack = True
 
     # Draw crosshair
     screen.blit(pygame.transform.scale(crosshair, (40, 40)),
@@ -260,13 +265,6 @@ def game_render(screen):
 
     # Draw dialog UI (must be last, on top of everything)
     draw_dialog_ui(screen, dialog_manager)
-
-
-# Legacy wrapper – keeps old call sites working if needed
-def game_loop(screen, clock, im):
-    delta_time = clock.get_time() / 1000.0
-    game_update(delta_time, im)
-    game_render(screen)
 
 
 def camera_follow(target, cam, delta_time, speed=10, position_relative=True):

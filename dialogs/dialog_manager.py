@@ -1,16 +1,27 @@
+from core.monolite_behaviour import MonoliteBehaviour
 import pygame
 
-class DialogManager:
+class DialogManager(MonoliteBehaviour):
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(DialogManager, cls).__new__(cls)
+        return cls._instance
+    
     def __init__(self):
-        self.active_dialog = None
-        self.is_dialog_active = False
-        self.selected_option = 0
-        self.input_handler = None
-        # Cache optimization
-        self._cached_dialog_surface = None
-        self._cached_node_id = None
-        self._cached_selected_option = None
-        self._needs_redraw = True
+        if not hasattr(self, '_initialized'):
+            super().__init__()
+            self.active_dialog = None
+            self.is_dialog_active = False
+            self.selected_option = 0
+            self.input_handler = None
+            # Cache optimization
+            self._cached_dialog_surface = None
+            self._cached_node_id = None
+            self._cached_selected_option = None
+            self._needs_redraw = True
+            self._initialized = True
     
     def start_dialog(self, dialog_tree):
         self.active_dialog = dialog_tree
