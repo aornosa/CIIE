@@ -112,14 +112,14 @@ def game_loop(screen, clock, im):
     delta_time = clock.get_time() / 1000.0
 
     cleanup_dead_enemies(enemies)
-    #nuevo
+
     map_loader.draw_active_chunks(screen, camera.position, tile_images, player)
     #print(f"Player pos: {player.position.x:.0f}, {player.position.y:.0f}")
     #print(f"Player chunk: cx={int((player.position.x // TILE_SIZE) // CHUNK_SIZE)}, cy={int((player.position.y // TILE_SIZE) // CHUNK_SIZE)}")
     #print(f"Active chunks: {len(map_loader.active_chunks)} positions: {list(map_loader.active_chunks.keys())[:16]}...")
     #print(f"Chunks activos: {len(map_loader.active_chunks)} / total {len(map_loader.map.chunks)}")
     #print(f"Player chunk: ({player.position.x // TILE_SIZE // CHUNK_SIZE}, {player.position.y // TILE_SIZE // CHUNK_SIZE})")
-    print(f"Player pixels: ({player.position.x}, {player.position.y})")
+    #print(f"Player pixels: ({player.position.x}, {player.position.y})")
 
     global _last_movement
     global _last_mouse_pos
