@@ -1,5 +1,5 @@
 import pygame
-import pygame._sdl2 as sdl2
+import pygame._sdl2 as sdl2   
 
 pygame.init()
 
@@ -16,9 +16,8 @@ window.position = sdl2.WINDOWPOS_CENTERED
 window.show()
 
 from core import input_handler as ih
-from game import game_loop
-
-from core.monolite_behaviour import MonoliteBehaviour
+from core.scene_director import SceneDirector
+from scenes.main_menu_scene import MainMenuScene
 
 
 pygame.display.set_caption("Armengard")
@@ -28,30 +27,31 @@ pygame.display.set_icon(pygame.image.load("assets/icon.png").convert())
 clock = pygame.time.Clock()
 im = ih.InputHandler()
 
-# render loop
-running = True
+# Scene Director – start on the main menu
+director = SceneDirector()
+director.push(MainMenuScene())
 
-# Monolite Behavior initialization
-#MonoliteBehaviour.instantiate_all()
-
-while running:
+while director.running:
     im.reset_frame()  # Clear single-frame inputs
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            running = False
+            director.running = False
         im.handle_event(event)
 
-    screen.fill(SCREEN_BACKGROUND_COLOR)  # Clear screen with black
+    delta_time = clock.get_time() / 1000.0
 
-    # main loop
-    game_loop(screen, clock, im)
+    screen.fill(SCREEN_BACKGROUND_COLOR)  # Clear screen
 
-    # Monolite Behavior update
-    MonoliteBehaviour.update_all(clock.get_time()/1000)
+    # Director delegates to the active scene
+    director.handle_events(im)
+    director.update(delta_time)
+    director.render(screen)
 
     pygame.display.flip()
 
     if FPS > 0:
         clock.tick(FPS)
-    else :
+    else:
         clock.tick()  # No limit on FPS
+
+pygame.quit()
