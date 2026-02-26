@@ -112,6 +112,7 @@ def game_update(delta_time, im):
     # Get delta time (time between frames)
     delta_time = clock.get_time() / 1000.0
 
+    cleanup_dead_enemies(enemies)
     #nuevo
     map_loader.draw_active_chunks(screen, camera.position, tile_images, player)
     #print(f"Player pos: {player.position.x:.0f}, {player.position.y:.0f}")

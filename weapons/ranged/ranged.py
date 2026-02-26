@@ -60,8 +60,6 @@ class Ranged(Weapon, MonoliteBehaviour):
                 self._last_shot_time = pygame.time.get_ticks()
                 self.current_clip -= 1
 
-                # Implement shooting logic (raycasting, bullet instantiation, etc.)
-
                 self.emitter.emit()
 
                 forward = pygame.math.Vector2(0, -1).rotate(-self.parent.rotation)
