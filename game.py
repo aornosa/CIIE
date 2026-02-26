@@ -96,6 +96,8 @@ def game_loop(screen, clock, im):
 
     # Get delta time (time between frames)
     delta_time = clock.get_time() / 1000.0
+
+    cleanup_dead_enemies(enemies)
     
     # Handle dialog input (takes priority when active)
     # InputHandler now manages all key state
