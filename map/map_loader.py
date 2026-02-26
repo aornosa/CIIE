@@ -1,6 +1,6 @@
 import json
 from settings import TILE_SIZE, CHUNK_SIZE
-from map.world_map import Map
+from map.map import Map
 
 class MapLoader:
     def __init__(self):
