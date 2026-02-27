@@ -18,7 +18,9 @@ from core.camera import Camera
 from character_scripts.player.player import Player
 from character_scripts.player.fog_of_war import *
 from character_scripts.character_controller import CharacterController
-from weapons.ranged.ranged import Ranged
+from weapons.ranged.ranged_types import *
+from weapons.melee.melee_types import *
+from weapons.weapon_controller import WeaponController 
 from runtime.round_manager import *
 from core.status_effects import StatusEffect
 from dialogs.dialog_manager import DialogManager
@@ -54,14 +56,15 @@ AudioManager()
 player = Player("assets/player/survivor-idle_rifle_0.png", (1600.0,800.0))
 controller = CharacterController( 250, player)
 
+# Weapon system controller
+weapon_controller = WeaponController(player)
+
 enemies = spawn_enemies(5)
 
-test_weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
-                     "7.62", 30, 0.1, 2, muzzle_offset=(35, 15))
-
+ak47 = AK47()
 
 # Test weapon on inventory
-player.inventory.add_weapon(player, test_weapon, "primary")
+player.inventory.add_weapon(player, ak47, "primary")
 player.inventory.add_item(ItemRegistry.get("ammo_clip_762"))
 player.inventory.add_item(ItemRegistry.get("health_injector"))
 
@@ -103,10 +106,7 @@ def game_loop(screen, clock, im):
     global can_aim
     global attack_ready_time
     global fow
-
-    # Refactor to render independently
-    test_weapon.emitter.surface = screen
-    test_weapon.emitter.camera = camera
+    global weapon_controller
 
     # Get delta time (time between frames)
     delta_time = clock.get_time() / 1000.0
@@ -123,13 +123,6 @@ def game_loop(screen, clock, im):
 
     global _last_movement
     global _last_mouse_pos
-
-    # Refactor to render independently
-    test_weapon.emitter.surface = screen
-    test_weapon.emitter.camera = camera
-
-    # Get delta time (time between frames)
-    delta_time = clock.get_time() / 1000.0
 
     # Handle dialog input (takes priority when active)
     dialog_manager.input_handler = im
@@ -169,43 +162,42 @@ def game_loop(screen, clock, im):
         inventory_is_open = not inventory_is_open
         print("Inventory toggled:", inventory_is_open)
 
-    if im.actions["swap_weapon"]:
-        im.actions["swap_weapon"] = False
-        player.inventory.swap_weapons()
-        print("Active slot:", player.inventory.active_weapon_slot)
+    # Weapon swap is handled by WeaponController (centralized)
 
     active_weapon = player.inventory.get_weapon(player.inventory.active_weapon_slot)
 
-    if im.actions["reload"]:
-        im.actions["reload"] = False
-        if active_weapon is not None:
-            active_weapon.reload()
+    # Reloading is handled by WeaponController (centralized)
 
     # Player game logic
     if im.actions["attack"] or im.actions["aim"]:
-        # Slow player
+        # Slow player while aiming
         player.add_effect(ads_se)
 
-
-        # Look where shooting
+        # Look where shooting and update player rotation
         direction_to_mouse = mouse_pos - (player.position - camera.position)
         target_angle = direction_to_mouse.angle_to(pygame.Vector2(0, -1))  # relative to up
-        player.set_rotation(math.lerp_angle(player.rotation, target_angle, 10 * delta_time)+0.164)
+        player.set_rotation(math.lerp_angle(player.rotation, target_angle, 10 * delta_time) + 0.164)
 
-        # Shoot if attacking
-        if im.actions["attack"] and can_attack:
-            direction = pygame.Vector2(0, -1).rotate(-player.rotation)
-            if isinstance(active_weapon, Ranged):
+    # WeaponController will be called once per frame after rotation handling
+
+        # Optional: draw bullet trail if ranged weapon is ready to fire (visual only)
+        try:
+            if im.actions["attack"] and isinstance(active_weapon, Ranged) and active_weapon.can_shoot():
+                direction = pygame.Vector2(0, -1).rotate(-player.rotation)
                 active_weapon.play_trail_effect(screen, (player.position - camera.position)
-                                                            + direction * active_weapon.muzzle_offset[0]
-                                                            + direction.rotate(90) * active_weapon.muzzle_offset[1]
-                                                            , direction)
-            if active_weapon is not None and can_attack:
-                active_weapon.shoot()
+                                                + direction * active_weapon.muzzle_offset[0]
+                                                + direction.rotate(90) * active_weapon.muzzle_offset[1]
+                                                , direction)
+        except Exception:
+            # If weapon doesn't have expected attributes, skip trail drawing
+            pass
 
     elif movement.length() > 0.:  # Only rotate if there's movement
         target_angle = movement.angle_to(pygame.Vector2(0, -1)) # relative to up
         player.rotation = math.lerp_angle(player.rotation, target_angle, 7.5 * delta_time)
+
+    # Ensure weapon controller processes inputs every frame (swap/reload/shoot)
+    weapon_controller.update(im, delta_time)
 
     if not im.actions["attack"] and not im.actions["aim"]:
         player.remove_effect("Aiming Down Sights")
