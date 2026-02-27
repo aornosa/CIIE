@@ -19,6 +19,7 @@ from character_scripts.player.player import Player
 from character_scripts.player.fog_of_war import *
 from character_scripts.character_controller import CharacterController
 from weapons.ranged.ranged_types import *
+from weapons.melee.melee import Melee
 from weapons.melee.melee_types import *
 from weapons.weapon_controller import WeaponController 
 from runtime.round_manager import *
@@ -62,8 +63,10 @@ weapon_controller = WeaponController(player)
 enemies = spawn_enemies(5)
 
 ak47 = AK47()
+tactical_knife = TacticalKnife()
 
 # Test weapon on inventory
+player.inventory.add_weapon(player, tactical_knife, "secondary")
 player.inventory.add_weapon(player, ak47, "primary")
 player.inventory.add_item(ItemRegistry.get("ammo_clip_762"))
 player.inventory.add_item(ItemRegistry.get("health_injector"))
@@ -238,6 +241,9 @@ def game_loop(screen, clock, im):
     controller.move(movement, delta_time)
     player.draw(screen, camera)
 
+    # Draw attack cone for melee weapons (visual feedback)
+    if isinstance(active_weapon, Melee):
+        active_weapon.draw_attack_cone(screen, camera)
 
     # Draw inventory on top if open
     if inventory_is_open:

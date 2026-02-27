@@ -24,7 +24,12 @@ class AudioManager(MonoliteBehaviour):
 
     def __init__(self):
         MonoliteBehaviour.__init__(self)
-        pygame.mixer.set_num_channels(MAX_AUDIO_CHANNELS)
+        try:
+            pygame.mixer.set_num_channels(MAX_AUDIO_CHANNELS)
+            self.mixer_available = True
+        except pygame.error:
+            # Mixer not initialized, continue without audio
+            self.mixer_available = False
 
         self.listener = None
         self.master_volume = 1.0
@@ -46,8 +51,10 @@ class AudioManager(MonoliteBehaviour):
 
 
     def play_sound(self, audio_clip: AudioClip, emitter: AudioEmitter):
+        if not self.mixer_available or audio_clip.source is None:
+            return
+            
         if self.listener is None:
-            print("AudioManager: No listener available")
             return
 
         distance = self.listener.get_position().distance_to(emitter.get_position())
@@ -91,6 +98,9 @@ class AudioManager(MonoliteBehaviour):
 
 
     def get_available_channel(self, new_clip_priority):
+        if not self.mixer_available:
+            return None
+            
         channel = pygame.mixer.find_channel()
 
         if channel:

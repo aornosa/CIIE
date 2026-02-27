@@ -3,6 +3,12 @@ import pygame._sdl2 as sdl2
 
 pygame.init()
 
+# Try to initialize audio, but continue if it fails (no audio device)
+try:
+    pygame.mixer.init()
+except pygame.error as e:
+    print(f"Warning: Audio initialization failed ({e}). Game will run without sound.")
+
 if not pygame.get_init():
     exit(-1)
 
