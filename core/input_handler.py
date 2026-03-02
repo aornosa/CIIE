@@ -59,7 +59,7 @@ class InputHandler:
                 self.actions["look_around"] = True
 
             elif event.key == pygame.K_ESCAPE:
-                pygame.event.post(pygame.event.Event(pygame.QUIT))
+                self.actions["pause"] = True
 
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_a:

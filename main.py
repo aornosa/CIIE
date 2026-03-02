@@ -16,8 +16,8 @@ window.position = sdl2.WINDOWPOS_CENTERED
 window.show()
 
 from core import input_handler as ih
-from game import game_loop
-
+from core.scene_director import SceneDirector
+from scenes.main_menu_scene import MainMenuScene
 from core.monolite_behaviour import MonoliteBehaviour
 
 
@@ -28,30 +28,30 @@ pygame.display.set_icon(pygame.image.load("assets/icon.png").convert())
 clock = pygame.time.Clock()
 im = ih.InputHandler()
 
-# render loop
-running = True
+# Scene Director — manages scene stack, starts at main menu
+director = SceneDirector()
+director.clock = clock
+director.push(MainMenuScene())
 
-# Monolite Behavior initialization
-#MonoliteBehaviour.instantiate_all()
-
-while running:
+while director.running:
     im.reset_frame()  # Clear single-frame inputs
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            running = False
+            director.running = False
         im.handle_event(event)
 
-    screen.fill(SCREEN_BACKGROUND_COLOR)  # Clear screen with black
+    screen.fill(SCREEN_BACKGROUND_COLOR)
 
-    # main loop
-    game_loop(screen, clock, im)
+    director.handle_events(im)
+    director.update(clock.get_time() / 1000.0)
+    director.render(screen)
 
     # Monolite Behavior update
-    MonoliteBehaviour.update_all(clock.get_time()/1000)
+    MonoliteBehaviour.update_all(clock.get_time() / 1000)
 
     pygame.display.flip()
 
     if FPS > 0:
         clock.tick(FPS)
-    else :
+    else:
         clock.tick()  # No limit on FPS
