@@ -7,6 +7,7 @@ from core.collision.collision_manager import CollisionManager
 from core.collision.quadtree import Rectangle
 
 from game_math import utils as math
+from item.item_instance import ItemInstance
 from item.item_loader import ItemRegistry
 
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT, _CAM_BORDER_RADIUS
@@ -56,8 +57,9 @@ test_weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
 
 # Test weapon on inventory
 player.inventory.add_weapon(player, test_weapon, "primary")
-player.inventory.add_item(ItemRegistry.get("ammo_clip_762"))
-player.inventory.add_item(ItemRegistry.get("health_injector"))
+player.inventory.add_item(ItemInstance(ItemRegistry.get("ammo_clip_762")))
+player.inventory.add_item(ItemInstance(ItemRegistry.get("ammo_clip_762")))
+player.inventory.add_item(ItemInstance(ItemRegistry.get("health_injector")))
 
 AudioManager.instance().set_listener(player.audio_listener)
 
