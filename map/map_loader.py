@@ -61,6 +61,7 @@ class MapLoader:
             for x in range(0, w, tile_size[0]):
                 rect = pygame.Rect(x, y, *tile_size)
                 tile = sheet.subsurface(rect).convert_alpha()  
-                tile_images[tile_id] = tile 
+                scaled_tile = pygame.transform.smoothscale(tile, (64, 64))
+                tile_images[tile_id] = scaled_tile
                 tile_id += 1
         return tile_images 
