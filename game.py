@@ -1,19 +1,14 @@
 from __future__ import annotations
-
 from character_scripts.player.inventory import show_inventory
-
 from core.audio.audio_manager import AudioManager
 from core.collision.collision_manager import CollisionManager
 from core.collision.quadtree import Rectangle
-
 from game_math import utils as math
 from item.item_loader import ItemRegistry
-
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT, _CAM_BORDER_RADIUS
 from ui import ui_manager
 from ui.fps_counter import FPS_Counter
 from ui.dialog import draw_dialog_ui
-
 from core.camera import Camera
 from character_scripts.player.player import Player
 from character_scripts.player.fog_of_war import *
@@ -27,14 +22,12 @@ from core.status_effects import StatusEffect
 from dialogs.dialog_manager import DialogManager
 from dialogs.test_dialogs import create_test_dialog_simple
 from character_scripts.npc.npc import NPC
-
-#nuevo
 from settings import TILE_SIZE, CHUNK_SIZE
 from map.map_loader import MapLoader
+
 map_loader = MapLoader()
 loaded_map = map_loader.load_map("test.json")
 map_loader.map = loaded_map
-
 
 tile_images = {
     #0: pygame.Surface((TILE_SIZE, TILE_SIZE)),  # Negro/vacío
@@ -117,12 +110,6 @@ def game_loop(screen, clock, im):
     cleanup_dead_enemies(enemies)
 
     map_loader.draw_active_chunks(screen, camera.position, tile_images, player)
-    #print(f"Player pos: {player.position.x:.0f}, {player.position.y:.0f}")
-    #print(f"Player chunk: cx={int((player.position.x // TILE_SIZE) // CHUNK_SIZE)}, cy={int((player.position.y // TILE_SIZE) // CHUNK_SIZE)}")
-    #print(f"Active chunks: {len(map_loader.active_chunks)} positions: {list(map_loader.active_chunks.keys())[:16]}...")
-    #print(f"Chunks activos: {len(map_loader.active_chunks)} / total {len(map_loader.map.chunks)}")
-    #print(f"Player chunk: ({player.position.x // TILE_SIZE // CHUNK_SIZE}, {player.position.y // TILE_SIZE // CHUNK_SIZE})")
-    #print(f"Player pixels: ({player.position.x}, {player.position.y})")
 
     global _last_movement
     global _last_mouse_pos
@@ -144,8 +131,8 @@ def game_loop(screen, clock, im):
     if im.actions["look_around"]:
         camera_follow(mouse_pos, camera, delta_time, speed=5, position_relative=False)
     else:
-        camera_follow(player.position, camera, delta_time)
-
+        target = player.position - pygame.Vector2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+        camera.position = camera.position.lerp(target, min(15 * delta_time, 1.0))
 
     # Hide mouse cursor
     pygame.mouse.set_visible(False)
@@ -158,52 +145,45 @@ def game_loop(screen, clock, im):
         im.actions["interact"] = False
         if test_npc.is_player_in_range(player.position):
             test_npc.interact(player)
-    
+
     # Toggle inventory (disabled during dialog)
     if im.actions["inventory"] and not dialog_manager.is_dialog_active:
-        im.actions["inventory"] = False  # Reset action
+        im.actions["inventory"] = False
         inventory_is_open = not inventory_is_open
         print("Inventory toggled:", inventory_is_open)
 
-    # Weapon swap is handled by WeaponController (centralized)
-
     active_weapon = player.inventory.get_weapon(player.inventory.active_weapon_slot)
 
-    # Reloading is handled by WeaponController (centralized)
+    direction_to_mouse = mouse_pos - (player.position - camera.position)
 
-    # Player game logic
-    if im.actions["attack"] or im.actions["aim"]:
-        # Slow player while aiming
-        player.add_effect(ads_se)
+    if direction_to_mouse.length() > 5:
+        target_angle = direction_to_mouse.angle_to(pygame.Vector2(0, -1))
+        if im.actions["attack"] or im.actions["aim"]:
+            player.add_effect(ads_se)
+            lerp_speed = 20 * delta_time
+        else:
+            lerp_speed = 12 * delta_time
+        player.set_rotation(math.lerp_angle(player.rotation, target_angle, lerp_speed) + 0.164)
 
-        # Look where shooting and update player rotation
-        direction_to_mouse = mouse_pos - (player.position - camera.position)
-        target_angle = direction_to_mouse.angle_to(pygame.Vector2(0, -1))  # relative to up
-        player.set_rotation(math.lerp_angle(player.rotation, target_angle, 10 * delta_time) + 0.164)
+    if not (im.actions["attack"] or im.actions["aim"]):
+        player.remove_effect("Aiming Down Sights")
 
-    # WeaponController will be called once per frame after rotation handling
-
-        # Optional: draw bullet trail if ranged weapon is ready to fire (visual only)
-        try:
-            if im.actions["attack"] and isinstance(active_weapon, Ranged) and active_weapon.can_shoot():
-                direction = pygame.Vector2(0, -1).rotate(-player.rotation)
-                active_weapon.play_trail_effect(screen, (player.position - camera.position)
-                                                + direction * active_weapon.muzzle_offset[0]
-                                                + direction.rotate(90) * active_weapon.muzzle_offset[1]
-                                                , direction)
-        except Exception:
-            # If weapon doesn't have expected attributes, skip trail drawing
-            pass
-
-    elif movement.length() > 0.:  # Only rotate if there's movement
-        target_angle = movement.angle_to(pygame.Vector2(0, -1)) # relative to up
-        player.rotation = math.lerp_angle(player.rotation, target_angle, 7.5 * delta_time)
+    # Bullet trail (solo armas ranged, visual)
+    try:
+        if im.actions["attack"] and isinstance(active_weapon, Ranged) and active_weapon.can_shoot():
+            direction = pygame.Vector2(0, -1).rotate(-player.rotation)
+            active_weapon.play_trail_effect(
+                screen,
+                (player.position - camera.position)
+                + direction * active_weapon.muzzle_offset[0]
+                + direction.rotate(90) * active_weapon.muzzle_offset[1],
+                direction,
+            )
+    except Exception:
+        pass
 
     # Ensure weapon controller processes inputs every frame (swap/reload/shoot)
     weapon_controller.update(im, delta_time)
-
-    if not im.actions["attack"] and not im.actions["aim"]:
-        player.remove_effect("Aiming Down Sights")
 
     # Move player
     controller.move(movement, delta_time)
@@ -272,10 +252,7 @@ def camera_follow(target, cam, delta_time, speed=10, position_relative=True):
 
     distance_from_center = center_offset.length()
     if distance_from_center > _CAM_BORDER_RADIUS:
-        # Calculate how much to move camera
         excess_distance = distance_from_center - _CAM_BORDER_RADIUS
         move_direction = center_offset.normalize()
-
-        # Move camera towards player smoothly
-        camera_move = move_direction * excess_distance * speed * delta_time  # Bigger = snappier
+        camera_move = move_direction * excess_distance * speed * delta_time
         camera.move(camera_move)
