@@ -1,10 +1,20 @@
-from character_scripts.enemy.enemy_base import Enemy
-from character_scripts.enemy.enemy_brain import EnemyBrain
+from character_scripts.enemy.enemy_types import InfectedCommon, InfectedSoldier, LabSubject
+from character_scripts.enemy.enemy_brain import InfectedCommonBrain, InfectedSoldierBrain, LabSubjectBrain
+from character_scripts.character_controller import CharacterController
 
-def spawn_enemies(count):
+
+def spawn_enemies(player):
+    definitions = [
+        (InfectedCommon,  InfectedCommonBrain,  (1000, 800)),
+        (InfectedSoldier, InfectedSoldierBrain, (2200, 800)),
+        (LabSubject,      LabSubjectBrain,      (1600, 1400)),
+    ]
+
     enemy_pool = []
-    for i in range(count):
-        enemy = Enemy("assets/icon.png", (i * 100, 100), 0, 0.05)
+    for EnemyClass, BrainClass, position in definitions:
+        enemy = EnemyClass(position=position)
+        controller = CharacterController(enemy.speed, enemy)
+        enemy.brain = BrainClass(enemy, controller, player)
         enemy_pool.append(enemy)
     return enemy_pool
 

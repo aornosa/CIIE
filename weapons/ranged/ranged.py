@@ -17,14 +17,14 @@ class Ranged(Weapon, MonoliteBehaviour):
         super().__init__(asset, name, damage)
         MonoliteBehaviour.__init__(self)
         
-        self.max_range = max_range      # Maximum effective range in pixels before bullet despawns
-        self.ammo_type = ammo_type      # Caliber used (9x19, 7.62, 12gauge, etc.)
-        self.clip_size = clip_size      # Number of rounds per clip/magazine
-        self.fire_rate = fire_rate      # Time between shots in seconds
-        self.reload_time = reload_time  # Time to reload in seconds
-        self.muzzle_speed = muzzle_speed  # Initial speed of the bullet in m/s
-        self.muzzle_offset = muzzle_offset  # (forward_offset, side_offset)
-        self.lock_time = lock_time      # Delay before shot after pressing trigger
+        self.max_range = max_range      
+        self.ammo_type = ammo_type     
+        self.clip_size = clip_size      
+        self.fire_rate = fire_rate      
+        self.reload_time = reload_time  
+        self.muzzle_speed = muzzle_speed  
+        self.muzzle_offset = muzzle_offset  
+        self.lock_time = lock_time      
         
         self.current_clip = self.clip_size
         self._last_shot_time = 0
@@ -43,7 +43,6 @@ class Ranged(Weapon, MonoliteBehaviour):
             return asset
         except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
             print(f"Warning: Could not load ammo particle for {self.ammo_type}: {e}")
-            # Return a fallback simple pixel
             surface = pygame.Surface((2, 2))
             surface.fill((255, 255, 255))
             return surface
@@ -55,7 +54,6 @@ class Ranged(Weapon, MonoliteBehaviour):
                                                               direction.rotate(90) * self.muzzle_offset[1]))
             self.emitter.set_rotation(self.parent.rotation)
         
-        # Update reload state
         if self._is_reloading:
             elapsed = (pygame.time.get_ticks() - self._reload_start_time) / 1000.0
             if elapsed >= self.reload_time:
@@ -87,22 +85,18 @@ class Ranged(Weapon, MonoliteBehaviour):
         self._last_shot_time = pygame.time.get_ticks()
         self.current_clip -= 1
 
-        # Emit particle effect
         self.emitter.emit()
 
-        # Calculate raycast from muzzle
         forward = pygame.math.Vector2(0, -1).rotate(-self.parent.rotation)
         end = self.parent.position + forward * self.max_range
         start = (self.parent.position + forward * self.muzzle_offset[0]
                  + forward.rotate(90) * self.muzzle_offset[1])
 
-        # Check for hits
         hit = raycast_segment(start, end, layers=[LAYERS["enemy"], LAYERS["terrain"]])
 
         if hit and hit[0] is not None:
             self._handle_hit(hit[0], hit[1])
 
-        # Play sound
         self._play_shoot_sound()
         
         return True
@@ -116,12 +110,10 @@ class Ranged(Weapon, MonoliteBehaviour):
     def _play_shoot_sound(self):
         if self.audio_emitter:
             try:
-                # Try to play ammo-specific sound
                 sound_key = f"{self.ammo_type}_shoot"
                 self.audio_emitter.audio_clip = SOUNDS[sound_key]
                 self.audio_emitter.play()
             except (KeyError, AttributeError):
-                # Fallback to generic shoot sound
                 try:
                     self.audio_emitter.audio_clip = SOUNDS["generic_shoot"]
                     self.audio_emitter.play()
@@ -140,7 +132,6 @@ class Ranged(Weapon, MonoliteBehaviour):
             print("Already reloading...")
             return False
 
-        # Find ammo in inventory
         ammo_found = False
         for item in self.parent.inventory.items:
             if item.ammo and item.ammo.ammo_type == self.ammo_type:
@@ -148,11 +139,9 @@ class Ranged(Weapon, MonoliteBehaviour):
                 needed = self.clip_size - self.current_clip
                 to_load = min(needed, item.ammo.capacity)
                 
-                # Start reload
                 self._is_reloading = True
                 self._reload_start_time = pygame.time.get_ticks()
                 
-                # Actually load ammo after reload time (could be done on start or end)
                 self.current_clip += to_load
                 item.ammo.capacity -= to_load
                 

@@ -24,22 +24,18 @@ from dialogs.test_dialogs import create_test_dialog_simple
 from character_scripts.npc.npc import NPC
 from settings import TILE_SIZE, CHUNK_SIZE
 from map.map_loader import MapLoader
-
 map_loader = MapLoader()
 loaded_map = map_loader.load_map("test.json")
 map_loader.map = loaded_map
 
 tile_images = {
-    #0: pygame.Surface((TILE_SIZE, TILE_SIZE)),  # Negro/vacío
     1: pygame.image.load("assets/tiles/tile1.png").convert_alpha(),
     2: pygame.image.load("assets/tiles/tile2.png").convert_alpha(),
 }
 
-# Predeclaration
 world_bounds = Rectangle(-2000, -2000, 4000, 4000)
 camera = Camera()
 
-# Monolite Build Order
 CollisionManager(world_bounds, camera)
 ItemRegistry()
 ItemRegistry.load("assets/items/item_data.json")
@@ -50,15 +46,13 @@ AudioManager()
 player = Player("assets/player/survivor-idle_rifle_0.png", (1600.0,800.0))
 controller = CharacterController( 250, player)
 
-# Weapon system controller
 weapon_controller = WeaponController(player)
 
-enemies = spawn_enemies(5)
+enemies = spawn_enemies(player)
 
 ak47 = AK47()
 tactical_knife = TacticalKnife()
 
-# Test weapon on inventory
 player.inventory.add_weapon(player, tactical_knife, "secondary")
 player.inventory.add_weapon(player, ak47, "primary")
 player.inventory.add_item(ItemRegistry.get("ammo_clip_762"))
@@ -66,23 +60,18 @@ player.inventory.add_item(ItemRegistry.get("health_injector"))
 
 AudioManager.instance().set_listener(player.audio_listener)
 
-# Make crosshair
 crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
 
-# Status effects
 ads_se = StatusEffect("assets/effects/ads","Aiming Down Sights", {"speed": -70}, -1)
 
-# Dialog System
 dialog_manager = DialogManager()
 
-# Test NPC with dialog
 test_npc = NPC(
     name="npc",
     position=(300, 200),
     dialog_tree=create_test_dialog_simple()
 )
 
-# Bool state flags (change into enumerated state manager later)
 inventory_is_open = False
 can_attack = True
 attack_ready_time = 0
@@ -131,8 +120,7 @@ def game_loop(screen, clock, im):
     if im.actions["look_around"]:
         camera_follow(mouse_pos, camera, delta_time, speed=5, position_relative=False)
     else:
-        target = player.position - pygame.Vector2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
-        camera.position = camera.position.lerp(target, min(15 * delta_time, 1.0))
+        camera.position = player.position - pygame.Vector2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
 
     # Hide mouse cursor
     pygame.mouse.set_visible(False)
@@ -195,6 +183,11 @@ def game_loop(screen, clock, im):
     else:
         can_aim = True
         can_attack = True
+
+    # Update enemy brains
+    for enemy in enemies:
+        if enemy.brain:
+            enemy.brain.update(delta_time)
 
     # create fog of war
     visibility_mask = None
