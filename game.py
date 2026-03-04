@@ -27,11 +27,15 @@ from character_scripts.npc.npc import NPC
 
 from settings import TILE_SIZE, CHUNK_SIZE
 from map.map_loader import MapLoader
+from map.map import Map
 map_loader = MapLoader()
-loaded_map = map_loader.load_map("test.json")
-map_loader.map = loaded_map
 
-tile_images = MapLoader.load_tileset_to_dict('assets/tiles/Dungeon_Tileset.png')
+map_data = map_loader.load_map('assets/map/prueba.json')
+mapa = Map(0, 0)
+map_loader.map = mapa   
+MapLoader.load_chunks_from_json(map_data, mapa)      
+
+tilesets_multi = MapLoader.load_all_tilesets(map_data)
 
 # Predeclaration
 world_bounds = Rectangle(-2000, -2000, 4000, 4000)
@@ -107,12 +111,18 @@ def game_loop(screen, clock, im):
 
     cleanup_dead_enemies(enemies)
 
-    map_loader.draw_active_chunks(screen, camera.position, tile_images, player)
+    map_loader.draw_active_chunks(screen, camera.position, tilesets_multi, player)
     #print(f"Player pos: {player.position.x:.0f}, {player.position.y:.0f}")
     #print(f"Player chunk: cx={int((player.position.x // TILE_SIZE) // CHUNK_SIZE)}, cy={int((player.position.y // TILE_SIZE) // CHUNK_SIZE)}")
-    #print(f"Active chunks: {len(map_loader.active_chunks)} positions: {list(map_loader.active_chunks.keys())[:16]}...")
-    print(f"Chunks activos: {len(map_loader.active_chunks)} / total {len(map_loader.map.chunks)}")
-    print(f"Player chunk: ({player.position.x // TILE_SIZE // CHUNK_SIZE}, {player.position.y // TILE_SIZE // CHUNK_SIZE})")
+    #print(f"Active chunks: {len(map_loader.active_chunks)} positions: {list(map_loader.active_chunks.keys())[:25]}...")
+    #print(f"Chunks activos: {len(map_loader.active_chunks)} / total {len(mapa.chunks)}")
+
+
+    #print("=== DEBUG TILESETS ===")
+    #print("Keys:", list(tilesets_multi.keys()))  
+    #print("1025 tiles:", len(tilesets_multi.get(1025, {})))
+    #print("Sample 1025-1:", 1025+1-1 in [k for t in tilesets_multi.values() for k in t])
+    #print(f"Player chunk: ({player.position.x // TILE_SIZE // CHUNK_SIZE}, {player.position.y // TILE_SIZE // CHUNK_SIZE})")
     #print(f"Player pixels: ({player.position.x}, {player.position.y})")
 
     global _last_movement

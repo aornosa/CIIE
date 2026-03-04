@@ -25,12 +25,3 @@ class Map:
             self.chunks[chunk_pos] = Chunk(chunk_pos)
         return self.chunks[chunk_pos]
 
-    def process_data(self, data):
-        for y, row in enumerate(data):
-            for x, tile in enumerate(row):
-                self.set_tile(x, y, tile)
-
-                cx,cy = x//CHUNK_SIZE, y//CHUNK_SIZE
-                chunk = self.get_chunk((cx, cy))
-                chunk.tiles[y%CHUNK_SIZE][x%CHUNK_SIZE] = tile
-                self.set_chunk(chunk, (cx, cy))

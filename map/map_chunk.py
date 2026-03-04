@@ -15,25 +15,20 @@ class Chunk:
 
         self.collision_cache = collision_cache
 
-    def _bake_chunk(self, tile_images):
-        # Tile optimization: Combine adjacent tiles into larger rectangles for efficient rendering
-        #render_cache = None
-        #self.render_cache = render_cache
+    def _bake_chunk(self, tilesets_multi):
         self.render_cache = pygame.Surface((CHUNK_SIZE * TILE_SIZE, CHUNK_SIZE * TILE_SIZE))
-
+        
         for y in range(CHUNK_SIZE):
             for x in range(CHUNK_SIZE):
-                tile_id = self.tiles[y][x]
-                if tile_id:
-                    img = tile_images[tile_id]
-                    self.render_cache.blit(img, (x*TILE_SIZE, y*TILE_SIZE))
+                gid = self.tiles[y][x]  
+                if gid != 0:
+                    tile_surf = None
+                    for firstgid, tile_dict in tilesets_multi.items():
+                        if gid >= firstgid:
+                            local_id = gid - firstgid + 1  
+                            tile_surf = tile_dict.get(local_id)
+                            break
+                    
+                    if tile_surf:
+                        self.render_cache.blit(tile_surf, (x * TILE_SIZE, y * TILE_SIZE))
     
-    def draw_chunk(self, surface, camera_pos, tile_images):
-        """Draw optimizado con cache"""
-        if self.render_cache is None:
-            self._bake_chunk(tile_images)
-        
-        screen_x = self.pos[0] * CHUNK_SIZE * TILE_SIZE - camera_pos.x
-        screen_y = self.pos[1] * CHUNK_SIZE * TILE_SIZE - camera_pos.y
-        
-        surface.blit(self.render_cache, (screen_x, screen_y))

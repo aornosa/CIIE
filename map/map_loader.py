@@ -8,22 +8,37 @@ class MapLoader:
         self.active_chunks = {}
         #nuevo
         self.map = None
-        
-    # Load map file
+
     @staticmethod
-    def load_map(file_path: str) -> Map:
-
+    def load_map(file_path: str) -> dict:
         with open(file_path, 'r') as f:
-            data_json = json.load(f)
-        width = data_json['width'] 
-        height = data_json['height'] 
-        tiles_flat = data_json['layers'][0]['data'] 
-        tiles_2d = [tiles_flat[i*width : (i+1)*width] for i in range(height)]
-        mapa = Map(width, height)
-        mapa.process_data(tiles_2d) 
-        return mapa
+            return json.load(f)
+        
+    @staticmethod
+    def load_chunks_from_json(map_data, mapa):
+        tile_layer = map_data['layers'][0] 
+        chunks = tile_layer['chunks']
+        
+        for chunk_data in chunks:
+            x = chunk_data['x']  
+            y = chunk_data['y']
+            width = chunk_data['width']
+            height = chunk_data['height']
+            tiles_flat = chunk_data['data']
+            
+            tiles_2d = [tiles_flat[i*width : (i+1)*width] for i in range(height)]
+            
+            cx = x // CHUNK_SIZE
+            cy = y // CHUNK_SIZE
+            
+            chunk = mapa.get_chunk((cx, cy))
 
-    # Save map file
+            for ly in range(height):
+                for lx in range(width):
+                    tile_id = tiles_2d[ly][lx]
+                    chunk.tiles[ly][lx] = tile_id         
+            mapa.set_chunk(chunk, (cx, cy))
+
     @staticmethod
     def save_map(map_object: Map, file_path):
         pass
@@ -41,7 +56,7 @@ class MapLoader:
                 self.active_chunks[chunk_pos] = self.map.get_chunk(chunk_pos)
         return self.active_chunks
     
-    def draw_active_chunks(self, screen, camera_offset, tile_images, player=None, chunk_radius=4):
+    def draw_active_chunks(self, screen, camera_offset, tile_images, player=None, chunk_radius=2):
         if player:
              self.active_chunks= self.get_active_chunks(player,screen, camera_offset, chunk_radius)
         for chunk_pos, chunk in self.active_chunks.items():
@@ -50,7 +65,8 @@ class MapLoader:
             chunk_screen_pos = (chunk.pos[0] * (CHUNK_SIZE * TILE_SIZE) - camera_offset[0],
                     chunk.pos[1] * (CHUNK_SIZE * TILE_SIZE) - camera_offset[1])
             screen.blit(chunk.render_cache, chunk_screen_pos)
-    
+
+    @staticmethod
     def load_tileset_to_dict(tileset_path, tile_size=(32,32)):
         sheet = pygame.image.load(tileset_path).convert_alpha()
         w, h = sheet.get_size()
@@ -65,3 +81,35 @@ class MapLoader:
                 tile_images[tile_id] = scaled_tile
                 tile_id += 1
         return tile_images 
+    
+    @staticmethod
+    def load_all_tilesets(map_json):
+        tilesets_multi = {}
+        png_cache = {} 
+        
+        tsx_to_png = {
+            '../tilesets/1.tsx': '1.png',
+            '../tilesets/2.tsx': '2.png',
+            '../tilesets/3.tsx': '3.png',
+            '../tilesets/4.tsx': '4.png',
+            '../tilesets/5.tsx': '5.png',
+            '../tilesets/6.tsx': '6.png',
+            '../tilesets/7.tsx': '7.png',
+            '../tilesets/8.tsx': '8.png',
+            '../tilesets/9.tsx': '9.png',
+            '../tilesets/10.tsx': '10.png',
+            '../tilesets/11.tsx': '11.png',
+            '../tilesets/12.tsx': '12.png'
+        }
+        
+        for ts in map_json['tilesets']:
+            if 'source' in ts:
+                png_name = tsx_to_png[ts['source']]
+                firstgid = ts['firstgid']
+                
+                if png_name not in png_cache:
+                    png_cache[png_name] = MapLoader.load_tileset_to_dict(f'assets/tilesets/{png_name}')
+                
+                tilesets_multi[firstgid] = png_cache[png_name]  
+        
+        return tilesets_multi
