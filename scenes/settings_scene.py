@@ -8,7 +8,7 @@ class SettingsScene(Scene):
 
     def __init__(self):
         super().__init__()
-        self.options = ["Audio (placeholder)", "Video (placeholder)", "Volver"]
+        self.options = ["Controles", "Audio (placeholder)", "Video (placeholder)", "Volver"]
         self.selected = 0
 
     def handle_events(self, input_handler):
@@ -42,5 +42,9 @@ class SettingsScene(Scene):
     def _select_option(self):
         option = self.options[self.selected]
 
-        if option == "Volver":
+        if option == "Controles":
+            from scenes.keybindings_scene import KeybindingsScene
+            self.director.push(KeybindingsScene())
+
+        elif option == "Volver":
             self.director.pop()
