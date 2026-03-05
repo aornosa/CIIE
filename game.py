@@ -17,13 +17,13 @@ from character_scripts.character_controller import CharacterController
 from weapons.ranged.ranged_types import *
 from weapons.melee.melee import Melee
 from weapons.melee.melee_types import *
-from weapons.weapon_controller import WeaponController 
+from weapons.weapon_controller import WeaponController
 from runtime.round_manager import *
 from core.status_effects import StatusEffect
 from dialogs.dialog_manager import DialogManager
 from dialogs.test_dialogs import create_test_dialog_simple
 from character_scripts.npc.npc import NPC
-
+from map.interactables.interaction_manager import InteractionManager
 from settings import TILE_SIZE, CHUNK_SIZE
 from map.map_loader import MapLoader
 
@@ -32,7 +32,6 @@ loaded_map = map_loader.load_map("test.json")
 map_loader.map = loaded_map
 
 tile_images = MapLoader.load_tileset_to_dict('assets/tiles/Dungeon_Tileset.png')
-
 
 # Predeclaration
 world_bounds = Rectangle(-2000, -2000, 4000, 4000)
@@ -45,9 +44,8 @@ ItemRegistry.load("assets/items/item_data.json")
 
 AudioManager()
 
-
-player = Player("assets/player/survivor-idle_rifle_0.png", (0.0,0.0))
-controller = CharacterController( 250, player)
+player = Player("assets/player/survivor-idle_rifle_0.png", (1600.0, 800.0))
+controller = CharacterController(250, player)
 
 # Weapon system controller
 weapon_controller = WeaponController(player)
@@ -72,17 +70,19 @@ AudioManager.instance().set_listener(player.audio_listener)
 crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
 
 # Status effects
-ads_se = StatusEffect("assets/effects/ads","Aiming Down Sights", {"speed": -70}, -1)
+ads_se = StatusEffect("assets/effects/ads", "Aiming Down Sights", {"speed": -70}, -1)
 
 # Dialog System
 dialog_manager = DialogManager()
 
-# Test NPC with dialog
+# Test NPC — se registra automáticamente en InteractionManager al instanciarse
 test_npc = NPC(
     name="npc",
     position=(300, 200),
     dialog_tree=create_test_dialog_simple()
 )
+
+interaction_manager = InteractionManager()
 
 # Bool state flags (change into enumerated state manager later)
 inventory_is_open = False
@@ -90,7 +90,7 @@ can_attack = True
 attack_ready_time = 0
 can_aim = True
 
-FOG_ENABLE = 0 # Very resource intensive, need to optimize before enabling.
+FOG_ENABLE = 0  # Very resource intensive, need to optimize before enabling.
 
 if FOG_ENABLE:
     fow = FogOfWar(player, camera)
@@ -98,7 +98,6 @@ FPS_Counter()
 
 # Main game loop
 def game_loop(screen, clock, im):
-    # global vars (change later)
     global inventory_is_open
     global can_attack
     global can_aim
@@ -106,18 +105,11 @@ def game_loop(screen, clock, im):
     global fow
     global weapon_controller
 
-    # Get delta time (time between frames)
     delta_time = clock.get_time() / 1000.0
 
     cleanup_dead_enemies(enemies)
 
     map_loader.draw_active_chunks(screen, camera.position, tile_images, player)
-    #print(f"Player pos: {player.position.x:.0f}, {player.position.y:.0f}")
-    #print(f"Player chunk: cx={int((player.position.x // TILE_SIZE) // CHUNK_SIZE)}, cy={int((player.position.y // TILE_SIZE) // CHUNK_SIZE)}")
-    #print(f"Active chunks: {len(map_loader.active_chunks)} positions: {list(map_loader.active_chunks.keys())[:16]}...")
-    print(f"Chunks activos: {len(map_loader.active_chunks)} / total {len(map_loader.map.chunks)}")
-    print(f"Player chunk: ({player.position.x // TILE_SIZE // CHUNK_SIZE}, {player.position.y // TILE_SIZE // CHUNK_SIZE})")
-    #print(f"Player pixels: ({player.position.x}, {player.position.y})")
 
     global _last_movement
     global _last_mouse_pos
@@ -132,7 +124,6 @@ def game_loop(screen, clock, im):
     else:
         movement = pygame.Vector2(im.actions["move_x"], im.actions["move_y"])
 
-    # Crosshair follows mouse
     mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
 
     # Make camera follow player
@@ -142,17 +133,16 @@ def game_loop(screen, clock, im):
         target = player.position - pygame.Vector2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
         camera.position = camera.position.lerp(target, min(15 * delta_time, 1.0))
 
-    # Hide mouse cursor
     pygame.mouse.set_visible(False)
 
-    # Get current speed before calculating
     controller.speed = player.get_stat("speed")
 
-    # Check NPC interaction
-    if im.actions["interact"] and not dialog_manager.is_dialog_active:
-        im.actions["interact"] = False
-        if test_npc.is_player_in_range(player.position):
-            test_npc.interact(player)
+    # --- INTERACCIÓN GENÉRICA CON INTERACTABLES ---
+    # El InteractionManager detecta el Interactable más cercano al pulsar E.
+    # No hace falta añadir lógica aquí al crear nuevos Interactables —
+    # basta con que hereden de Interactable y llamen InteractionManager().register(self).
+    if not dialog_manager.is_dialog_active:
+        interaction_manager.check_interaction(player, im)
 
     # Toggle inventory (disabled during dialog)
     if im.actions["inventory"] and not dialog_manager.is_dialog_active:
@@ -212,36 +202,32 @@ def game_loop(screen, clock, im):
         can_aim = True
         can_attack = True
 
-    # create fog of war
     visibility_mask = None
     if FOG_ENABLE:
         visibility_mask = fow.visibility_mask
 
     entity_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
 
-    # draw enemies/items onto entity surface
     for enemy in enemies:
         enemy.draw(entity_surface, camera)
 
-    # Draw NPC
-    #test_npc.draw(entity_surface, camera)
-
     if FOG_ENABLE:
-        # clip entities using mask
         entity_surface.blit(visibility_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
-    # draw result
     screen.blit(entity_surface, (0, 0))
 
-    # Move and draw player
     controller.move(movement, delta_time)
     player.draw(screen, camera)
 
-    # Draw attack cone for melee weapons (visual feedback)
     if isinstance(active_weapon, Melee):
         active_weapon.draw_attack_cone(screen, camera)
 
-    # Draw inventory on top if open
+    # --- TOOLTIP DE INTERACCIÓN ---
+    if not dialog_manager.is_dialog_active:
+        tooltip = interaction_manager.get_tooltip_in_range(player)
+        if tooltip:
+            _draw_interaction_tooltip(screen, tooltip)
+
     if inventory_is_open:
         can_aim = False
         can_attack = False
@@ -256,18 +242,29 @@ def game_loop(screen, clock, im):
         can_aim = True
         can_attack = True
 
-    # Draw hotkey bar
     draw_hotkey_bar(screen, player)
 
-    # Draw crosshair
     screen.blit(pygame.transform.scale(crosshair, (40, 40)),
                 (mouse_pos - (20, 20)))
 
-    # Draw UI last
     ui_manager.draw_overlay(screen, player)
-
-    # Draw dialog UI (must be last, on top of everything)
     draw_dialog_ui(screen, dialog_manager)
+
+
+def _draw_interaction_tooltip(screen, text: str):
+    font = pygame.font.SysFont("consolas", 28)
+    padding = 12
+    surface = font.render(text, True, (255, 255, 180))
+    bg_rect = pygame.Rect(
+        SCREEN_WIDTH // 2 - surface.get_width() // 2 - padding,
+        SCREEN_HEIGHT - 120,
+        surface.get_width() + padding * 2,
+        surface.get_height() + padding
+    )
+    bg = pygame.Surface((bg_rect.width, bg_rect.height), pygame.SRCALPHA)
+    bg.fill((0, 0, 0, 180))
+    screen.blit(bg, bg_rect.topleft)
+    screen.blit(surface, (bg_rect.x + padding, bg_rect.y + padding // 2))
 
 
 def camera_follow(target, cam, delta_time, speed=10, position_relative=True):

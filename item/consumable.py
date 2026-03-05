@@ -1,10 +1,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-
+from core.status_effects import StatusEffect
 if TYPE_CHECKING:
     from character_scripts.character import Character
-
-from core.status_effects import StatusEffect
 
 _addiction_counters: dict[int, int] = {}
 
@@ -19,7 +17,7 @@ def _increment_addiction(player: "Character") -> int:
 def reset_addiction(player: "Character"):
     _addiction_counters[id(player)] = 0
 
-def _make_speed_buff(duration: float, amount: int) -> StatusEffect:
+def _make_speed_buff(duration: float, amount: int) -> "StatusEffect":
     return StatusEffect(
         icon=None,
         name="Fénix Rush",
@@ -28,7 +26,7 @@ def _make_speed_buff(duration: float, amount: int) -> StatusEffect:
         is_buff=True,
     )
 
-def _make_addiction_debuff(stack: int) -> StatusEffect:
+def _make_addiction_debuff(stack: int) -> "StatusEffect":
     return StatusEffect(
         icon=None,
         name="Adicción Fénix",
@@ -37,8 +35,7 @@ def _make_addiction_debuff(stack: int) -> StatusEffect:
         is_buff=False,
     )
 
-
-def _make_speed_burst(duration: float, amount: int) -> StatusEffect:
+def _make_speed_burst(duration: float, amount: int) -> "StatusEffect":
     return StatusEffect(
         icon=None,
         name="Adrenalina",
@@ -51,17 +48,16 @@ def use_consumable(item_def, player: "Character") -> bool:
     effect_id = item_def.effect
     if effect_id is None:
         return False
-
     handler = _EFFECT_HANDLERS.get(effect_id)
     if handler is None:
         return False
-
     return handler(player, item_def)
 
 def _effect_regen_health(player: "Character", item_def) -> bool:
+    if player.health >= player.get_stat("max_health"):
+        return False  # No consume el item si ya está a vida máxima
     player.heal(30)
     return True
-
 
 def _effect_phoenix_injector(player: "Character", item_def) -> bool:
     player.heal(60)
@@ -70,11 +66,9 @@ def _effect_phoenix_injector(player: "Character", item_def) -> bool:
     player.add_effect(_make_addiction_debuff(stack))
     return True
 
-
 def _effect_adrenaline_shot(player: "Character", item_def) -> bool:
     player.add_effect(_make_speed_burst(duration=5.0, amount=150))
     return True
-
 
 def _effect_rad_suppressor(player: "Character", item_def) -> bool:
     if _get_addiction(player) == 0:

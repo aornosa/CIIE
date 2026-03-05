@@ -61,14 +61,3 @@ def draw_hotkey_bar(screen, player):
         bar_surf.blit(label, (slot_x + 4, 2))
 
     screen.blit(bar_surf, (BAR_X, BAR_Y))
-
-    for i in range(SLOT_COUNT):
-        item = inventory.items[i] if i < len(inventory.items) else None
-        if item is None:
-            continue
-        slot_screen_x = BAR_X + i * (SLOT_SIZE + SLOT_GAP)
-        short_name = item.name[:10] if len(item.name) > 10 else item.name
-        name_surf = font_count.render(short_name, True, C_LABEL)
-        name_rect = name_surf.get_rect(centerx=slot_screen_x + SLOT_SIZE // 2,
-                                       top=BAR_Y + SLOT_SIZE + 3)
-        screen.blit(name_surf, name_rect)

@@ -1,4 +1,7 @@
+import pygame
+
 class Interactable:
+
     def __init__(self, name, description, interact_text, interact_radius=50):
         self.name = name
         self.description = description
@@ -7,6 +10,9 @@ class Interactable:
 
     def get_tooltip(self):
         return self.interact_text
+
+    def is_player_in_range(self, player_position: pygame.Vector2) -> bool:
+        return self.position.distance_to(player_position) <= self.interact_radius
 
     def interact(self, player):
         pass
