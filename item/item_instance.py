@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+
+import pygame
 from item.item_type_data import ItemDefinition
 
 class ItemInstance:
@@ -13,3 +16,10 @@ class ItemInstance:
     # --- Forwarded properties ---
     def __getattr__(self, attr):
         return getattr(self.definition, attr)
+
+
+@dataclass
+class DroppedItem:
+    item_instance: ItemInstance
+    position: pygame.Vector2
+    velocity: pygame.Vector2

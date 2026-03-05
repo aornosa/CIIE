@@ -17,6 +17,7 @@ class Player(Character):
         super().__init__(asset, position, rotation, scale, name, health)
         self.score = 0
         self.inventory = Inventory()
+        self.inventory.owner = self
         self.collider.layer = LAYERS["player"]
 
         self.audio_listener = AudioListener(self)

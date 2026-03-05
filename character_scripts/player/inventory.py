@@ -1,4 +1,5 @@
 import ui.inventory_menu as menu
+from item.item_drop_manager import DropManager
 
 WEAPON_SLOTS = {
     "primary" : 0,
@@ -12,6 +13,9 @@ class Inventory:
         self.secondary_weapon = None
         self.max_size = 12
         self.items = []
+
+        self.owner = None
+        self.drop_manager = DropManager()
 
     def add_weapon(self, player, weapon, slot):
         weapon.parent = player
@@ -36,12 +40,12 @@ class Inventory:
     def drop_weapon(self, slot):
         if slot == "primary":
             # instance weapon to ground (implement)
-
+            self.drop_manager.drop_item(self.primary_weapon, self.primary_weapon.parent.position)
             # Null slot
             self.primary_weapon = None
         elif slot == "secondary":
             # instance weapon to ground
-
+            self.drop_manager.drop_item(self.secondary_weapon, self.secondary_weapon.parent.position)
             # Null slot
             self.secondary_weapon = None
 
@@ -50,7 +54,7 @@ class Inventory:
 
     def drop_item(self, item):
         # instance item to ground (implement)
-
+        self.drop_manager.drop_item(item, self.owner.position)
         # Remove from inventory
         if item in self.items:
             self.items.remove(item)

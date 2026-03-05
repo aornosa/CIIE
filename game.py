@@ -168,6 +168,7 @@ def game_loop(screen, clock, im):
     if im.actions["swap_weapon"]:
         im.actions["swap_weapon"] = False
         player.inventory.swap_weapons()
+        player.inventory.drop_item(ItemInstance(ItemRegistry.get("ammo_clip_762")))
         print("Active slot:", player.inventory.active_weapon_slot)
 
     active_weapon = player.inventory.get_weapon(player.inventory.active_weapon_slot)
@@ -240,6 +241,7 @@ def game_loop(screen, clock, im):
 
     # Move and draw player
     controller.move(movement, delta_time)
+    player.inventory.drop_manager.draw(screen, camera)
     player.draw(screen, camera)
 
 

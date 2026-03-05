@@ -31,7 +31,6 @@ def draw_weapon_box(screen, weapon, position):
 def draw_item_box(screen, item, position):
     draw_box(screen, position, (100, 100), (50, 50, 50))
     if item:
-        item.asset = pygame.transform.scale(item.asset, (60, 60))
         screen.blit(item.asset, (position[0] + 20, position[1] + 20))
         # Draw item name
         FONT_12.bold = True
