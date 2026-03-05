@@ -2,16 +2,10 @@ import ui.inventory_menu as menu
 from item.consumable import use_consumable
 
 WEAPON_SLOTS = {
-    "primary" : 0,
-    "secondary" : 1,
+    "primary": 0,
+    "secondary": 1,
 }
 
-STARTING_CONSUMABLES = [
-    "phoenix_injector",
-    "stim_patch",
-    "adrenaline_shot",
-    "rad_suppressor",
-]
 
 class Inventory:
     def __init__(self):
@@ -20,21 +14,11 @@ class Inventory:
         self.secondary_weapon = None
         self.max_size = 12
         self.items = []
-
         self.selected_item_index = -1
-
-    def give_starting_consumables(self, item_factory):
-        for item_id in STARTING_CONSUMABLES:
-            item = item_factory(item_id)
-            if item is not None:
-                self.add_item(item)
-            else:
-                print(f"[Inventory] No se pudo crear el item de inicio: '{item_id}'")
 
     def add_weapon(self, player, weapon, slot):
         weapon.parent = player
         weapon.audio_emitter = player.audio_emitter
-
         if slot == "primary":
             if self.primary_weapon is None:
                 self.primary_weapon = weapon
@@ -64,7 +48,6 @@ class Inventory:
         if not self.check_full():
             self.items.append(item)
             return True
-        print("[Inventory] Inventario lleno.")
         return False
 
     def drop_item(self, item):
@@ -86,41 +69,28 @@ class Inventory:
         else:
             self.selected_item_index = -1
 
-    def use_selected_item(self, player) -> bool:
-        if self.selected_item_index < 0 or self.selected_item_index >= len(self.items):
-            print("[Inventory] Ningún item seleccionado.")
-            return False
-
-        item = self.items[self.selected_item_index]
-
-        if item.type != "consumable":
-            print(f"[Inventory] '{item.name}' no es un consumible.")
-            return False
-
-        success = use_consumable(item, player)
-        if success:
-            self.remove_item(item)
-        return success
-
-    def use_item_at(self, index: int, player) -> bool:
-        self.select_item(index)
-        return self.use_selected_item(player)
-
     def get_selected_item(self):
         if 0 <= self.selected_item_index < len(self.items):
             return self.items[self.selected_item_index]
         return None
 
+    def use_selected_item(self, player) -> bool:
+        if self.selected_item_index < 0 or self.selected_item_index >= len(self.items):
+            return False
+        item = self.items[self.selected_item_index]
+        if item.type != "consumable":
+            return False
+        success = use_consumable(item, player)
+        if success:
+            self.remove_item(item)
+        return success
+
     def use_consumable_hotkey(self, slot_index: int, player) -> bool:
         if slot_index < 0 or slot_index >= len(self.items):
             return False
-
         item = self.items[slot_index]
-
         if item.type != "consumable":
-            print(f"[Hotkey {slot_index + 1}] '{item.name}' no es un consumible.")
             return False
-
         success = use_consumable(item, player)
         if success:
             self.items.pop(slot_index)

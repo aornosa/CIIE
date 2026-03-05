@@ -15,7 +15,7 @@ if not pygame.get_init():
 from settings import *
 
 # Set screen
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), flags=pygame.SCALED | pygame.HIDDEN)
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), flags=pygame.SCALED | pygame.HIDDEN | pygame.FULLSCREEN)
 window = sdl2.Window.from_display_module()
 window.size = (int(SCREEN_WIDTH * SCREEN_SCALE), int(SCREEN_HEIGHT * SCREEN_SCALE))
 window.position = sdl2.WINDOWPOS_CENTERED

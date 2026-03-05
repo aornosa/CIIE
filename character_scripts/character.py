@@ -10,7 +10,6 @@ DEFAULT_STATS = {
     "speed": 200,
 }
 
-
 class Character(Object):
     def __init__(self, asset, position, rotation, scale, name, health):
         super().__init__(asset, position, rotation, scale)
@@ -38,21 +37,16 @@ class Character(Object):
             self.die()
 
     def die(self):
-        # Placeholder for death logic (e.g., play animation, drop loot)
-        print(f"{self.name} has died.")
         pass
 
     def heal(self, amount):
         self.health += amount
-        if self.health > self.base_health:
-            self.health = self.base_health
+        max_hp = self.get_stat("max_health")
+        if self.health > max_hp:
+            self.health = max_hp
 
     def add_effect(self, effect):
-        existing = self.effects.get(effect.name)
-        if existing is None:
-            self.effects[effect.name] = effect
-        else:
-            self.effects[effect.name] = effect
+        self.effects[effect.name] = effect
         self._recalculate_stats()
 
     def remove_effect(self, effect_name):
@@ -65,7 +59,6 @@ class Character(Object):
         for effect in self.effects.values():
             for stat, value in effect.modifiers.items():
                 self.current_stats[stat] = self.current_stats.get(stat, 0) + value
-        # Limit stats
         self.current_stats["speed"] = max(50, self.current_stats.get("speed", 50))
         self.current_stats["max_health"] = max(1, self.current_stats.get("max_health", 1))
 
