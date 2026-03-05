@@ -23,3 +23,4 @@ class DroppedItem:
     item_instance: ItemInstance
     position: pygame.Vector2
     velocity: pygame.Vector2
+    last_drop_time: float = 0.0

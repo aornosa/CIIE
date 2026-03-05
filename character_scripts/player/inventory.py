@@ -1,3 +1,5 @@
+import pygame
+
 import ui.inventory_menu as menu
 from item.item_drop_manager import DropManager
 
@@ -69,6 +71,19 @@ class Inventory:
 
     def swap_weapons(self):
         self.active_weapon_slot = "secondary" if self.active_weapon_slot == "primary" else "primary"
+
+    def click_drop_item(self, mouse_pos):
+        for i, item in enumerate(self.items):
+            x = 100 + (i % 6) * 110
+            y = 550 + (i // 6) * 110
+            rect = pygame.Rect(x, y, 96, 96)
+
+
+            if rect.collidepoint(mouse_pos):
+                self.drop_item(item)
+                return True
+
+        return False
 
 def show_inventory(screen, player):
     menu.draw_weapon_box(screen, player.inventory.primary_weapon, (100, 100))

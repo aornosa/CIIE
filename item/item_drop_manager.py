@@ -16,6 +16,7 @@ class DropManager(MonoliteBehaviour):
         dropped_item.position = position
         if velocity is not None:
             dropped_item.velocity = velocity
+        dropped_item.last_drop_time = pygame.time.get_ticks()
         self.dropped_items.append(dropped_item)
         print("Dropped item: {} at position {}".format(item.name, position))
         return dropped_item
