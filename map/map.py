@@ -1,4 +1,5 @@
 from map.map_chunk import Chunk
+from settings import CHUNK_SIZE
 
 class Map:
     def __init__(self, width, height):
@@ -29,7 +30,7 @@ class Map:
             for x, tile in enumerate(row):
                 self.set_tile(x, y, tile)
 
-                cx,cy = x//16, y//16
+                cx,cy = x//CHUNK_SIZE, y//CHUNK_SIZE
                 chunk = self.get_chunk((cx, cy))
-                chunk.tiles[y%16][x%16] = tile
+                chunk.tiles[y%CHUNK_SIZE][x%CHUNK_SIZE] = tile
                 self.set_chunk(chunk, (cx, cy))
