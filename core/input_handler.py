@@ -1,5 +1,10 @@
 import pygame
 
+HOTKEY_KEYS = [
+    pygame.K_1, pygame.K_2, pygame.K_3,
+    pygame.K_4, pygame.K_5, pygame.K_6,
+]
+
 class InputHandler:
     def __init__(self):
         self.actions = {
@@ -13,6 +18,8 @@ class InputHandler:
             "reload": False,
             "pause": False,
             "look_around": False,
+            "use_item": False,      
+            "hotkey_slot": -1,      
 
             # Lookaround -> changed arrow keys to ctrl + mouse movement
             "look_x": 0,
@@ -24,13 +31,19 @@ class InputHandler:
     def reset_frame(self):
         """Call at the start of each frame to clear single-frame inputs"""
         self.keys_just_pressed.clear()
+        self.actions["use_item"] = False
+        self.actions["pause"] = False
+        self.actions["hotkey_slot"] = -1   # reset cada frame
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
-            # Track this key as just pressed
             self.keys_just_pressed[event.key] = True
-            
-            if event.key == pygame.K_a:
+
+            # Hotkeys 1-6 → uso directo de consumible sin abrir inventario
+            if event.key in HOTKEY_KEYS:
+                self.actions["hotkey_slot"] = HOTKEY_KEYS.index(event.key)  # 0-based
+
+            elif event.key == pygame.K_a:
                 self.actions["move_x"] += -1
             elif event.key == pygame.K_d:
                 self.actions["move_x"] += 1
@@ -46,6 +59,8 @@ class InputHandler:
                 self.actions["swap_weapon"] = True
             elif event.key == pygame.K_TAB:
                 self.actions["inventory"] = True
+            elif event.key == pygame.K_f:
+                self.actions["use_item"] = True   # Usar consumible seleccionado
 
             elif event.key == pygame.K_UP:
                 self.actions["look_y"] += -1
@@ -59,7 +74,7 @@ class InputHandler:
                 self.actions["look_around"] = True
 
             elif event.key == pygame.K_ESCAPE:
-                pygame.event.post(pygame.event.Event(pygame.QUIT))
+                self.actions["pause"] = True
 
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_a:

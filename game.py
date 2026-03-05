@@ -9,6 +9,7 @@ from settings import SCREEN_WIDTH, SCREEN_HEIGHT, _CAM_BORDER_RADIUS
 from ui import ui_manager
 from ui.fps_counter import FPS_Counter
 from ui.dialog import draw_dialog_ui
+from ui.hotkey_bar import draw_hotkey_bar
 from core.camera import Camera
 from character_scripts.player.player import Player
 from character_scripts.player.fog_of_war import *
@@ -24,6 +25,7 @@ from dialogs.test_dialogs import create_test_dialog_simple
 from character_scripts.npc.npc import NPC
 from settings import TILE_SIZE, CHUNK_SIZE
 from map.map_loader import MapLoader
+
 map_loader = MapLoader()
 loaded_map = map_loader.load_map("test.json")
 map_loader.map = loaded_map
@@ -48,7 +50,7 @@ controller = CharacterController( 250, player)
 
 weapon_controller = WeaponController(player)
 
-enemies = spawn_enemies(player)
+enemies = spawn_enemies(5)
 
 ak47 = AK47()
 tactical_knife = TacticalKnife()
@@ -57,6 +59,9 @@ player.inventory.add_weapon(player, tactical_knife, "secondary")
 player.inventory.add_weapon(player, ak47, "primary")
 player.inventory.add_item(ItemRegistry.get("ammo_clip_762"))
 player.inventory.add_item(ItemRegistry.get("health_injector"))
+player.inventory.add_item(ItemRegistry.get("stim_patch"))
+player.inventory.add_item(ItemRegistry.get("adrenaline_shot"))
+player.inventory.add_item(ItemRegistry.get("rad_suppressor"))
 
 AudioManager.instance().set_listener(player.audio_listener)
 
@@ -120,7 +125,8 @@ def game_loop(screen, clock, im):
     if im.actions["look_around"]:
         camera_follow(mouse_pos, camera, delta_time, speed=5, position_relative=False)
     else:
-        camera.position = player.position - pygame.Vector2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+        target = player.position - pygame.Vector2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+        camera.position = camera.position.lerp(target, min(15 * delta_time, 1.0))
 
     # Hide mouse cursor
     pygame.mouse.set_visible(False)
@@ -139,6 +145,14 @@ def game_loop(screen, clock, im):
         im.actions["inventory"] = False
         inventory_is_open = not inventory_is_open
         print("Inventory toggled:", inventory_is_open)
+
+    # Use consumable — F key (selected item in inventory)
+    if im.actions["use_item"]:
+        player.inventory.use_selected_item(player)
+
+    # Use consumable — hotkeys 1-6 (without opening inventory)
+    if im.actions["hotkey_slot"] >= 0:
+        player.inventory.use_consumable_hotkey(im.actions["hotkey_slot"], player)
 
     active_weapon = player.inventory.get_weapon(player.inventory.active_weapon_slot)
 
@@ -184,11 +198,6 @@ def game_loop(screen, clock, im):
         can_aim = True
         can_attack = True
 
-    # Update enemy brains
-    for enemy in enemies:
-        if enemy.brain:
-            enemy.brain.update(delta_time)
-
     # create fog of war
     visibility_mask = None
     if FOG_ENABLE:
@@ -222,10 +231,19 @@ def game_loop(screen, clock, im):
     if inventory_is_open:
         can_aim = False
         can_attack = False
+        mouse_buttons = pygame.mouse.get_pressed()
+        if mouse_buttons[0]:
+            from ui.inventory_menu import get_clicked_item_index
+            idx = get_clicked_item_index(pygame.mouse.get_pos(), player.inventory)
+            if idx >= 0:
+                player.inventory.select_item(idx)
         show_inventory(screen, player)
     else:
         can_aim = True
         can_attack = True
+
+    # Draw hotkey bar
+    draw_hotkey_bar(screen, player)
 
     # Draw crosshair
     screen.blit(pygame.transform.scale(crosshair, (40, 40)),

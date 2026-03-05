@@ -21,7 +21,7 @@
     }
   },
 
-  "ammo_clip_762" : {
+  "ammo_clip_762": {
     "asset": "assets/ammo/7.62/clip.png",
     "name": "7.62mm Rifle Ammo",
     "description": "High caliber rounds for assault rifles and sniper rifles",
@@ -33,10 +33,34 @@
   },
 
   "health_injector": {
-    "asset": "assets/items/phoenix_injector/injector.png",
+    "asset": "assets/items/phoenix_injector/phoenix_injector.png",
     "name": "Phoenix Injector",
-    "description": "A high-tech medical device that rapidly regenerates health when used.",
+    "description": "Phoenix Auto-Injector. Restores 60HP and boosts speed for 8s. Highly addictive: each use permanently reduces max health.",
+    "type": "consumable",
+    "effect": "phoenix_injector"
+  },
+
+  "stim_patch": {
+    "asset": "assets/items/stim_patch/stim_patch.png",
+    "name": "Stim Patch",
+    "description": "Standard military-grade medpatch. Restores 30HP. No side effects.",
     "type": "consumable",
     "effect": "regen_health"
+  },
+
+  "adrenaline_shot": {
+    "asset": "assets/items/adrenaline_shot/adrenaline_shot.png",
+    "name": "Adrenaline Shot",
+    "description": "Combat stimulant. Greatly increases movement speed for 5s. No healing.",
+    "type": "consumable",
+    "effect": "adrenaline_shot"
+  },
+
+  "rad_suppressor": {
+    "asset": "assets/items/rad_suppressor/rad_suppressor.png",
+    "name": "RAD Suppressor",
+    "description": "Experimental Armengard compound. Neutralises Phoenix Injector addiction and restores lost max health.",
+    "type": "consumable",
+    "effect": "rad_suppressor"
   }
 }
