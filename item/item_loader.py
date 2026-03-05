@@ -31,7 +31,7 @@ class ItemRegistry(MonoliteBehaviour):
 
             item = ItemDefinition(
                 id=item_id,
-                asset=pygame.image.load(raw["asset"]).convert_alpha(),
+                asset=pygame.transform.scale(pygame.image.load(raw["asset"]), (50, 50)).convert_alpha(),
                 name=raw["name"],
                 description=raw["description"],
                 type=raw["type"],
