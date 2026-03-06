@@ -4,7 +4,7 @@ from settings import TILE_SIZE, CHUNK_SIZE
 class Chunk:
     def __init__(self, pos):
         self.pos = pos
-        self.tiles = [[0 for _ in range(CHUNK_SIZE)] for _ in range(CHUNK_SIZE)]
+        self.tiles_layers = []
 
         self.render_cache = None
         self.collision_cache = None
@@ -18,17 +18,19 @@ class Chunk:
     def _bake_chunk(self, tilesets_multi):
         self.render_cache = pygame.Surface((CHUNK_SIZE * TILE_SIZE, CHUNK_SIZE * TILE_SIZE))
         
-        for y in range(CHUNK_SIZE):
-            for x in range(CHUNK_SIZE):
-                gid = self.tiles[y][x]  
-                if gid != 0:
-                    tile_surf = None
-                    for firstgid, tile_dict in tilesets_multi.items():
-                        if gid >= firstgid:
-                            local_id = gid - firstgid + 1  
-                            tile_surf = tile_dict.get(local_id)
-                            break
-                    
-                    if tile_surf:
-                        self.render_cache.blit(tile_surf, (x * TILE_SIZE, y * TILE_SIZE))
+        for layer_matrix in self.tiles_layers: 
+            for y in range(CHUNK_SIZE):
+                for x in range(CHUNK_SIZE):
+                    gid = layer_matrix[y][x]  
+                    if gid != 0:
+                        tile_surf = None
+                        for firstgid, tile_dict in sorted(tilesets_multi.items(), reverse=True):
+                            if gid >= firstgid:
+                                local_id = gid - firstgid + 1  
+                                tile_surf = tile_dict.get(local_id)
+                                break
+                        
+                        if tile_surf:
+                            self.render_cache.blit(tile_surf, (x * TILE_SIZE, y * TILE_SIZE))
+                            
     

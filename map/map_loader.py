@@ -6,7 +6,6 @@ import pygame
 class MapLoader:
     def __init__(self):
         self.active_chunks = {}
-        #nuevo
         self.map = None
 
     @staticmethod
@@ -16,28 +15,30 @@ class MapLoader:
         
     @staticmethod
     def load_chunks_from_json(map_data, mapa):
-        tile_layer = map_data['layers'][0] 
-        chunks = tile_layer['chunks']
+        tile_layers = [layer for layer in map_data['layers'] if layer['type'] == 'tilelayer']
         
-        for chunk_data in chunks:
-            x = chunk_data['x']  
-            y = chunk_data['y']
-            width = chunk_data['width']
-            height = chunk_data['height']
-            tiles_flat = chunk_data['data']
+        for tile_layer in tile_layers:
+            chunks = tile_layer['chunks']
             
-            tiles_2d = [tiles_flat[i*width : (i+1)*width] for i in range(height)]
-            
-            cx = x // CHUNK_SIZE
-            cy = y // CHUNK_SIZE
-            
-            chunk = mapa.get_chunk((cx, cy))
+            for chunk_data in chunks:
+                x = chunk_data['x']  
+                y = chunk_data['y']
+                width = chunk_data['width']
+                height = chunk_data['height']
+                tiles_flat = chunk_data['data']
+                
+                tiles_2d = [tiles_flat[i*width : (i+1)*width] for i in range(height)]
+                
+                cx = x // CHUNK_SIZE
+                cy = y // CHUNK_SIZE
+                
+                chunk = mapa.get_chunk((cx, cy))
 
-            for ly in range(height):
-                for lx in range(width):
-                    tile_id = tiles_2d[ly][lx]
-                    chunk.tiles[ly][lx] = tile_id         
-            mapa.set_chunk(chunk, (cx, cy))
+                layer_matrix = [[0] * CHUNK_SIZE for _ in range(CHUNK_SIZE)]
+                for ly in range(height):
+                    for lx in range(width):
+                        layer_matrix[ly][lx] = tiles_2d[ly][lx]        
+                chunk.tiles_layers.append(layer_matrix)
 
     @staticmethod
     def save_map(map_object: Map, file_path):
@@ -65,7 +66,7 @@ class MapLoader:
             chunk_screen_pos = (chunk.pos[0] * (CHUNK_SIZE * TILE_SIZE) - camera_offset[0],
                     chunk.pos[1] * (CHUNK_SIZE * TILE_SIZE) - camera_offset[1])
             screen.blit(chunk.render_cache, chunk_screen_pos)
-
+                
     @staticmethod
     def load_tileset_to_dict(tileset_path, tile_size=(32,32)):
         sheet = pygame.image.load(tileset_path).convert_alpha()
@@ -111,5 +112,5 @@ class MapLoader:
                     png_cache[png_name] = MapLoader.load_tileset_to_dict(f'assets/tilesets/{png_name}')
                 
                 tilesets_multi[firstgid] = png_cache[png_name]  
-        
+                print("✅ CARGADOS tilesets_multi keys:", list(tilesets_multi.keys()))
         return tilesets_multi

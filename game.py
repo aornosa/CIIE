@@ -33,9 +33,11 @@ map_loader = MapLoader()
 map_data = map_loader.load_map('assets/map/prueba.json')
 mapa = Map(0, 0)
 map_loader.map = mapa   
-MapLoader.load_chunks_from_json(map_data, mapa)      
+MapLoader.load_chunks_from_json(map_data, mapa)     
+
 
 tilesets_multi = MapLoader.load_all_tilesets(map_data)
+
 
 # Predeclaration
 world_bounds = Rectangle(-2000, -2000, 4000, 4000)

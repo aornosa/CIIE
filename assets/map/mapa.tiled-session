@@ -3,20 +3,108 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "",
+    "activeFile": "prueba.tmx",
     "expandedProjectPaths": [
+        "."
     ],
     "fileStates": {
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/1.tsx": {
+            "scaleInDock": 0.4162,
+            "scaleInEditor": 0.25
+        },
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/10.tsx": {
+            "scaleInDock": 0.5703,
+            "scaleInEditor": 0.25
+        },
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/11.tsx": {
+            "scaleInDock": 0.4944,
+            "scaleInEditor": 0.25
+        },
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/12.tsx": {
+            "scaleInDock": 0.33,
+            "scaleInEditor": 0.25
+        },
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/2.tsx": {
+            "scaleInDock": 0.5414,
+            "scaleInEditor": 0.25
+        },
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/3.tsx": {
+            "scaleInDock": 0.6208,
+            "scaleInEditor": 0.25
+        },
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/4.tsx": {
+            "scaleInDock": 0.33,
+            "scaleInEditor": 0.25
+        },
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/5.tsx": {
+            "scaleInDock": 0.4552,
+            "scaleInEditor": 0.25
+        },
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/6.tsx": {
+            "scaleInDock": 0.3192,
+            "scaleInEditor": 0.25
+        },
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/7.tsx": {
+            "scaleInDock": 0.6885,
+            "scaleInEditor": 0.25
+        },
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/8.tsx": {
+            "scaleInDock": 0.3986,
+            "scaleInEditor": 0.25
+        },
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/9.tsx": {
+            "scaleInDock": 0.7455,
+            "scaleInEditor": 0.25
+        },
+        "mapa.tmx": {
+            "scale": 0.38,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 956.5789473684208,
+                "y": 100
+            }
+        },
+        "prueba.tmx": {
+            "scale": 0.5922,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 524.3161094224924,
+                "y": -96.25126646403237
+            }
+        }
     },
     "last.exportedFilePath": "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/map",
-    "last.imagePath": "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets",
     "map.fixedSize": false,
     "map.lastUsedExportFilter": "All Files (*)",
     "map.lastUsedFormat": "tmx",
     "openFiles": [
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/1.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/2.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/3.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/4.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/5.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/6.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/7.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/8.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/9.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/10.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/11.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/12.tsx",
+        "prueba.tmx"
     ],
     "project": "mapa.tiled-project",
     "recentFiles": [
-    ],
-    "tileset.lastUsedFormat": "tsx"
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/1.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/2.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/3.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/4.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/5.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/6.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/7.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/8.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/9.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/10.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/11.tsx",
+        "/Users/oscar/Documents/LINUX-TOSHIBA-ASUS/TERCERO/2_cuatri/EIIE/CIIE/assets/tilesets/12.tsx"
+    ]
 }
