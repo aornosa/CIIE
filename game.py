@@ -59,11 +59,11 @@ tactical_knife = TacticalKnife()
 # Test weapon on inventory
 player.inventory.add_weapon(player, tactical_knife, "secondary")
 player.inventory.add_weapon(player, ak47, "primary")
-player.inventory.add_item(ItemRegistry.get("ammo_clip_762"))
-player.inventory.add_item(ItemRegistry.get("health_injector"))
-player.inventory.add_item(ItemRegistry.get("stim_patch"))
-player.inventory.add_item(ItemRegistry.get("adrenaline_shot"))
-player.inventory.add_item(ItemRegistry.get("rad_suppressor"))
+player.inventory.add_item(ItemInstance(ItemRegistry.get("ammo_clip_762")))
+player.inventory.add_item(ItemInstance(ItemRegistry.get("health_injector")))
+player.inventory.add_item(ItemInstance(ItemRegistry.get("stim_patch")))
+player.inventory.add_item(ItemInstance(ItemRegistry.get("adrenaline_shot")))
+player.inventory.add_item(ItemInstance(ItemRegistry.get("rad_suppressor")))
 
 AudioManager.instance().set_listener(player.audio_listener)
 

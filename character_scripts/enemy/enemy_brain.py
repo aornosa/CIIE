@@ -5,10 +5,6 @@ from character_scripts.player.player import Player
 
 
 class EnemyBrain:
-    """
-    Base brain. Gestiona el ciclo de decisión de un enemigo.
-    Cada subclase sobreescribe decide_action() con su comportamiento.
-    """
     def __init__(self, enemy: Enemy, controller: CharacterController, player: Player):
         self.enemy = enemy
         self.player = player
@@ -22,8 +18,6 @@ class EnemyBrain:
     def decide_action(self, delta_time):
         pass
 
-    # --- Utilidades comunes ---
-
     def distance_to_player(self):
         return self.enemy.position.distance_to(self.player.position)
 
@@ -34,37 +28,22 @@ class EnemyBrain:
         return pygame.Vector2(0, 0)
 
     def follow(self, delta_time):
-        """Mueve al enemigo hacia el jugador."""
         self.controller.speed = self.enemy.speed
         self.controller.move(self.direction_to_player(), delta_time)
 
     def face_player(self):
-        """Rota el sprite hacia el jugador."""
         direction = self.direction_to_player()
         if direction.length() > 0:
             self.enemy.rotation = direction.angle_to(pygame.Vector2(0, -1))
 
     def try_attack(self, delta_time):
-        """
-        Intenta atacar si el enemigo está en rango y el cooldown lo permite.
-        Llama a can_attack() del enemigo y aplica daño al jugador.
-        """
         if not self.enemy.is_alive():
             return
         if self.distance_to_player() <= self.enemy.ATTACK_RANGE:
             if self.enemy.can_attack(delta_time):
                 self.player.take_damage(self.enemy.strength)
 
-
-# ---------------------------------------------------------------------------
-
 class InfectedCommonBrain(EnemyBrain):
-    """
-    Infectado Común — civil de Trinitas.
-    Comportamiento: quieto hasta detectar → perseguir → atacar.
-    Simple y directo, peligroso en grupos.
-    """
-
     def decide_action(self, delta_time):
         dist = self.distance_to_player()
         self.face_player()
@@ -79,15 +58,7 @@ class InfectedCommonBrain(EnemyBrain):
                 self.follow(delta_time)
         # Si está fuera de rango: no hace nada (idle)
 
-
-# ---------------------------------------------------------------------------
-
 class InfectedSoldierBrain(EnemyBrain):
-    """
-    Soldado Infectado — exmiembro AdNBQ.
-    Comportamiento: acecha lentamente, persigue con más agresividad,cerca del jugador → ataca con fuerza.
-    Tiene dos fases: stalk (lejos) y chase (cerca).
-    """
     CHASE_RANGE = 180   
 
     def __init__(self, enemy, controller, player):
@@ -113,14 +84,7 @@ class InfectedSoldierBrain(EnemyBrain):
             self.controller.move(self.direction_to_player(), delta_time)
 
 
-# ---------------------------------------------------------------------------
-
 class LabSubjectBrain(EnemyBrain):
-    """
-    Sujeto de Laboratorio
-    Comportamiento: patrulla en su zona, al detectar al jugador lo persigue
-    lentamente pero sin parar
-    """
     PATROL_RADIUS = 120    
 
     def __init__(self, enemy, controller, player):
