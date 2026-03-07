@@ -52,8 +52,9 @@ def draw_item_box(screen, item, position, selected=False):
                          (position[0], position[1], 100, 100), 3)
 
     if item:
-        scaled = pygame.transform.scale(item.asset, (60, 60))
-        screen.blit(scaled, (position[0] + 20, position[1] + 20))
+        screen.blit(item.asset, (position[0] + 20, position[1] + 20))
+        # Draw item name
+        FONT_12.bold = True
         text_surface = FONT_12.render(item.name, True, (255, 255, 255))
         screen.blit(text_surface, (position[0] + 5, position[1] + 2))
 

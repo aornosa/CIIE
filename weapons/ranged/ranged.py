@@ -137,15 +137,10 @@ class Ranged(Weapon, MonoliteBehaviour):
             if item.ammo and item.ammo.ammo_type == self.ammo_type:
                 ammo_found = True
                 needed = self.clip_size - self.current_clip
-                to_load = min(needed, item.ammo.capacity)
-                
-                self._is_reloading = True
-                self._reload_start_time = pygame.time.get_ticks()
-                
+                to_load = min(needed, item.current_ammo)
                 self.current_clip += to_load
-                item.ammo.capacity -= to_load
-                
-                if item.ammo.capacity <= 0:
+                item.current_ammo -= to_load
+                if item.current_ammo <= 0:
                     self.parent.inventory.remove_item(item)
                 
                 print(f"Reloading [{to_load}] {self.ammo_type} rounds. Current clip: {self.current_clip}")

@@ -102,6 +102,7 @@ class InputHandler:
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:  # Left click
                 self.actions["attack"] = True
+                self.actions["click_drop"] = True  # For inventory item dropping
             if event.button == 3:  # Right click
                 self.actions["aim"] = True
 
