@@ -7,6 +7,7 @@ from core.collision.collision_manager import CollisionManager
 from core.collision.quadtree import Rectangle
 
 from game_math import utils as math
+from item.item_instance import ItemInstance
 from item.item_loader import ItemRegistry
 
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT, _CAM_BORDER_RADIUS
@@ -62,8 +63,10 @@ test_weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
 
 # Test weapon on inventory
 player.inventory.add_weapon(player, test_weapon, "primary")
-player.inventory.add_item(ItemRegistry.get("ammo_clip_762"))
-player.inventory.add_item(ItemRegistry.get("health_injector"))
+player.inventory.add_item(ItemInstance(ItemRegistry.get("ammo_clip_762")))
+for _ in range(11):
+    player.inventory.add_item(ItemInstance(ItemRegistry.get("ammo_clip_12gauge")))
+player.inventory.add_item(ItemInstance(ItemRegistry.get("health_injector")))
 
 AudioManager.instance().set_listener(player.audio_listener)
 
@@ -178,6 +181,7 @@ def game_loop(screen, clock, im):
     if im.actions["swap_weapon"]:
         im.actions["swap_weapon"] = False
         player.inventory.swap_weapons()
+        player.inventory.drop_item(ItemInstance(ItemRegistry.get("ammo_clip_762")))
         print("Active slot:", player.inventory.active_weapon_slot)
 
     active_weapon = player.inventory.get_weapon(player.inventory.active_weapon_slot)
@@ -221,9 +225,13 @@ def game_loop(screen, clock, im):
 
     # Inventory state
     if inventory_is_open:
+        if im.actions["click_drop"]:
+            im.actions["click_drop"] = False
+            player.inventory.click_drop_item(mouse_pos)
         can_aim = False
         can_attack = False
     else:
+        im.actions["click_drop"] = False
         can_aim = True
         can_attack = True
 
@@ -250,6 +258,25 @@ def game_loop(screen, clock, im):
 
     # Move and draw player
     controller.move(movement, delta_time)
+
+    if not player.inventory.check_full():
+        for dropped in player.inventory.drop_manager.dropped_items[:]:
+            if dropped.last_drop_time + 1000 > pygame.time.get_ticks():
+                    continue  # Skip recently dropped items to prevent instant pickup
+            if hasattr(dropped, "position"):
+                item_pos = pygame.Vector2(dropped.position)
+            elif hasattr(dropped, "rect"):
+                item_pos = pygame.Vector2(dropped.rect.center)
+            else:
+                continue
+
+            if player.position.distance_to(item_pos) <= 3 * TILE_SIZE:  # Pickup radius
+                # If your dropped object wraps an ItemInstance in .item, use that.
+                item_obj = dropped.item_instance
+                player.inventory.add_item(item_obj)
+                player.inventory.drop_manager.dropped_items.remove(dropped)
+
+    player.inventory.drop_manager.draw(screen, camera)
     player.draw(screen, camera)
 
 
