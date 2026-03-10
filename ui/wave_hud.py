@@ -9,9 +9,9 @@ _font_small = None
 def _get_fonts():
     global _font_big, _font_med, _font_small
     if _font_big is None:
-        _font_big   = pygame.font.SysFont("consolas", 36, bold=True)
-        _font_med   = pygame.font.SysFont("consolas", 26, bold=True)
-        _font_small = pygame.font.SysFont("consolas", 20)
+        _font_big   = pygame.font.SysFont("consolas", 28, bold=True)  # bajado de 36
+        _font_med   = pygame.font.SysFont("consolas", 22, bold=True)  # bajado de 26
+        _font_small = pygame.font.SysFont("consolas", 18)             # bajado de 20
     return _font_big, _font_med, _font_small
 
 
@@ -19,7 +19,7 @@ def draw_wave_hud(screen: pygame.Surface, wave_manager, player):
     font_big, font_med, font_small = _get_fonts()
     info = wave_manager.get_hud_info()
 
-    panel_w, panel_h = 280, 110
+    panel_w, panel_h = 260, 100
     panel_x = SCREEN_WIDTH - panel_w - 20
     panel_y = 20
 
@@ -30,16 +30,16 @@ def draw_wave_hud(screen: pygame.Surface, wave_manager, player):
 
     wave_text = f"OLEADA  {info['wave']} / {info['total_waves']}"
     wave_surf = font_big.render(wave_text, True, (255, 220, 50))
-    screen.blit(wave_surf, (panel_x + 12, panel_y + 10))
+    screen.blit(wave_surf, (panel_x + 12, panel_y + 8))
 
     enemy_color = (255, 80, 80) if info["enemies_left"] > 0 else (80, 255, 80)
     enemy_text = f"Enemigos: {info['enemies_left']}"
     enemy_surf = font_med.render(enemy_text, True, enemy_color)
-    screen.blit(enemy_surf, (panel_x + 12, panel_y + 52))
+    screen.blit(enemy_surf, (panel_x + 12, panel_y + 44))
 
     score_text = f"Pts: {player.score}"
     score_surf = font_small.render(score_text, True, (180, 255, 180))
-    screen.blit(score_surf, (panel_x + 12, panel_y + 82))
+    screen.blit(score_surf, (panel_x + 12, panel_y + 74))
 
     if info["state"] == "resting":
         _draw_rest_banner(screen, font_big, font_med, info)
@@ -51,14 +51,14 @@ def _draw_rest_banner(screen, font_big, font_med, info):
     total = info["total_waves"]
 
     lines = [
-        (f"¡OLEADA {info['wave']} COMPLETADA!", (255, 220, 50), font_big),
-        (f"Próxima oleada: {next_wave}/{total}", (200, 200, 200), font_med),
+        (f"OLEADA {info['wave']} COMPLETADA!", (255, 220, 50), font_big),
+        (f"Proxima oleada: {next_wave}/{total}", (200, 200, 200), font_med),
         (f"Comenzando en {timer:.1f}s...", (255, 100, 100), font_med),
     ]
 
-    line_h = 44
+    line_h = 40
     total_h = len(lines) * line_h + 30
-    banner_w = 600
+    banner_w = 620
     bx = SCREEN_WIDTH // 2 - banner_w // 2
     by = SCREEN_HEIGHT // 2 - total_h // 2 - 40
 

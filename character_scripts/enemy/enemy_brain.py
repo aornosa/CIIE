@@ -1,3 +1,4 @@
+import random
 import pygame
 from character_scripts.character_controller import CharacterController
 from character_scripts.enemy.enemy_base import Enemy
@@ -43,35 +44,78 @@ class EnemyBrain:
             if self.enemy.can_attack(delta_time):
                 self.player.take_damage(self.enemy.strength)
 
+    # --- Patrulla genérica reutilizable ---
+    def _init_patrol(self, radius=150):
+        self._patrol_origin = pygame.Vector2(self.enemy.position)
+        self._patrol_target = self._new_patrol_target(radius)
+        self._patrol_radius = radius
+        self._patrol_wait   = 0.0  # segundos esperando en el target
+
+    def _new_patrol_target(self, radius=None):
+        r = radius or getattr(self, "_patrol_radius", 150)
+        angle = random.uniform(0, 360)
+        offset = pygame.Vector2(r, 0).rotate(angle)
+        return self._patrol_origin + offset
+
+    def _patrol(self, delta_time, speed_factor=0.4):
+        # Espera breve al llegar al destino antes de elegir otro
+        if self._patrol_wait > 0:
+            self._patrol_wait -= delta_time
+            self.controller.move(pygame.Vector2(0, 0), delta_time)
+            return
+
+        dist_to_target = self.enemy.position.distance_to(self._patrol_target)
+        if dist_to_target < 24:
+            self._patrol_target = self._new_patrol_target()
+            self._patrol_wait   = random.uniform(0.5, 1.5)
+            return
+
+        direction = self._patrol_target - self.enemy.position
+        if direction.length() > 0:
+            direction = direction.normalize()
+
+        # Orientar al enemigo hacia donde va
+        self.enemy.rotation = direction.angle_to(pygame.Vector2(0, -1))
+
+        self.controller.speed = self.enemy.speed * speed_factor
+        self.controller.move(direction, delta_time)
+
+
 class InfectedCommonBrain(EnemyBrain):
+    def __init__(self, enemy, controller, player):
+        super().__init__(enemy, controller, player)
+        self._init_patrol(radius=180)
+
     def decide_action(self, delta_time):
         dist = self.distance_to_player()
         self.face_player()
 
         if dist <= self.enemy.DETECTION_RANGE:
             if dist <= self.enemy.ATTACK_RANGE:
-                # En rango de ataque: parar y golpear
                 self.controller.move(pygame.Vector2(0, 0), delta_time)
                 self.try_attack(delta_time)
             else:
-                # Detectado: perseguir
                 self.follow(delta_time)
-        # Si está fuera de rango: no hace nada (idle)
+        else:
+            self._patrol(delta_time, speed_factor=0.35)
+
 
 class InfectedSoldierBrain(EnemyBrain):
-    CHASE_RANGE = 180   
+    CHASE_RANGE = 180
 
     def __init__(self, enemy, controller, player):
         super().__init__(enemy, controller, player)
         self._stalk_speed = max(30, enemy.speed * 0.5)
         self._chase_speed = enemy.speed
+        self._init_patrol(radius=250)
 
     def decide_action(self, delta_time):
         dist = self.distance_to_player()
         self.face_player()
 
         if dist > self.enemy.DETECTION_RANGE:
-            return  # Idle
+            self._patrol(delta_time, speed_factor=0.4)
+            return
 
         if dist <= self.enemy.ATTACK_RANGE:
             self.controller.move(pygame.Vector2(0, 0), delta_time)
@@ -85,19 +129,12 @@ class InfectedSoldierBrain(EnemyBrain):
 
 
 class LabSubjectBrain(EnemyBrain):
-    PATROL_RADIUS = 120    
+    PATROL_RADIUS = 120
 
     def __init__(self, enemy, controller, player):
         super().__init__(enemy, controller, player)
-        self._origin = pygame.Vector2(enemy.position)
-        self._patrol_target = self._new_patrol_target()
-        self._alerted = False   
-
-    def _new_patrol_target(self):
-        import random
-        angle = random.uniform(0, 360)
-        offset = pygame.Vector2(self.PATROL_RADIUS, 0).rotate(angle)
-        return self._origin + offset
+        self._init_patrol(radius=self.PATROL_RADIUS)
+        self._alerted = False
 
     def decide_action(self, delta_time):
         dist = self.distance_to_player()
@@ -113,15 +150,4 @@ class LabSubjectBrain(EnemyBrain):
             else:
                 self.follow(delta_time)
         else:
-            self._patrol(delta_time)
-
-    def _patrol(self, delta_time):
-        dist_to_target = self.enemy.position.distance_to(self._patrol_target)
-        if dist_to_target < 20:
-            self._patrol_target = self._new_patrol_target()
-
-        direction = self._patrol_target - self.enemy.position
-        if direction.length() > 0:
-            direction = direction.normalize()
-        self.controller.speed = self.enemy.speed
-        self.controller.move(direction, delta_time)
+            self._patrol(delta_time, speed_factor=0.45)

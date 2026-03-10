@@ -53,13 +53,12 @@ controller = CharacterController(250, player)
 # Weapon system controller
 weapon_controller = WeaponController(player)
 
-# Wave Manager — controla oleadas, dificultad y fin de partida
+# Wave Manager
 wave_manager = WaveManager(player, total_waves=10)
 
 ak47 = AK47()
 tactical_knife = TacticalKnife()
 
-# Test weapon on inventory
 player.inventory.add_weapon(player, tactical_knife, "secondary")
 player.inventory.add_weapon(player, ak47, "primary")
 player.inventory.add_item(ItemInstance(ItemRegistry.get("ammo_clip_762")))
@@ -70,16 +69,12 @@ player.inventory.add_item(ItemInstance(ItemRegistry.get("rad_suppressor")))
 
 AudioManager.instance().set_listener(player.audio_listener)
 
-# Make crosshair
 crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
 
-# Status effects
 ads_se = StatusEffect("assets/effects/ads", "Aiming Down Sights", {"speed": -70}, -1)
 
-# Dialog System
 dialog_manager = DialogManager()
 
-# Test NPC
 test_npc = NPC(
     name="npc",
     position=(300, 200),
@@ -88,9 +83,6 @@ test_npc = NPC(
 
 interaction_manager = InteractionManager()
 
-# --- PUERTAS ---
-# Añade aquí las puertas de tu mapa. El callback on_open puede usarse
-# para habilitar zonas, spawns, etc.
 door_1 = Door(
     name="Sala 2",
     position=(1800, 800),
@@ -98,7 +90,6 @@ door_1 = Door(
     on_open=lambda: print("[MAP] Sala 2 desbloqueada")
 )
 
-# Bool state flags
 inventory_is_open = False
 can_attack = True
 attack_ready_time = 0
@@ -111,7 +102,6 @@ if FOG_ENABLE:
 FPS_Counter()
 
 
-# Main game loop
 def game_loop(screen, clock, im):
     global inventory_is_open
     global can_attack
@@ -122,12 +112,10 @@ def game_loop(screen, clock, im):
 
     delta_time = clock.get_time() / 1000.0
 
-    # --- GAME OVER por muerte del jugador ---
     if not player.is_alive():
         wave_manager.notify_player_dead()
         return
 
-    # --- Actualizar sistema de oleadas ---
     wave_manager.update(delta_time, screen)
     enemies = wave_manager.enemies
 
@@ -136,11 +124,9 @@ def game_loop(screen, clock, im):
     global _last_movement
     global _last_mouse_pos
 
-    # Handle dialog input (takes priority when active)
     dialog_manager.input_handler = im
     dialog_manager.handle_input(im.get_keys_pressed(), im.get_keys_just_pressed())
 
-    # Update Movement (disabled during dialog)
     if dialog_manager.is_dialog_active:
         movement = pygame.Vector2(0, 0)
     else:
@@ -148,7 +134,6 @@ def game_loop(screen, clock, im):
 
     mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
 
-    # Make camera follow player
     if im.actions["look_around"]:
         camera_follow(mouse_pos, camera, delta_time, speed=5, position_relative=False)
     else:
@@ -159,20 +144,16 @@ def game_loop(screen, clock, im):
 
     controller.speed = player.get_stat("speed")
 
-    # --- INTERACCIÓN GENÉRICA CON INTERACTABLES ---
     if not dialog_manager.is_dialog_active:
         interaction_manager.check_interaction(player, im)
 
-    # Toggle inventory (disabled during dialog)
     if im.actions["inventory"] and not dialog_manager.is_dialog_active:
         im.actions["inventory"] = False
         inventory_is_open = not inventory_is_open
 
-    # Use consumable — F key
     if im.actions["use_item"]:
         player.inventory.use_selected_item(player)
 
-    # Use consumable — hotkeys 1-6
     if im.actions["hotkey_slot"] >= 0:
         player.inventory.use_consumable_hotkey(im.actions["hotkey_slot"], player)
 
@@ -192,7 +173,6 @@ def game_loop(screen, clock, im):
     if not (im.actions["attack"] or im.actions["aim"]):
         player.remove_effect("Aiming Down Sights")
 
-    # Bullet trail
     try:
         if im.actions["attack"] and isinstance(active_weapon, Ranged) and active_weapon.can_shoot():
             direction = pygame.Vector2(0, -1).rotate(-player.rotation)
@@ -209,7 +189,6 @@ def game_loop(screen, clock, im):
     weapon_controller.update(im, delta_time)
     controller.move(movement, delta_time)
 
-    # Inventory state
     if inventory_is_open:
         if im.actions.get("click_drop"):
             im.actions["click_drop"] = False
@@ -237,32 +216,16 @@ def game_loop(screen, clock, im):
 
     controller.move(movement, delta_time)
 
-    # Pickup de items del suelo
-    if not player.inventory.check_full():
-        for dropped in player.inventory.drop_manager.dropped_items[:]:
-            if dropped.last_drop_time + 1000 > pygame.time.get_ticks():
-                continue
-            if hasattr(dropped, "position"):
-                item_pos = pygame.Vector2(dropped.position)
-            elif hasattr(dropped, "rect"):
-                item_pos = pygame.Vector2(dropped.rect.center)
-            else:
-                continue
-            if player.position.distance_to(item_pos) <= 3 * TILE_SIZE:
-                item_obj = dropped.item_instance
-                player.inventory.add_item(item_obj)
-                player.inventory.drop_manager.dropped_items.remove(dropped)
-
+    # Items en el suelo — se dibujan y se recogen con E (via InteractionManager)
     player.inventory.drop_manager.draw(screen, camera)
+
     player.draw(screen, camera)
 
-    # Dibujar puertas
     door_1.draw(screen, camera)
 
     if isinstance(active_weapon, Melee):
         active_weapon.draw_attack_cone(screen, camera)
 
-    # Tooltip de interacción
     if not dialog_manager.is_dialog_active:
         tooltip = interaction_manager.get_tooltip_in_range(player)
         if tooltip:
@@ -283,8 +246,6 @@ def game_loop(screen, clock, im):
         can_attack = True
 
     draw_hotkey_bar(screen, player)
-
-    # HUD de oleadas
     draw_wave_hud(screen, wave_manager, player)
 
     screen.blit(pygame.transform.scale(crosshair, (40, 40)), (mouse_pos - (20, 20)))
