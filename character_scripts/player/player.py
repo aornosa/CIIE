@@ -19,8 +19,9 @@ class Player(Character):
         self.inventory = Inventory()
         self.inventory.owner = self
         self.collider.layer = LAYERS["player"]
-
+        self.base_stats["speed"] = 370
         self.audio_listener = AudioListener(self)
+        self._recalculate_stats() 
 
     def add_score(self, points):
         self.score += points

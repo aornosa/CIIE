@@ -8,7 +8,7 @@ class InfectedCommon(Enemy):
     - Bajo HP, bajo daño, velocidad media
     - Ataca en melee cuerpo a cuerpo
     """
-    ATTACK_RANGE     = 45
+    ATTACK_RANGE     = 100
     DETECTION_RANGE  = 500
     ATTACK_COOLDOWN  = 1.2
 
@@ -38,7 +38,7 @@ class InfectedSoldier(Enemy):
     - HP medio-alto, daño alto, velocidad media-baja (armadura pesada)
     - Ataca en melee, puede aguantar más antes de caer
     """
-    ATTACK_RANGE     = 55
+    ATTACK_RANGE     = 100
     DETECTION_RANGE  = 600
     ATTACK_COOLDOWN  = 1.8
 
@@ -69,7 +69,7 @@ class LabSubject(Enemy):
     - Muy alto HP, daño devastador, muy lento
     - Actúa como mini-boss de sala
     """
-    ATTACK_RANGE     = 70
+    ATTACK_RANGE     = 150
     DETECTION_RANGE  = 400
     ATTACK_COOLDOWN  = 2.5
 

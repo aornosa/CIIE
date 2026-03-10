@@ -29,11 +29,13 @@ class InputHandler:
         self.keys_just_pressed = {}  # Track keys pressed this frame
         
     def reset_frame(self):
-        """Call at the start of each frame to clear single-frame inputs"""
         self.keys_just_pressed.clear()
-        self.actions["use_item"] = False
-        self.actions["pause"] = False
-        self.actions["hotkey_slot"] = -1   # reset cada frame
+        self.actions["use_item"]    = False
+        self.actions["pause"]       = False
+        self.actions["hotkey_slot"] = -1
+        mouse = pygame.mouse.get_pressed()
+        self.actions["attack"] = mouse[0]
+        self.actions["aim"]    = mouse[2]
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
