@@ -8,7 +8,7 @@ class MainMenuScene(Scene):
 
     def __init__(self):
         super().__init__()
-        self.options = ["Jugar", "Opciones", "Salir"]
+        self.options = ["Jugar", "Nivel 1", "Test 123", "Opciones", "Salir"]
         self.selected = 0
 
     def handle_events(self, input_handler):
@@ -43,6 +43,10 @@ class MainMenuScene(Scene):
         if option == "Jugar":
             from scenes.game_scene import GameScene
             self.director.replace(GameScene())
+
+        elif option == "Nivel 1":
+            from scenes.level1_scene import Level1Scene
+            self.director.replace(Level1Scene())
 
         elif option == "Opciones":
             from scenes.settings_scene import SettingsScene

@@ -22,6 +22,17 @@ class Player(Character):
 
         self.audio_listener = AudioListener(self)
 
+        self.coins = 9999  # Starting coins (testing)
+
+    def add_coins(self, amount):
+        self.coins += amount
+
+    def spend_coins(self, amount):
+        if self.coins >= amount:
+            self.coins -= amount
+            return True
+        return False
+
     def add_score(self, points):
         self.score += points
 
