@@ -16,7 +16,10 @@ from core.scene import Scene
 from core.status_effects import StatusEffect
 from character_scripts.character_controller import CharacterController
 from character_scripts.enemy.enemy_base import Enemy
+from character_scripts.npc.npc import NPC
 from character_scripts.player.player import Player
+from dialogs.dialog_manager import DialogManager
+from ui.dialog import draw_dialog_ui
 from game_math import utils as math
 from item.item_instance import ItemInstance
 from item.item_loader import ItemRegistry
@@ -65,6 +68,11 @@ class Level1Scene(Scene):
         self.camera = None
         self.enemies = []
         self._contact_damage_cooldown = 0.0  # seconds until next contact hit
+        self.audres = None
+        self._dialog_manager = None
+        self._audres_intro_done = False    # True after intro plays once
+        self._audres_intro_tree = None
+        self._audres_idle_tree  = None
         self.crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
         self.ads_effect = StatusEffect(
             "assets/effects/ads", "Aiming Down Sights", {"speed": -70}, -1
@@ -138,6 +146,30 @@ class Level1Scene(Scene):
         # Boundary walls
         self._build_walls()
 
+        # ── AUDReS-01 (Audrey) NPC ──────────────────────────────────
+        from dialogs.audres_dialogs import create_audres_intro, create_audres_idle
+        self._audres_intro_tree = create_audres_intro()
+        self._audres_idle_tree  = create_audres_idle()
+        self._audres_intro_done = False
+        self.audres = NPC(
+            name="AUDReS-01",
+            position=(_ACX + 110, _ACY + 110),
+            dialog_tree=self._audres_idle_tree,
+            sprite_path="assets/characters/audres/sprite_topdown.jpg",
+            scale=0.16,
+        )
+        self.audres.interact_radius = 150
+
+        # DialogManager — reset the singleton to a clean state
+        self._dialog_manager = DialogManager()
+        self._dialog_manager.active_dialog = None
+        self._dialog_manager.is_dialog_active = False
+        self._dialog_manager.selected_option = 0
+        self._dialog_manager._cached_dialog_surface = None
+        self._dialog_manager._cached_node_id = None
+        self._dialog_manager._needs_redraw = True
+        # Dialog starts only when the player presses E near Audrey
+
     def _build_walls(self):
         """Create four static terrain colliders that form the square arena.
 
@@ -177,7 +209,13 @@ class Level1Scene(Scene):
 
         self.player = None
         self.controller = None
-
+        self.audres = None
+        self._audres_intro_done = False
+        self._audres_intro_tree = None
+        self._audres_idle_tree  = None
+        if self._dialog_manager:
+            self._dialog_manager.end_dialog()
+        self._dialog_manager = None
     # ── Input ─────────────────────────────────────────────────
 
     def handle_events(self, input_handler):
@@ -186,6 +224,29 @@ class Level1Scene(Scene):
             from scenes.pause_scene import PauseScene
             self.director.push(PauseScene(self))
             return
+
+        # ── Forward input to active dialog ─────────────────────────
+        if self._dialog_manager and self._dialog_manager.is_dialog_active:
+            self._dialog_manager.handle_input(
+                pygame.key.get_pressed(),
+                input_handler.keys_just_pressed,
+            )
+            input_handler.actions["interact"] = False   # consume so it doesn't stack
+            return
+
+        # ── Interact with Audrey ───────────────────────────────
+        if (input_handler.actions.get("interact")
+                and self.audres and self.player
+                and self.audres.is_player_in_range(self.player.position)):
+            input_handler.actions["interact"] = False
+            if not self._audres_intro_done:
+                # First interaction: play the scripted intro
+                self._audres_intro_done = True
+                self._dialog_manager.start_dialog(self._audres_intro_tree)
+            else:
+                # Subsequent interactions: play idle conversation
+                self._audres_idle_tree.reset()
+                self._dialog_manager.start_dialog(self._audres_idle_tree)
 
     # ── Update ────────────────────────────────────────────────
 
@@ -248,8 +309,13 @@ class Level1Scene(Scene):
         # Mouse position (for crosshair & aiming)
         mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
 
-        # Movement
-        movement = pygame.Vector2(im.actions["move_x"], im.actions["move_y"])
+        dialog_active = self._dialog_manager and self._dialog_manager.is_dialog_active
+
+        # Movement (frozen while dialog is open)
+        movement = (
+            pygame.Vector2(0, 0) if dialog_active
+            else pygame.Vector2(im.actions["move_x"], im.actions["move_y"])
+        )
 
         # Apply speed from stats
         self.controller.speed = self.player.get_stat("speed")
@@ -264,52 +330,53 @@ class Level1Scene(Scene):
             active_weapon.emitter.surface = screen
             active_weapon.emitter.camera = self.camera
 
-        # Swap weapon
-        if im.actions["swap_weapon"]:
-            im.actions["swap_weapon"] = False
-            self.player.inventory.swap_weapons()
+        if not dialog_active:
+            # Swap weapon
+            if im.actions["swap_weapon"]:
+                im.actions["swap_weapon"] = False
+                self.player.inventory.swap_weapons()
 
-        # Reload
-        if im.actions["reload"]:
-            im.actions["reload"] = False
-            if active_weapon is not None:
-                active_weapon.reload()
-
-        # ── Aiming & Shooting ─────────────────────────────────
-        if im.actions["attack"] or im.actions["aim"]:
-            # Slow player while aiming
-            self.player.add_effect(self.ads_effect)
-
-            # Rotate player towards mouse
-            direction_to_mouse = mouse_pos - (self.player.position - self.camera.position)
-            target_angle = direction_to_mouse.angle_to(pygame.Vector2(0, -1))
-            self.player.set_rotation(
-                math.lerp_angle(self.player.rotation, target_angle, 10 * delta_time) + 0.164
-            )
-
-            # Shoot
-            if im.actions["attack"]:
+            # Reload
+            if im.actions["reload"]:
+                im.actions["reload"] = False
                 if active_weapon is not None:
-                    direction = pygame.Vector2(0, -1).rotate(-self.player.rotation)
-                    if isinstance(active_weapon, Ranged):
-                        active_weapon.play_trail_effect(
-                            screen,
-                            (self.player.position - self.camera.position)
-                            + direction * active_weapon.muzzle_offset[0]
-                            + direction.rotate(90) * active_weapon.muzzle_offset[1],
-                            direction,
-                        )
-                    active_weapon.shoot()
+                    active_weapon.reload()
 
-        elif movement.length() > 0:
-            # Rotate player towards movement when not aiming
-            target_angle = movement.angle_to(pygame.Vector2(0, -1))
-            self.player.rotation = math.lerp_angle(
-                self.player.rotation, target_angle, 7.5 * delta_time
-            )
+            # ── Aiming & Shooting ───────────────────────────────────
+            if im.actions["attack"] or im.actions["aim"]:
+                # Slow player while aiming
+                self.player.add_effect(self.ads_effect)
 
-        if not im.actions["attack"] and not im.actions["aim"]:
-            self.player.remove_effect("Aiming Down Sights")
+                # Rotate player towards mouse
+                direction_to_mouse = mouse_pos - (self.player.position - self.camera.position)
+                target_angle = direction_to_mouse.angle_to(pygame.Vector2(0, -1))
+                self.player.set_rotation(
+                    math.lerp_angle(self.player.rotation, target_angle, 10 * delta_time) + 0.164
+                )
+
+                # Shoot
+                if im.actions["attack"]:
+                    if active_weapon is not None:
+                        direction = pygame.Vector2(0, -1).rotate(-self.player.rotation)
+                        if isinstance(active_weapon, Ranged):
+                            active_weapon.play_trail_effect(
+                                screen,
+                                (self.player.position - self.camera.position)
+                                + direction * active_weapon.muzzle_offset[0]
+                                + direction.rotate(90) * active_weapon.muzzle_offset[1],
+                                direction,
+                            )
+                        active_weapon.shoot()
+
+            elif movement.length() > 0:
+                # Rotate player towards movement when not aiming
+                target_angle = movement.angle_to(pygame.Vector2(0, -1))
+                self.player.rotation = math.lerp_angle(
+                    self.player.rotation, target_angle, 7.5 * delta_time
+                )
+
+            if not im.actions["attack"] and not im.actions["aim"]:
+                self.player.remove_effect("Aiming Down Sights")
 
         # Move player
         self.controller.move(movement, delta_time)
@@ -330,6 +397,15 @@ class Level1Scene(Scene):
                 entity_surface.blit(flash_surf, flash_rect)
         screen.blit(entity_surface, (0, 0))
 
+        # Draw Audrey NPC
+        if self.audres:
+            self.audres.draw(screen, self.camera)
+            # Tooltip when in range and no dialog running
+            if (not dialog_active
+                    and self.player
+                    and self.audres.is_player_in_range(self.player.position)):
+                self._draw_interact_tooltip(screen, self.audres)
+
         # Draw player
         self.player.draw(screen, self.camera)
 
@@ -342,6 +418,10 @@ class Level1Scene(Scene):
         # HUD
         ui_manager.draw_overlay(screen, self.player)
         self._draw_hud(screen, active_weapon)
+
+        # Dialog UI (drawn last so it's always on top)
+        if self._dialog_manager:
+            draw_dialog_ui(screen, self._dialog_manager)
 
         # Cache frame for PauseScene overlay
         self._last_frame = screen.copy()
@@ -374,6 +454,22 @@ class Level1Scene(Scene):
             excess = distance - _CAM_BORDER_RADIUS
             direction = offset.normalize()
             self.camera.move(direction * excess * speed * delta_time)
+
+    _tooltip_font = None
+
+    def _draw_interact_tooltip(self, screen, npc):
+        """Draw a small 'Press E' hint above the NPC sprite."""
+        if Level1Scene._tooltip_font is None:
+            Level1Scene._tooltip_font = pygame.font.SysFont("consolas", 20)
+        font = Level1Scene._tooltip_font
+        text = font.render("[E] Hablar", True, (255, 255, 180))
+        screen_pos = npc.position - self.camera.position
+        x = int(screen_pos.x) - text.get_width() // 2
+        y = int(screen_pos.y) - npc._render_asset.get_height() // 2 - 24
+        # subtle dark shadow
+        shadow = font.render("[E] Hablar", True, (0, 0, 0))
+        screen.blit(shadow, (x + 1, y + 1))
+        screen.blit(text, (x, y))
 
     # ── HUD ────────────────────────────────────────────────────
 

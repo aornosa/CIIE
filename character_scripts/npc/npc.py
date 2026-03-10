@@ -8,7 +8,7 @@ class NPC(Character):
     Represents NPCs that can be interacted with for dialog.
     """
     
-    def __init__(self, name, position, dialog_tree=None, sprite_path=None, health=100):
+    def __init__(self, name, position, dialog_tree=None, sprite_path=None, health=100, scale=1.0):
         """
         Initialize an NPC.
         
@@ -18,6 +18,7 @@ class NPC(Character):
             dialog_tree: Optional dialog tree for conversations (if None, NPC won't have dialog)
             sprite_path: Optional path to sprite image (if None, creates placeholder)
             health: NPC health (default 100)
+            scale: Sprite scale multiplier (default 1.0)
         """
         # Si no hay sprite_path, crear un placeholder temporal
         if sprite_path is None:
@@ -27,7 +28,7 @@ class NPC(Character):
             asset=sprite_path,
             position=pygame.Vector2(position),
             rotation=0,
-            scale=1.0,
+            scale=scale,
             name=name,
             health=health
         )
