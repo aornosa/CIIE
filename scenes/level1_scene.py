@@ -242,6 +242,7 @@ class Level1Scene(Scene):
 
         # HUD
         ui_manager.draw_overlay(screen, self.player)
+        self._draw_hud(screen, active_weapon)
 
         # Cache frame for PauseScene overlay
         self._last_frame = screen.copy()
@@ -263,3 +264,38 @@ class Level1Scene(Scene):
             excess = distance - _CAM_BORDER_RADIUS
             direction = offset.normalize()
             self.camera.move(direction * excess * speed * delta_time)
+
+    # ── HUD ────────────────────────────────────────────────────
+
+    _hud_font = None
+
+    def _draw_hud(self, screen, active_weapon):
+        """Draw health bar and ammo counter on screen."""
+        if Level1Scene._hud_font is None:
+            Level1Scene._hud_font = pygame.font.SysFont("consolas", 36)
+        font = Level1Scene._hud_font
+
+        # ── Health bar (top-left, safe area) ─────────────────
+        bar_x, bar_y = 20, 20
+        bar_w, bar_h = 400, 40
+        max_hp = self.player.get_stat("max_health")
+        hp = max(0, self.player.health)
+        ratio = hp / max_hp if max_hp > 0 else 0
+
+        # Background
+        pygame.draw.rect(screen, (120, 0, 0), (bar_x, bar_y, bar_w, bar_h))
+        # Fill
+        pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, int(bar_w * ratio), bar_h))
+        # Border
+        pygame.draw.rect(screen, (255, 255, 255), (bar_x, bar_y, bar_w, bar_h), 3)
+        # Text
+        hp_text = font.render(f"HP  {int(hp)} / {int(max_hp)}", True, (255, 255, 255))
+        screen.blit(hp_text, (bar_x + 8, bar_y + bar_h // 2 - hp_text.get_height() // 2))
+
+        # ── Ammo counter (top-right, safe area) ──────────────
+        if active_weapon and hasattr(active_weapon, "current_clip"):
+            ammo_text = font.render(
+                f"AMMO  {active_weapon.current_clip} / {active_weapon.clip_size}",
+                True, (255, 0, 0),
+            )
+            screen.blit(ammo_text, (SCREEN_WIDTH - ammo_text.get_width() - 20, 20))

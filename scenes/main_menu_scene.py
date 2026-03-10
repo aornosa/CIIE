@@ -8,7 +8,7 @@ class MainMenuScene(Scene):
 
     def __init__(self):
         super().__init__()
-        self.options = ["Jugar", "Nivel 1", "Test 123", "Opciones", "Salir"]
+        self.options = ["Jugar", "Nivel 1", "Test 1234", "Opciones", "Salir"]
         self.selected = 0
 
     def handle_events(self, input_handler):
