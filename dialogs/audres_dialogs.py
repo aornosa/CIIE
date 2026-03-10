@@ -7,28 +7,46 @@ _P = "assets/characters/audres/"
 
 
 def create_audres_intro():
-    """Diálogo de introducción — se lanza automáticamente al entrar al nivel."""
+    """Diálogo de presentación — se activa cuando Audrey llega al jugador."""
     nodes = {
-        "intro_1": DialogNode(
+        "s1": DialogNode(
             speaker="AUDReS-01",
             portrait=_P + "portrait_neutral.jpg",
-            text="... Sistema en línea. Calibración completada. ¡Hola! Soy AUDReS-01, tu Unidad Autónoma de Distribución y Reabastecimiento.",
-            next_node="intro_2",
+            text="Tuviste suerte de que te haya encontrado, soldado. Soy AUDReS-01, el robot de abastecimiento militar autónomo.",
+            next_node="s2",
         ),
-        "intro_2": DialogNode(
-            speaker="AUDReS-01",
-            portrait=_P + "portrait_happy.jpg",
-            text="Puedes llamarme Audrey. He sido asignada para acompañarte en esta misión. No te preocupes, ¡aquí estaré!",
-            next_node="intro_3",
-        ),
-        "intro_3": DialogNode(
+        "s2": DialogNode(
             speaker="AUDReS-01",
             portrait=_P + "portrait_alert.jpg",
-            text="He detectado presencia hostil en el perímetro. Hostiles clasificados como infectados de nivel bajo. Ten cuidado y... intenta no recibir demasiados golpes. Para eso tengo yo los nervios.",
+            text="Espera un momento... creo que escucho ruidos. Son ZOMBIES. Hay infectados aproximándose al perímetro.",
+            next_node="s3",
+        ),
+        "s3": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_happy.jpg",
+            text="Por suerte resulta que soy un instructor de aniquilamiento de zombies de primer nivel.",
+            next_node="s4",
+        ),
+        "s4": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_happy.jpg",
+            text="Muévete con WASD, apunta con el ratón, dispara con clic izquierdo y recarga con R.",
+            next_node="s5",
+        ),
+        "s5": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_alert.jpg",
+            text="Dicho esto... la verdad es que los zombies me dan bastante miedo.",
+            next_node="s6",
+        ),
+         "s6": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_alert.jpg",
+            text="Voy a quedarme sobrevolando desde las alturas vigilándote. ¡Buena suerte, soldado!",
             next_node=None,
         ),
     }
-    return DialogTree("intro_1", nodes)
+    return DialogTree("s1", nodes)
 
 
 def create_audres_idle():
@@ -51,3 +69,65 @@ def create_audres_idle():
         ),
     }
     return DialogTree("idle_root", nodes)
+
+
+def create_audres_shop_hint():
+    """Diálogo post-oleada — explica la tienda y pista sobre el Doc."""
+    nodes = {
+        "shop1": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_happy.jpg",
+            text="¡Bien hecho, soldado! Has eliminado la primera oleada de infectados.",
+            next_node="shop2",
+        ),
+        "shop2": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_neutral.jpg",
+            text="Tengo suministros disponibles para ti. Pulsa P en cualquier momento para abrir la tienda y comprar mejoras antes de que llegue la siguiente oleada. ¡Úsala bien!",
+            next_node="doc1",
+        ),
+        "doc1": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_neutral.jpg",
+            text="Oye... mientras tengo tu atención. Mis sensores han detectado señales de vida en el laboratorio al norte.",
+            next_node="doc2",
+        ),
+        "doc2": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_alert.jpg",
+            text="Creo que podría ser el Doc. Si alguien sabe algo sobre una cura para esta infección, es él. Lleva años investigando el virus.",
+            next_node="doc3",
+        ),
+        "doc3": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_happy.jpg",
+            text="En cuanto acabes con los infectados que quedan en la zona, te mostraré el camino. No te preocupes, no te perderé de vista.",
+            next_node=None,
+        ),
+    }
+    return DialogTree("shop1", nodes)
+
+
+def create_audres_wave2_clear():
+    """Diálogo post-oleada 2 — Audrey felicita al jugador y lo guía al laboratorio."""
+    nodes = {
+        "w2_1": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_happy.jpg",
+            text="¡Increíble, soldado! Has eliminado a todos los infectados de la zona. Eres mucho mejor de lo que esperaba.",
+            next_node="w2_2",
+        ),
+        "w2_2": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_happy.jpg",
+            text="El laboratorio al norte sigue en pie. Si el Doc sigue ahí dentro, podrá darnos respuestas.",
+            next_node="w2_3",
+        ),
+        "w2_3": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_neutral.jpg",
+            text="Vamos al laboratorio, sígueme.",
+            next_node=None,
+        ),
+    }
+    return DialogTree("w2_1", nodes)

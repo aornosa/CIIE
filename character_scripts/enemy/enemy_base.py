@@ -1,5 +1,6 @@
 import json
 from character_scripts.character import Character
+from core.collision.collision_manager import CollisionManager
 from core.collision.layers import LAYERS
 
 # Substitute with JSON type object
@@ -26,6 +27,11 @@ class Enemy(Character):
 
     def is_alive(self):
         return self.health > 0
+
+    def die(self):
+        """Remove this enemy's collider so dead bodies no longer block hits."""
+        CollisionManager.dynamic_colliders.discard(self.collider)
+        super().die()
 
     def take_damage(self, amount):
         super().take_damage(amount)

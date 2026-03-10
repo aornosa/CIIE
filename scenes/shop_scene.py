@@ -31,25 +31,18 @@ SHOP_CATALOG = [
     },
     {
         "name": "Cargador Ampliado",
-        "desc": "+10 balas al cargador (arma activa)",
+        "desc": "+5 balas al cargador (arma activa)",
         "cost": 150,
         "type": "weapon",
         "attr": "clip_size",
-        "value": 10,
+        "value": 5,
     },
     {
-        "name": "Munición 7.62mm",
-        "desc": "30 balas de rifle",
-        "cost": 50,
-        "type": "item",
-        "item_id": "ammo_clip_762",
-    },
-    {
-        "name": "Phoenix Injector",
-        "desc": "Regenera salud",
+        "name": "Botiquín de Campo",
+        "desc": "Cura 50 HP al instante",
         "cost": 75,
-        "type": "item",
-        "item_id": "health_injector",
+        "type": "heal",
+        "value": 50,
     },
 ]
 
@@ -120,7 +113,7 @@ class ShopScene(Scene):
             screen.blit(last_frame, (0, 0))
 
         draw_shop_menu(screen, self.catalog, self.selected,
-                       self.player.coins, self.message)
+                       self.player.coins, self.message, self.player)
 
     # ── Selection logic ───────────────────────────────────────
 
@@ -131,13 +124,15 @@ class ShopScene(Scene):
             return
 
         entry = self.catalog[self.selected]
+        self.message = ""  # clear before purchase so _purchase can set its own
         success = self._purchase(entry)
 
         if success:
             self.message = f"¡{entry['name']} comprado!"
-        else:
+            self.message_timer = 2.0
+        elif not self.message:  # _purchase may have already set a specific message
             self.message = "¡No tienes suficientes monedas!"
-        self.message_timer = 2.0
+            self.message_timer = 2.0
 
     # ── Purchase logic ────────────────────────────────────────
 
@@ -181,5 +176,14 @@ class ShopScene(Scene):
             self.player.inventory.add_item(
                 ItemInstance(ItemRegistry.get(entry["item_id"]))
             )
+
+        elif entry["type"] == "heal":
+            if self.player.health >= self.player.get_stat("max_health"):
+                # Already full HP — refund
+                self.player.coins += cost
+                self.message = "¡Ya tienes la vida al máximo!"
+                self.message_timer = 2.0
+                return False
+            self.player.heal(entry["value"])
 
         return True

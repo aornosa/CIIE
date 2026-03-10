@@ -1,18 +1,81 @@
 import pygame
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT
+from ui.dialog import _get_portrait
 
-TITLE_FONT  = pygame.font.SysFont("consolas", 52)
-COIN_FONT   = pygame.font.SysFont("consolas", 36)
-OPTION_FONT = pygame.font.SysFont("consolas", 28)
-DESC_FONT   = pygame.font.SysFont("consolas", 22)
-MSG_FONT    = pygame.font.SysFont("consolas", 28)
+TITLE_FONT   = pygame.font.SysFont("consolas", 52)
+COIN_FONT    = pygame.font.SysFont("consolas", 36)
+OPTION_FONT  = pygame.font.SysFont("consolas", 28)
+DESC_FONT    = pygame.font.SysFont("consolas", 22)
+MSG_FONT     = pygame.font.SysFont("consolas", 28)
+VENDOR_FONT  = pygame.font.SysFont("consolas", 22)
+STAT_FONT    = pygame.font.SysFont("consolas", 20)
+
+_PORTRAIT_PATH = "assets/characters/audres/portrait_shop.jpg"
+_PORTRAIT_SIZE = 220
 
 
-def draw_shop_menu(screen, catalog, selected_index, player_coins, message=""):
+def _draw_vendor_portrait(screen):
+    """Draw Audrey's portrait panel to the left of the shop content area."""
+    surf = _get_portrait(_PORTRAIT_PATH)
+
+    panel_w = _PORTRAIT_SIZE
+    panel_h = _PORTRAIT_SIZE + 54
+
+    # Place the panel to the left of the centered content block,
+    # vertically aligned with the title (y ≈ 80)
+    panel_x = SCREEN_WIDTH // 2 - 360 - panel_w - 20
+    panel_y = 80
+
+    # Dark backing panel
+    panel = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+    panel.fill((15, 12, 25, 230))
+    screen.blit(panel, (panel_x, panel_y))
+
+    # Portrait image (or grey placeholder)
+    if surf:
+        scaled = pygame.transform.smoothscale(surf, (_PORTRAIT_SIZE, _PORTRAIT_SIZE))
+        screen.blit(scaled, (panel_x, panel_y))
+    else:
+        pygame.draw.rect(screen, (80, 80, 90), (panel_x, panel_y, _PORTRAIT_SIZE, _PORTRAIT_SIZE))
+
+    # Border around portrait
+    pygame.draw.rect(screen, (180, 160, 255), (panel_x, panel_y, panel_w, _PORTRAIT_SIZE), 2)
+
+    # Name label
+    VENDOR_FONT.bold = True
+    name_surf = VENDOR_FONT.render("AUDReS-01", True, (200, 185, 255))
+    VENDOR_FONT.bold = False
+    nx = panel_x + panel_w // 2 - name_surf.get_width() // 2
+    ny = panel_y + _PORTRAIT_SIZE + 6
+    screen.blit(name_surf, (nx, ny))
+
+
+def _get_current_value_label(item, player):
+    """Return a short string showing the player's current value for this upgrade."""
+    if player is None:
+        return ""
+    if item["type"] == "stat":
+        val = player.get_stat(item["stat"])
+        return f"Actual: {int(val)}"
+    if item["type"] == "weapon":
+        weapon = player.inventory.get_weapon(player.inventory.active_weapon_slot)
+        if weapon is not None:
+            val = getattr(weapon, item["attr"], "—")
+            return f"Actual: {int(val)}"
+        return "Sin arma"
+    if item["type"] == "heal":
+        return f"HP: {int(player.health)} / {int(player.get_stat('max_health'))}"
+    return ""
+
+
+def draw_shop_menu(screen, catalog, selected_index, player_coins, message="", player=None):
     # ── Semi-transparent overlay over the frozen game frame ──
     overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 180))
     screen.blit(overlay, (0, 0))
+
+    # ── Vendor portrait (Audrey, top-left) ───────────────────
+    _draw_vendor_portrait(screen)
 
     # ── Title ──
     TITLE_FONT.bold = True
@@ -62,7 +125,14 @@ def draw_shop_menu(screen, catalog, selected_index, player_coins, message=""):
         desc_surface = DESC_FONT.render(item["desc"], True, desc_color)
         screen.blit(desc_surface, (SCREEN_WIDTH // 2 - 340, row_y + 30))
 
-        # Cost (right-aligned)
+        # Current-value badge (right side of description row)
+        cur_label = _get_current_value_label(item, player)
+        if cur_label:
+            badge_color = (100, 220, 255) if can_afford else (60, 100, 110)
+            cur_surf = STAT_FONT.render(cur_label, True, badge_color)
+            screen.blit(cur_surf, (SCREEN_WIDTH // 2 + 320 - cur_surf.get_width(), row_y + 32))
+
+        # Cost (right-aligned, top of row)
         cost_color = (255, 215, 0) if can_afford else (150, 70, 70)
         OPTION_FONT.bold = is_selected
         cost_surface = OPTION_FONT.render(f"${item['cost']}", True, cost_color)

@@ -85,18 +85,22 @@ class Ranged(Weapon, MonoliteBehaviour):
 
 
     def reload(self):
-        if not self.parent: #or self.current_clip == self.clip_size:
+        if not self.parent:
             return
-        for item in self.parent.inventory.items:
+        needed = self.clip_size - self.current_clip
+        if needed <= 0:
+            return
+        for item in list(self.parent.inventory.items):
+            if needed <= 0:
+                break
             if item.ammo and item.ammo.ammo_type == self.ammo_type:
-                needed = self.clip_size - self.current_clip
                 to_load = min(needed, item.current_ammo)
                 self.current_clip += to_load
                 item.current_ammo -= to_load
+                needed -= to_load
                 if item.current_ammo <= 0:
                     self.parent.inventory.remove_item(item)
-                print(f"Reloaded [{to_load}] {self.ammo_type} rounds. Current clip: {self.current_clip}")
-                break
+        print(f"Reloaded. Current clip: {self.current_clip}")
 
 
     def play_trail_effect(self, screen, start_pos, direction):

@@ -22,7 +22,7 @@ class Player(Character):
 
         self.audio_listener = AudioListener(self)
 
-        self.coins = 9999  # Starting coins (testing)
+        self.coins = 200  # Starting coins
 
     def add_coins(self, amount):
         self.coins += amount

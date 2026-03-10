@@ -70,9 +70,23 @@ class Level1Scene(Scene):
         self._contact_damage_cooldown = 0.0  # seconds until next contact hit
         self.audres = None
         self._dialog_manager = None
-        self._audres_intro_done = False    # True after intro plays once
-        self._audres_intro_tree = None
-        self._audres_idle_tree  = None
+        self._audres_intro_tree  = None
+        self._cutscene_active    = False
+        self._cutscene_phase     = "idle"   # "walking" → "dialog" → done
+        self._audres_walk_target = None
+        # Wave-clear shop hint
+        self._enemies_spawned     = False   # True once _finish_cutscene() runs
+        self._shop_hint_triggered = False   # fires only once per run
+        self._wave_clear_timer    = -1.0    # counts down from 1.5 s
+        # Wave 2 — 30 enemies from arena edges
+        self._wave2_triggered     = False   # True once doc dialog ends
+        self._wave2_remaining     = 0       # enemies still to spawn
+        self._wave2_spawn_timer   = 0.0     # accumulates toward spawn interval
+        # Wave 2 clear → level complete
+        self._wave2_clear_triggered  = False  # True once congratulation dialog starts
+        self._wave2_clear_timer      = -1.0   # 1.5 s delay before Audrey congratulates
+        self._going_level_complete   = False  # True once we navigate to LevelCompleteScene
+        self._total_kills            = 0      # running kill count for the stats screen
         self.crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
         self.ads_effect = StatusEffect(
             "assets/effects/ads", "Aiming Down Sights", {"speed": -70}, -1
@@ -88,6 +102,15 @@ class Level1Scene(Scene):
     def on_exit(self):
         MonoliteBehaviour.time_scale = 0.0
         self._teardown_level()
+
+    def on_pause(self):
+        """Pause menu pushed on top — freeze time, don't teardown."""
+        MonoliteBehaviour.time_scale = 0.0
+
+    def on_resume(self):
+        """Returned from pause menu — resume time, don't rebuild."""
+        MonoliteBehaviour.time_scale = 1.0
+        pygame.mouse.set_visible(False)
 
     # ── Build / teardown — everything fresh each time ─────────
 
@@ -122,7 +145,7 @@ class Level1Scene(Scene):
         # Weapon + ammo
         weapon = Ranged(
             "assets/weapons/AK47.png", "AK-47", 60, 1500,
-            "7.62", 30, 0.1, 2, muzzle_offset=(35, 15),
+            "7.62", 15, 0.15, 2, muzzle_offset=(35, 15),
         )
         self.player.inventory.add_weapon(self.player, weapon, "primary")
         self.player.inventory.add_item(
@@ -136,29 +159,22 @@ class Level1Scene(Scene):
         # Camera
         self.camera = Camera()
 
-        # Enemies — each gets its own CharacterController for movement
+        # Enemies spawn after the intro cutscene ends
         self.enemies = []
-        for pos in _ENEMY_SPAWNS:
-            enemy = Enemy("assets/icon.png", pos, 0, 0.05)
-            enemy._controller = CharacterController(_ENEMY_SPEED, enemy)
-            self.enemies.append(enemy)
 
         # Boundary walls
         self._build_walls()
 
-        # ── AUDReS-01 (Audrey) NPC ──────────────────────────────────
-        from dialogs.audres_dialogs import create_audres_intro, create_audres_idle
+        # ── AUDReS-01 (Audrey) — spawns at the top of the arena, walks in ──
+        from dialogs.audres_dialogs import create_audres_intro
         self._audres_intro_tree = create_audres_intro()
-        self._audres_idle_tree  = create_audres_idle()
-        self._audres_intro_done = False
         self.audres = NPC(
             name="AUDReS-01",
-            position=(_ACX + 110, _ACY + 110),
-            dialog_tree=self._audres_idle_tree,
+            position=(_ACX, _ACY - _ARENA_HALF + 100),   # top of arena
+            dialog_tree=None,
             sprite_path="assets/characters/audres/sprite_topdown.jpg",
             scale=0.16,
         )
-        self.audres.interact_radius = 150
 
         # DialogManager — reset the singleton to a clean state
         self._dialog_manager = DialogManager()
@@ -168,7 +184,13 @@ class Level1Scene(Scene):
         self._dialog_manager._cached_dialog_surface = None
         self._dialog_manager._cached_node_id = None
         self._dialog_manager._needs_redraw = True
-        # Dialog starts only when the player presses E near Audrey
+
+        # Kick off the cutscene
+        self._cutscene_active    = True
+        self._cutscene_phase     = "walking"
+        self._audres_walk_target = pygame.Vector2(
+            SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 200
+        )
 
     def _build_walls(self):
         """Create four static terrain colliders that form the square arena.
@@ -210,51 +232,135 @@ class Level1Scene(Scene):
         self.player = None
         self.controller = None
         self.audres = None
-        self._audres_intro_done = False
-        self._audres_intro_tree = None
-        self._audres_idle_tree  = None
+        self._audres_intro_tree   = None
+        self._cutscene_active     = False
+        self._cutscene_phase      = "idle"
+        self._audres_walk_target  = None
+        self._enemies_spawned     = False
+        self._shop_hint_triggered = False
+        self._wave_clear_timer    = -1.0
+        self._wave2_triggered         = False
+        self._wave2_remaining         = 0
+        self._wave2_spawn_timer       = 0.0
+        self._wave2_clear_triggered  = False
+        self._wave2_clear_timer      = -1.0
+        self._going_level_complete   = False
+        self._total_kills            = 0
         if self._dialog_manager:
             self._dialog_manager.end_dialog()
         self._dialog_manager = None
     # ── Input ─────────────────────────────────────────────────
 
     def handle_events(self, input_handler):
+        # ── Pause always works, even during cutscene ───────────
         if input_handler.actions.get("pause"):
             input_handler.actions["pause"] = False
             from scenes.pause_scene import PauseScene
             self.director.push(PauseScene(self))
             return
 
-        # ── Forward input to active dialog ─────────────────────────
+        # ── Cutscene: swallow every input, only forward dialog advancement ──
+        if self._cutscene_active:
+            if self._dialog_manager and self._dialog_manager.is_dialog_active:
+                self._dialog_manager.handle_input(
+                    pygame.key.get_pressed(),
+                    input_handler.keys_just_pressed,
+                )
+            for key in input_handler.actions:
+                val = input_handler.actions[key]
+                input_handler.actions[key] = 0 if isinstance(val, (int, float)) else False
+            return
+
+        # ── Forward dialog input when shop hint (or any dialog) is active ──
         if self._dialog_manager and self._dialog_manager.is_dialog_active:
             self._dialog_manager.handle_input(
                 pygame.key.get_pressed(),
                 input_handler.keys_just_pressed,
             )
-            input_handler.actions["interact"] = False   # consume so it doesn't stack
             return
 
-        # ── Interact with Audrey ───────────────────────────────
-        if (input_handler.actions.get("interact")
-                and self.audres and self.player
-                and self.audres.is_player_in_range(self.player.position)):
-            input_handler.actions["interact"] = False
-            if not self._audres_intro_done:
-                # First interaction: play the scripted intro
-                self._audres_intro_done = True
-                self._dialog_manager.start_dialog(self._audres_intro_tree)
-            else:
-                # Subsequent interactions: play idle conversation
-                self._audres_idle_tree.reset()
-                self._dialog_manager.start_dialog(self._audres_idle_tree)
+        # ── Open shop with P ──────────────────────────────────
+        if input_handler.actions.get("shop"):
+            input_handler.actions["shop"] = False
+            from scenes.shop_scene import ShopScene
+            self.director.push(ShopScene(self, self.player))
+            return
 
     # ── Update ────────────────────────────────────────────────
 
     def update(self, delta_time):
+        if self._cutscene_active:
+            self._update_cutscene(delta_time)
+            return
+        alive_before = len(self.enemies)
         cleanup_dead_enemies(self.enemies)
+        killed = alive_before - len(self.enemies)
+        if killed > 0 and self.player:
+            self.player.add_coins(killed * 10)
+            self._total_kills += killed
         if self.player:
             self._update_enemies(delta_time)
             self._check_enemy_contact(delta_time)
+
+        # ── Wave-clear shop hint (fires once, 1.5 s after all enemies die) ──
+        if (self._enemies_spawned
+                and not self._shop_hint_triggered
+                and not (self._dialog_manager and self._dialog_manager.is_dialog_active)):
+            if len(self.enemies) == 0:
+                if self._wave_clear_timer < 0:
+                    self._wave_clear_timer = 1.5          # start countdown
+                else:
+                    self._wave_clear_timer -= delta_time
+                    if self._wave_clear_timer <= 0:
+                        self._shop_hint_triggered = True
+                        self._wave_clear_timer = -1.0
+                        from dialogs.audres_dialogs import create_audres_shop_hint
+                        self._dialog_manager.start_dialog(create_audres_shop_hint())
+            else:
+                self._wave_clear_timer = -1.0             # reset if enemies respawn
+
+        # ── Wave 2: start once doc dialog finishes ──────────────────────
+        if (self._shop_hint_triggered
+                and not self._wave2_triggered
+                and not (self._dialog_manager and self._dialog_manager.is_dialog_active)):
+            self._wave2_triggered   = True
+            self._wave2_remaining   = 30
+            self._wave2_spawn_timer = 0.0
+
+        if self._wave2_triggered and self._wave2_remaining > 0:
+            self._tick_wave2_spawn(delta_time)
+
+        # ── Wave 2 clear: all 30 enemies dead → Audrey congratulates ────────
+        if (self._wave2_triggered
+                and self._wave2_remaining == 0
+                and len(self.enemies) == 0
+                and not self._wave2_clear_triggered
+                and not self._going_level_complete):
+            if not (self._dialog_manager and self._dialog_manager.is_dialog_active):
+                if self._wave2_clear_timer < 0:
+                    self._wave2_clear_timer = 1.5          # start countdown
+                else:
+                    self._wave2_clear_timer -= delta_time
+                    if self._wave2_clear_timer <= 0:
+                        self._wave2_clear_timer = -1.0
+                        self._wave2_clear_triggered = True
+                        from dialogs.audres_dialogs import create_audres_wave2_clear
+                        self._dialog_manager.start_dialog(create_audres_wave2_clear())
+            else:
+                self._wave2_clear_timer = -1.0             # reset if dialog already active
+
+        # ── Navigate to level complete once congratulation dialog ends ───────
+        if (self._wave2_clear_triggered
+                and not self._going_level_complete
+                and not (self._dialog_manager and self._dialog_manager.is_dialog_active)):
+            self._going_level_complete = True
+            from scenes.level_complete_scene import LevelCompleteScene
+            self.director.replace(LevelCompleteScene(
+                self._last_frame,
+                "Nivel 1",
+                {"kills": self._total_kills,
+                 "coins": self.player.coins if self.player else 0},
+            ))
 
     def _update_enemies(self, delta_time):
         """Chase the player + separation steering so enemies don't stack."""
@@ -290,7 +396,73 @@ class Level1Scene(Scene):
             # ── Tick hit-flash timer ────────────────────────────
             enemy._hit_flash_timer = max(0.0, enemy._hit_flash_timer - delta_time)
 
-    # ── Render ────────────────────────────────────────────────
+    _AUDRES_WALK_SPEED = 200   # px/s during the intro walk
+
+    _WAVE2_INTERVAL = 0.4      # seconds between each wave-2 spawn
+
+    def _tick_wave2_spawn(self, delta_time):
+        """Spawn one enemy every _WAVE2_INTERVAL seconds from a random arena edge."""
+        import random
+        self._wave2_spawn_timer += delta_time
+        while self._wave2_spawn_timer >= self._WAVE2_INTERVAL and self._wave2_remaining > 0:
+            self._wave2_spawn_timer -= self._WAVE2_INTERVAL
+            self._wave2_remaining   -= 1
+
+            # Pick a random point just inside one of the 4 arena edges
+            margin = 60   # px inside the wall
+            edge   = random.randint(0, 3)
+            lo = -_ARENA_HALF + margin
+            hi =  _ARENA_HALF - margin
+            if edge == 0:   # top
+                ex = _ACX + random.uniform(lo, hi)
+                ey = _ACY + lo
+            elif edge == 1: # bottom
+                ex = _ACX + random.uniform(lo, hi)
+                ey = _ACY + hi
+            elif edge == 2: # left
+                ex = _ACX + lo
+                ey = _ACY + random.uniform(lo, hi)
+            else:           # right
+                ex = _ACX + hi
+                ey = _ACY + random.uniform(lo, hi)
+
+            enemy = Enemy("assets/icon.png", (ex, ey), 0, 0.05)
+            enemy._controller = CharacterController(_ENEMY_SPEED, enemy)
+            self.enemies.append(enemy)
+
+    def _update_cutscene(self, delta_time):
+        """State machine: walking → dialog → enemies spawn."""
+        if self._cutscene_phase == "walking":
+            if self.audres and self._audres_walk_target:
+                to_target = self._audres_walk_target - self.audres.position
+                dist = to_target.length()
+                if dist > 8:
+                    self.audres.position += (
+                        to_target.normalize() * self._AUDRES_WALK_SPEED * delta_time
+                    )
+                    self.audres.rotation = to_target.angle_to(pygame.Vector2(0, -1)) + 180
+                else:
+                    # Reached the player — start the scripted dialog
+                    self._cutscene_phase = "dialog"
+                    self._dialog_manager.start_dialog(self._audres_intro_tree)
+
+        elif self._cutscene_phase == "dialog":
+            # Wait for the player to advance through all dialog nodes
+            if not self._dialog_manager.is_dialog_active:
+                self._finish_cutscene()
+
+    def _finish_cutscene(self):
+        """End the intro cutscene: hide Audrey and spawn the enemies."""
+        self.audres = None
+        self._cutscene_active = False
+        self._cutscene_phase  = "idle"
+        for pos in _ENEMY_SPAWNS:
+            enemy = Enemy("assets/icon.png", pos, 0, 0.05)
+            enemy._controller = CharacterController(_ENEMY_SPEED, enemy)
+            self.enemies.append(enemy)
+        self._enemies_spawned = True
+
+    # ── Render ─────────────────────────────────────────────────────────────
 
     def render(self, screen):
         im = self.director._input_handler
@@ -311,9 +483,9 @@ class Level1Scene(Scene):
 
         dialog_active = self._dialog_manager and self._dialog_manager.is_dialog_active
 
-        # Movement (frozen while dialog is open)
+        # Movement (frozen during cutscene)
         movement = (
-            pygame.Vector2(0, 0) if dialog_active
+            pygame.Vector2(0, 0) if self._cutscene_active
             else pygame.Vector2(im.actions["move_x"], im.actions["move_y"])
         )
 
@@ -330,7 +502,7 @@ class Level1Scene(Scene):
             active_weapon.emitter.surface = screen
             active_weapon.emitter.camera = self.camera
 
-        if not dialog_active:
+        if not self._cutscene_active:
             # Swap weapon
             if im.actions["swap_weapon"]:
                 im.actions["swap_weapon"] = False
@@ -400,11 +572,6 @@ class Level1Scene(Scene):
         # Draw Audrey NPC
         if self.audres:
             self.audres.draw(screen, self.camera)
-            # Tooltip when in range and no dialog running
-            if (not dialog_active
-                    and self.player
-                    and self.audres.is_player_in_range(self.player.position)):
-                self._draw_interact_tooltip(screen, self.audres)
 
         # Draw player
         self.player.draw(screen, self.camera)
@@ -433,15 +600,27 @@ class Level1Scene(Scene):
         return self._last_frame
 
     def _check_enemy_contact(self, delta_time):
-        """Deal damage to the player when touching an enemy. 0.75s cooldown."""
+        """Deal damage to the player when touching a living enemy. 0.75s cooldown."""
         self._contact_damage_cooldown -= delta_time
         if self._contact_damage_cooldown > 0:
             return
 
         hits = self.player.collider.check_collision(layers=[LAYERS["enemy"]])
-        if hits:
+        # Ignore corpses that haven't been cleaned up yet
+        alive_hits = [h for h in hits if h.owner.is_alive()]
+        if alive_hits:
             self.player.take_damage(10)
             self._contact_damage_cooldown = 0.75
+
+            # ── Player death ───────────────────────────────────
+            if not self.player.is_alive():
+                from scenes.death_scene import DeathScene
+                kills = len(_ENEMY_SPAWNS) - len(self.enemies)
+                stats = {
+                    "kills": kills,
+                    "coins": self.player.coins,
+                }
+                self.director.replace(DeathScene(self._last_frame, stats))
 
     def _camera_follow(self, target, delta_time, speed=10):
         """Smooth camera follow with dead-zone (same logic as game.py)."""
@@ -497,6 +676,10 @@ class Level1Scene(Scene):
         # Text
         hp_text = font.render(f"HP  {int(hp)} / {int(max_hp)}", True, (255, 255, 255))
         screen.blit(hp_text, (bar_x + 8, bar_y + bar_h // 2 - hp_text.get_height() // 2))
+
+        # ── Coins (right of health bar) ───────────────────────
+        coins_text = font.render(f"⬡ {self.player.coins}", True, (255, 215, 0))
+        screen.blit(coins_text, (bar_x + bar_w + 16, bar_y + bar_h // 2 - coins_text.get_height() // 2))
 
         # ── Ammo counter (top-right, safe area) ──────────────
         if active_weapon and hasattr(active_weapon, "current_clip"):
