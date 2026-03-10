@@ -9,19 +9,19 @@ if TYPE_CHECKING:
 
 LOOT_TABLES = {
     "InfectedCommon": [
-        ("ammo_clip_762",   0.35),
-        ("health_injector", 0.10),
+        ("ammo_clip_762",   0.10),   # era 0.20
+        ("health_injector", 0.04),   # era 0.05
     ],
     "InfectedSoldier": [
-        ("ammo_clip_762",   0.50),
-        ("health_injector", 0.20),
-        ("stim_patch",      0.10),
+        ("ammo_clip_762",   0.18),   # era 0.30
+        ("health_injector", 0.07),   # era 0.10
+        ("stim_patch",      0.04),   # era 0.05
     ],
     "LabSubject": [
-        ("ammo_clip_762",   0.60),
-        ("health_injector", 0.40),
-        ("adrenaline_shot", 0.20),
-        ("rad_suppressor",  0.15),
+        ("ammo_clip_762",   0.25),   # era 0.40
+        ("health_injector", 0.12),   # era 0.20
+        ("adrenaline_shot", 0.08),   # era 0.10
+        ("rad_suppressor",  0.06),   # era 0.08
     ],
 }
 
@@ -35,12 +35,10 @@ SCORE_REWARDS = {
 def on_enemy_killed(enemy: "Enemy", player: "Player"):
     enemy_type = type(enemy).__name__
 
-    # Puntos
     points = SCORE_REWARDS.get(enemy_type, 100)
     player.add_score(points)
     print(f"[LOOT] +{points} puntos ({enemy_type}). Total: {player.score}")
 
-    # Loot drop
     table = LOOT_TABLES.get(enemy_type, [])
     _try_drop(table, enemy, player)
 
@@ -55,14 +53,7 @@ def _try_drop(table: list, enemy: "Enemy", player: "Player"):
         try:
             item_def = ItemRegistry.get(item_id)
             item = ItemInstance(item_def)
-
-            if not player.inventory.check_full():
-                # Inventario con espacio — pickup directo
-                player.inventory.add_item(item)
-                print(f"[LOOT] Recogido: {item_def.name}")
-            else:
-                # Inventario lleno — soltar al suelo usando el drop_manager del jugador
-                player.inventory.drop_manager.drop_item(item, enemy.position)
-                print(f"[LOOT] Soltado al suelo: {item_def.name}")
+            player.inventory.drop_manager.drop_item(item, enemy.position)
+            print(f"[LOOT] Soltado al suelo: {item_def.name}")
         except Exception as e:
             print(f"[LOOT] Error al soltar {item_id}: {e}")

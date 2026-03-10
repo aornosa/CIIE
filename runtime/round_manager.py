@@ -13,7 +13,13 @@ SPAWN_POINTS = [
     (2400, 1200),
     (1200, 1600),
     (2000, 400),
+    (600,  1400),
+    (2600, 600),
+    (1600, 200),
 ]
+
+MIN_SPAWN_SEPARATION = 150
+MIN_SPAWN_DIST_TO_PLAYER = 400
 
 WAVE_COMPOSITIONS = {
     1:  {"InfectedCommon": 3},
@@ -43,34 +49,60 @@ ENEMY_FACTORIES = {
 }
 
 
+def _pick_spawn_position(player, used_positions: list) -> tuple:
+    player_pos = pygame.Vector2(player.position)
+    candidates = list(SPAWN_POINTS)
+    random.shuffle(candidates)
+
+    for pos in candidates:
+        v = pygame.Vector2(pos)
+        if v.distance_to(player_pos) < MIN_SPAWN_DIST_TO_PLAYER:
+            continue
+        too_close = any(
+            v.distance_to(pygame.Vector2(u)) < MIN_SPAWN_SEPARATION
+            for u in used_positions
+        )
+        if not too_close:
+            return pos
+
+    for pos in candidates:
+        v = pygame.Vector2(pos)
+        if v.distance_to(player_pos) >= MIN_SPAWN_DIST_TO_PLAYER:
+            return pos
+    fallback = max(candidates, key=lambda p: pygame.Vector2(p).distance_to(player_pos))
+    print(f"[SPAWN] Fallback usado: {fallback} (dist jugador: "
+          f"{pygame.Vector2(fallback).distance_to(player_pos):.0f}px)")
+    return fallback
+
+
 def _spawn_wave(wave_number: int, player) -> list:
     composition = WAVE_COMPOSITIONS.get(
         wave_number,
         {k: v + (wave_number - 10) for k, v in WAVE_COMPOSITIONS[10].items()}
     )
     scale = _stat_scale(wave_number)
-    spawn_positions = SPAWN_POINTS.copy()
-    random.shuffle(spawn_positions)
 
     pool = []
-    pos_index = 0
+    used_positions = []
+
     for enemy_type, count in composition.items():
         EnemyClass, BrainClass = ENEMY_FACTORIES[enemy_type]
         for _ in range(count):
-            pos = spawn_positions[pos_index % len(spawn_positions)]
-            pos_index += 1
+            pos = _pick_spawn_position(player, used_positions)
+            used_positions.append(pos)
 
             enemy = EnemyClass(position=pos)
             enemy.health      = int(enemy.health   * scale["health"])
             enemy.base_health = enemy.health
             enemy.strength    = int(enemy.strength * scale["damage"])
             enemy.speed       = enemy.speed        * scale["speed"]
-            enemy._player_ref = player  # necesario para loot al morir
+            enemy._player_ref = player
 
             controller = CharacterController(enemy.speed, enemy)
             enemy.brain = BrainClass(enemy, controller, player)
             pool.append(enemy)
 
+    print(f"[SPAWN] {len(pool)} enemigos en {len(set(used_positions))} posiciones distintas")
     return pool
 
 
@@ -96,7 +128,6 @@ class WaveManager:
         self._director = director
 
     def update(self, delta_time: float, screen=None):
-        # Actualizar brains de todos los enemigos vivos
         for enemy in self.enemies:
             if enemy.is_alive() and enemy.brain is not None:
                 enemy.brain.update(delta_time)

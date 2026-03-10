@@ -9,7 +9,7 @@ class AK47(Ranged):
             max_range=1500,
             ammo_type="7.62",
             clip_size=30,
-            fire_rate=0.1,
+            fire_rate=0.18,      # era 0.10 (10 disparos/s → ~5.5 disparos/s)
             reload_time=2,
             muzzle_offset=(35, 15)
         )
@@ -23,7 +23,7 @@ class MP5(Ranged):
             max_range=800,
             ammo_type="9x19",
             clip_size=30,
-            fire_rate=0.10,
+            fire_rate=0.16,      # era 0.10
             reload_time=2.0,
             muzzle_offset=(35, 15)
         )
@@ -38,7 +38,7 @@ class SPAS12(Ranged):
             max_range=400,
             ammo_type="12gauge",
             clip_size=8,
-            fire_rate=0.833,
+            fire_rate=1.1,       # era 0.833
             reload_time=3.0,
             muzzle_offset=(35, 15)
         )

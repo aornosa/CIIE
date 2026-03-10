@@ -8,16 +8,16 @@ class InfectedCommon(Enemy):
     - Bajo HP, bajo daño, velocidad media
     - Ataca en melee cuerpo a cuerpo
     """
-    ATTACK_RANGE = 45       
-    DETECTION_RANGE = 300   
-    ATTACK_COOLDOWN = 1.2   
+    ATTACK_RANGE     = 45
+    DETECTION_RANGE  = 500
+    ATTACK_COOLDOWN  = 1.2
 
     def __init__(self, position=(0, 0)):
         super().__init__(
             asset="assets/enemies/infected_common/infected_common.png",
             position=position,
             name="Infectado",
-            health=60,
+            health=160,          # era 100
             strength=12,
             speed=90,
         )
@@ -38,16 +38,16 @@ class InfectedSoldier(Enemy):
     - HP medio-alto, daño alto, velocidad media-baja (armadura pesada)
     - Ataca en melee, puede aguantar más antes de caer
     """
-    ATTACK_RANGE = 55
-    DETECTION_RANGE = 400
-    ATTACK_COOLDOWN = 1.8
+    ATTACK_RANGE     = 55
+    DETECTION_RANGE  = 600
+    ATTACK_COOLDOWN  = 1.8
 
     def __init__(self, position=(0, 0)):
         super().__init__(
             asset="assets/enemies/infected_soldier/infected_soldier.png",
             position=position,
             name="Soldado Infectado",
-            health=150,
+            health=420,          # era 280
             strength=28,
             speed=70,
         )
@@ -69,16 +69,16 @@ class LabSubject(Enemy):
     - Muy alto HP, daño devastador, muy lento
     - Actúa como mini-boss de sala
     """
-    ATTACK_RANGE = 70
-    DETECTION_RANGE = 250   
-    ATTACK_COOLDOWN = 2.5
+    ATTACK_RANGE     = 70
+    DETECTION_RANGE  = 400
+    ATTACK_COOLDOWN  = 2.5
 
     def __init__(self, position=(0, 0)):
         super().__init__(
             asset="assets/enemies/lab_subject/lab_subject.png",
             position=position,
             name="Sujeto de Laboratorio",
-            health=320,
+            health=800,          # era 550
             strength=55,
             speed=45,
         )
