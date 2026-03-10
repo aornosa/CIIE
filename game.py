@@ -28,6 +28,7 @@ from map.interactables.interaction_manager import InteractionManager
 from map.interactables.door import Door
 from map.map_loader import MapLoader
 
+# ── Recursos estáticos (se crean una sola vez) ─────────────────────────────────
 map_loader = MapLoader()
 loaded_map = map_loader.load_map("test.json")
 map_loader.map = loaded_map
@@ -42,43 +43,79 @@ ItemRegistry()
 ItemRegistry.load("assets/items/item_data.json")
 AudioManager()
 
-player = Player("assets/player/survivor-idle_rifle_0.png", (1600.0, 800.0))
-controller = CharacterController(250, player)
-weapon_controller = WeaponController(player)
-wave_manager = WaveManager(player, total_waves=10)
-
-ak47 = AK47()
-tactical_knife = TacticalKnife()
-
-player.inventory.add_weapon(player, tactical_knife, "secondary")
-player.inventory.add_weapon(player, ak47, "primary")
-player.inventory.add_item(ItemInstance(ItemRegistry.get("ammo_clip_762")))
-player.inventory.add_item(ItemInstance(ItemRegistry.get("health_injector")))
-player.inventory.add_item(ItemInstance(ItemRegistry.get("stim_patch")))
-player.inventory.add_item(ItemInstance(ItemRegistry.get("adrenaline_shot")))
-player.inventory.add_item(ItemInstance(ItemRegistry.get("rad_suppressor")))
-
-AudioManager.instance().set_listener(player.audio_listener)
-
-crosshair      = pygame.image.load("assets/crosshair.png").convert_alpha()
-ads_se         = StatusEffect("assets/effects/ads", "Aiming Down Sights", {"speed": -70}, -1)
-dialog_manager = DialogManager()
-test_npc       = NPC(name="npc", position=(300, 200), dialog_tree=create_test_dialog_simple())
-interaction_manager = InteractionManager()
-
-door_1 = Door(
-    name="Sala 2",
-    position=(1800, 800),
-    cost=500,
-    on_open=lambda: print("[MAP] Sala 2 desbloqueada")
-)
-
-inventory_is_open = False
-FOG_ENABLE = 0
-if FOG_ENABLE:
-    fow = FogOfWar(player, camera)
+crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
+ads_se    = StatusEffect("assets/effects/ads", "Aiming Down Sights", {"speed": -70}, -1)
 
 FPS_Counter()
+
+# ── Estado de partida (reiniciable) ───────────────────────────────────────────
+player              = None
+controller          = None
+weapon_controller   = None
+wave_manager        = None
+dialog_manager      = None
+interaction_manager = None
+door_1              = None
+fow                 = None   # inicializado aquí para que Pylance no se queje
+inventory_is_open   = False
+FOG_ENABLE          = 0
+
+
+def reset_game():
+    """Reinicia completamente el estado de la partida. Llamar antes de cada nueva partida."""
+    global player, controller, weapon_controller, wave_manager
+    global dialog_manager, interaction_manager, door_1, inventory_is_open, fow
+
+    InteractionManager().clear()
+
+    inventory_is_open = False
+    camera.set_position((0, 0))
+
+    player            = Player("assets/player/survivor-idle_rifle_0.png", (1600.0, 800.0))
+    controller        = CharacterController(250, player)
+    weapon_controller = WeaponController(player)
+    wave_manager      = WaveManager(player, total_waves=10)
+
+    ak47           = AK47()
+    tactical_knife = TacticalKnife()
+    player.inventory.add_weapon(player, tactical_knife, "secondary")
+    player.inventory.add_weapon(player, ak47, "primary")
+    player.inventory.add_item(ItemInstance(ItemRegistry.get("ammo_clip_762")))
+    player.inventory.add_item(ItemInstance(ItemRegistry.get("health_injector")))
+    player.inventory.add_item(ItemInstance(ItemRegistry.get("stim_patch")))
+    player.inventory.add_item(ItemInstance(ItemRegistry.get("adrenaline_shot")))
+    player.inventory.add_item(ItemInstance(ItemRegistry.get("rad_suppressor")))
+
+    AudioManager.instance().set_listener(player.audio_listener)
+
+    DialogManager._instance = None
+    dialog_manager = DialogManager()
+
+    NPC(name="npc", position=(300, 200), dialog_tree=create_test_dialog_simple())
+
+    interaction_manager = InteractionManager()
+
+    door_1 = Door(
+        name="Sala 2",
+        position=(1800, 800),
+        cost=500,
+        on_open=lambda: print("[MAP] Sala 2 desbloqueada")
+    )
+
+    if FOG_ENABLE:
+        fow = FogOfWar(player, camera)
+
+    print("[GAME] Partida reiniciada.")
+
+
+def set_director(director):
+    """Llamado desde GameScene.on_enter() para que wave_manager pueda cambiar de escena."""
+    if wave_manager is not None:
+        wave_manager.set_director(director)
+
+
+# Inicializar al arrancar
+reset_game()
 
 
 def game_loop(screen, clock, im):
@@ -86,28 +123,22 @@ def game_loop(screen, clock, im):
 
     delta_time = clock.get_time() / 1000.0
 
-    # ── Muerte del jugador ─────────────────────────────────────────────────────
     if not player.is_alive():
         wave_manager.notify_player_dead()
         return
 
-    # ── Oleadas ────────────────────────────────────────────────────────────────
     wave_manager.update(delta_time, screen)
     enemies = wave_manager.enemies
 
-    # ── Mapa ───────────────────────────────────────────────────────────────────
     map_loader.draw_active_chunks(screen, camera.position, tile_images, player)
 
-    # ── Diálogos ───────────────────────────────────────────────────────────────
     dialog_manager.input_handler = im
     dialog_manager.handle_input(im.get_keys_pressed(), im.get_keys_just_pressed())
 
-    # ── Input ──────────────────────────────────────────────────────────────────
     movement  = pygame.Vector2(0, 0) if dialog_manager.is_dialog_active \
                 else pygame.Vector2(im.actions["move_x"], im.actions["move_y"])
     mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
 
-    # ── Cámara ─────────────────────────────────────────────────────────────────
     if im.actions["look_around"]:
         camera_follow(mouse_pos, camera, delta_time, speed=5, position_relative=False)
     else:
@@ -117,11 +148,9 @@ def game_loop(screen, clock, im):
     pygame.mouse.set_visible(False)
     controller.speed = player.get_stat("speed")
 
-    # ── Interacciones ──────────────────────────────────────────────────────────
     if not dialog_manager.is_dialog_active:
         interaction_manager.check_interaction(player, im)
 
-    # ── Inventario ─────────────────────────────────────────────────────────────
     if im.actions["inventory"] and not dialog_manager.is_dialog_active:
         im.actions["inventory"] = False
         inventory_is_open = not inventory_is_open
@@ -132,7 +161,6 @@ def game_loop(screen, clock, im):
     if im.actions["hotkey_slot"] >= 0:
         player.inventory.use_consumable_hotkey(im.actions["hotkey_slot"], player)
 
-    # ── Rotación jugador hacia ratón ───────────────────────────────────────────
     active_weapon      = player.inventory.get_weapon(player.inventory.active_weapon_slot)
     direction_to_mouse = mouse_pos - (player.position - camera.position)
 
@@ -146,7 +174,6 @@ def game_loop(screen, clock, im):
     else:
         player.remove_effect("Aiming Down Sights")
 
-    # ── Trail de disparo ───────────────────────────────────────────────────────
     try:
         if im.actions["attack"] and isinstance(active_weapon, Ranged) and active_weapon.can_shoot():
             direction = pygame.Vector2(0, -1).rotate(-player.rotation)
@@ -160,21 +187,18 @@ def game_loop(screen, clock, im):
     except Exception:
         pass
 
-    # ── Actualizar armas y mover jugador ──────────────────────────────────────
     weapon_controller.update(im, delta_time)
     controller.move(movement, delta_time)
 
-    # ── Render: enemigos ───────────────────────────────────────────────────────
     entity_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
     for enemy in enemies:
         enemy.draw(entity_surface, camera)
 
-    if FOG_ENABLE:
+    if FOG_ENABLE and fow is not None:
         entity_surface.blit(fow.visibility_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
     screen.blit(entity_surface, (0, 0))
 
-    # ── Render: items, jugador, puertas ───────────────────────────────────────
     player.inventory.drop_manager.draw(screen, camera)
     player.draw(screen, camera)
     door_1.draw(screen, camera)
@@ -182,7 +206,6 @@ def game_loop(screen, clock, im):
     if isinstance(active_weapon, Melee):
         active_weapon.draw_attack_cone(screen, camera)
 
-    # ── Inventario abierto ─────────────────────────────────────────────────────
     if inventory_is_open:
         if pygame.mouse.get_pressed()[0]:
             idx = get_clicked_item_index(pygame.mouse.get_pos(), player.inventory)
@@ -195,9 +218,8 @@ def game_loop(screen, clock, im):
     else:
         im.actions["click_drop"] = False
 
-    # ── HUD y diálogo ──────────────────────────────────────────────────────────
     screen.blit(pygame.transform.scale(crosshair, (40, 40)), (mouse_pos - (20, 20)))
-    ui_manager.draw_overlay(screen, player, wave_manager)
+    ui_manager.draw_overlay(screen, player, wave_manager, delta_time=delta_time)
     draw_dialog_ui(screen, dialog_manager)
 
 

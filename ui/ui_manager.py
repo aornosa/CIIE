@@ -6,6 +6,12 @@ FONT_28 = None
 FONT_22 = None
 FONT_18 = None
 
+# ── Damage flash state ─────────────────────────────────────────────────────────
+_last_hp        = None   # hp del frame anterior
+_flash_alpha    = 0.0    # alpha actual del overlay rojo (0-120)
+_FLASH_PEAK     = 90    # alpha máximo al recibir daño
+_FLASH_DECAY    = 70     # unidades de alpha que se pierden por segundo (~1.7s duración)
+
 
 def _get_fonts():
     global FONT_28, FONT_22, FONT_18
@@ -31,14 +37,44 @@ PANEL_Y = BAR_Y  # alineado con la hotbar
 
 # ── Entrada pública ────────────────────────────────────────────────────────────
 
-def draw_overlay(screen, player, wave_manager=None):
+def draw_overlay(screen, player, wave_manager=None, delta_time=0.016):
+    global _last_hp, _flash_alpha
+
     font_big, font_med, font_sml = _get_fonts()
+
+    # Detectar daño recibido
+    current_hp = player.health
+    if _last_hp is not None and current_hp < _last_hp:
+        _flash_alpha = _FLASH_PEAK
+    _last_hp = current_hp
+
     _draw_hotkey_bar(screen, player, font_sml)
     _draw_health(screen, player, font_med)
     _draw_weapon(screen, player, font_big, font_med, font_sml)
     _draw_interaction_tooltip(screen, player)
     if wave_manager is not None:
         _draw_wave_hud(screen, wave_manager, player, font_big, font_med, font_sml)
+
+    # Damage flash — se dibuja encima de todo el HUD
+    if _flash_alpha > 0:
+        _draw_damage_flash(screen, delta_time)
+
+
+# ── Damage flash ───────────────────────────────────────────────────────────────
+
+def _draw_damage_flash(screen, delta_time):
+    global _flash_alpha
+
+    W = screen.get_width()
+    H = screen.get_height()
+
+    # Surface rojo semitransparente sobre toda la pantalla
+    overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+    overlay.fill((180, 0, 0, int(_flash_alpha)))
+    screen.blit(overlay, (0, 0))
+
+    # Desvanecer gradualmente
+    _flash_alpha = max(0.0, _flash_alpha - _FLASH_DECAY * delta_time)
 
 
 # ── Vida ───────────────────────────────────────────────────────────────────────
@@ -153,8 +189,8 @@ def _draw_interaction_tooltip(screen, player):
     padding = 12
     surface = font.render(tooltip, True, (255, 255, 180))
     bg_rect = pygame.Rect(
-        SCREEN_WIDTH // 2 - surface.get_width() // 2 - padding,
-        SCREEN_HEIGHT - 120,
+        screen.get_width() // 2 - surface.get_width() // 2 - padding,
+        screen.get_height() - 120,
         surface.get_width() + padding * 2,
         surface.get_height() + padding
     )

@@ -1,6 +1,5 @@
 import pygame
-import pygame._sdl2 as sdl2   
-
+import pygame._sdl2 as sdl2
 pygame.init()
 
 # Try to initialize audio, but continue if it fails (no audio device)
@@ -14,18 +13,22 @@ if not pygame.get_init():
 
 from settings import *
 
-# Set screen
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), flags=pygame.SCALED | pygame.HIDDEN | pygame.FULLSCREEN)
-window = sdl2.Window.from_display_module()
-window.size = (int(SCREEN_WIDTH * SCREEN_SCALE), int(SCREEN_HEIGHT * SCREEN_SCALE))
-window.position = sdl2.WINDOWPOS_CENTERED
-window.show()
+# Detectar resolución real del monitor
+info = pygame.display.Info()
+NATIVE_W = info.current_w
+NATIVE_H = info.current_h
+
+# El surface interno sigue siendo SCREEN_WIDTH x SCREEN_HEIGHT (1920x1080)
+# pygame.SCALED se encarga de escalar al monitor automáticamente
+screen = pygame.display.set_mode(
+    (SCREEN_WIDTH, SCREEN_HEIGHT),
+    flags=pygame.SCALED | pygame.FULLSCREEN
+)
 
 from core import input_handler as ih
 from core.scene_director import SceneDirector
 from scenes.main_menu_scene import MainMenuScene
 from core.monolite_behaviour import MonoliteBehaviour
-
 
 pygame.display.set_caption("Armengard")
 pygame.display.set_icon(pygame.image.load("assets/icon.png").convert())
@@ -47,14 +50,12 @@ while director.running:
         im.handle_event(event)
 
     screen.fill(SCREEN_BACKGROUND_COLOR)
-
     director.handle_events(im)
     director.update(clock.get_time() / 1000.0)
     director.render(screen)
 
     # Monolite Behavior update
     MonoliteBehaviour.update_all(clock.get_time() / 1000)
-
     pygame.display.flip()
 
     if FPS > 0:

@@ -62,4 +62,4 @@ class PauseScene(Scene):
             # Save reference before pop clears self.director
             director = self.director
             director.pop()
-            director.replace(MainMenuScene())
+            director.replace(MainMenuScene(has_active_game=True))

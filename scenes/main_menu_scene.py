@@ -6,10 +6,14 @@ from ui.main_menu import draw_main_menu
 class MainMenuScene(Scene):
     """Main menu – first scene the player sees."""
 
-    def __init__(self):
+    def __init__(self, has_active_game: bool = False):
         super().__init__()
-        self.options = ["Jugar", "Opciones", "Salir"]
+        if has_active_game:
+            self.options = ["Continuar", "Nueva Partida", "Opciones", "Salir"]
+        else:
+            self.options = ["Jugar", "Opciones", "Salir"]
         self.selected = 0
+        self._has_active_game = has_active_game
 
     def handle_events(self, input_handler):
         # ESC has no effect in main menu — consume to avoid residual state
@@ -36,11 +40,16 @@ class MainMenuScene(Scene):
     def on_enter(self):
         pygame.mouse.set_visible(True)
 
-
     def _select_option(self):
         option = self.options[self.selected]
 
-        if option == "Jugar":
+        if option == "Jugar" or option == "Nueva Partida":
+            from game import reset_game
+            from scenes.game_scene import GameScene
+            reset_game()
+            self.director.replace(GameScene())
+
+        elif option == "Continuar":
             from scenes.game_scene import GameScene
             self.director.replace(GameScene())
 
