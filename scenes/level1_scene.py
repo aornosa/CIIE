@@ -7,7 +7,9 @@ import pygame
 
 from core.audio.audio_manager import AudioManager
 from core.camera import Camera
+from core.collision.collider import Collider
 from core.collision.collision_manager import CollisionManager
+from core.collision.layers import LAYERS
 from core.collision.quadtree import Rectangle
 from core.monolite_behaviour import MonoliteBehaviour
 from core.scene import Scene
@@ -24,16 +26,31 @@ from ui import ui_manager
 from weapons.ranged.ranged import Ranged
 
 
-# ── Background colour (no map yet) ─────────────────────────
-_BG_COLOR = (30, 30, 40)
+# ── Background / arena colours ────────────────────────────
+_BG_COLOR    = (20, 20, 28)   # outside the arena
+_FLOOR_COLOR = (45, 45, 55)   # arena floor
+_WALL_COLOR  = (110, 90, 70)  # arena wall border
 
-# ── Enemy spawn positions ──────────────────────────────────
+# ── Arena dimensions ───────────────────────────────────────
+_ARENA_HALF = 1000   # half-side of the square arena  (total 2000 × 2000)
+_WALL_THICK = 80     # collision & visual wall thickness
+
+# ── Arena centre  ==  player spawn ─────────────────────────
+_ACX = SCREEN_WIDTH  // 2   # 640
+_ACY = SCREEN_HEIGHT // 2   # 360
+
+# ── Enemy AI ─────────────────────────────────────────────────
+_ENEMY_SPEED       = 110    # px/s (slower than the player's 250)
+_SEPARATION_RADIUS = 90     # px  — enemies push each other away within this
+_SEPARATION_WEIGHT = 2.0    # how strong the push is relative to chase direction
+
+# ── Enemy spawn positions (spread across the arena) ────────
 _ENEMY_SPAWNS = [
-    (400, 250),
-    (700, 450),
-    (200, 550),
-    (800, 200),
-    (550, 700),
+    (_ACX - 500, _ACY - 350),
+    (_ACX + 550, _ACY - 400),
+    (_ACX - 450, _ACY + 500),
+    (_ACX + 600, _ACY + 450),
+    (_ACX + 50,  _ACY - 750),
 ]
 
 
@@ -47,6 +64,7 @@ class Level1Scene(Scene):
         self.controller = None
         self.camera = None
         self.enemies = []
+        self._contact_damage_cooldown = 0.0  # seconds until next contact hit
         self.crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
         self.ads_effect = StatusEffect(
             "assets/effects/ads", "Aiming Down Sights", {"speed": -70}, -1
@@ -110,10 +128,40 @@ class Level1Scene(Scene):
         # Camera
         self.camera = Camera()
 
-        # Enemies
+        # Enemies — each gets its own CharacterController for movement
         self.enemies = []
         for pos in _ENEMY_SPAWNS:
-            self.enemies.append(Enemy("assets/icon.png", pos, 0, 0.05))
+            enemy = Enemy("assets/icon.png", pos, 0, 0.05)
+            enemy._controller = CharacterController(_ENEMY_SPEED, enemy)
+            self.enemies.append(enemy)
+
+        # Boundary walls
+        self._build_walls()
+
+    def _build_walls(self):
+        """Create four static terrain colliders that form the square arena.
+
+        Rectangle(cx, cy, half_h, half_w)  — all values are center + half-extents.
+        CharacterController.move() already resolves terrain collisions on both
+        axes, so no extra logic is needed here.
+        """
+        cx, cy = _ACX, _ACY
+        h, t   = _ARENA_HALF, _WALL_THICK
+
+        wall_defs = [
+            # (center_x,          center_y,          half_h, half_w )
+            (cx,                  cy - h - t // 2,   t // 2, h + t  ),  # top
+            (cx,                  cy + h + t // 2,   t // 2, h + t  ),  # bottom
+            (cx - h - t // 2,    cy,                 h,      t // 2 ),  # left
+            (cx + h + t // 2,    cy,                 h,      t // 2 ),  # right
+        ]
+        for wx, wy, wh, ww in wall_defs:
+            Collider(
+                object(),                        # static walls need no logic owner
+                Rectangle(wx, wy, wh, ww),
+                layer=LAYERS["terrain"],
+                static=True,
+            )
 
     def _teardown_level(self):
         """Wipe all collision and MonoliteBehaviour state — total cleanup."""
@@ -143,6 +191,43 @@ class Level1Scene(Scene):
 
     def update(self, delta_time):
         cleanup_dead_enemies(self.enemies)
+        if self.player:
+            self._update_enemies(delta_time)
+            self._check_enemy_contact(delta_time)
+
+    def _update_enemies(self, delta_time):
+        """Chase the player + separation steering so enemies don't stack."""
+        for enemy in self.enemies:
+            # ── Chase direction ─────────────────────────────────
+            to_player = self.player.position - enemy.position
+            if to_player.length() > 0:
+                move_dir = to_player.normalize()
+            else:
+                move_dir = pygame.Vector2(0, 0)
+
+            # ── Separation from other enemies ───────────────────
+            sep = pygame.Vector2(0, 0)
+            for other in self.enemies:
+                if other is enemy:
+                    continue
+                diff = enemy.position - other.position
+                dist = diff.length()
+                if 0 < dist < _SEPARATION_RADIUS:
+                    # Stronger push the closer they are
+                    sep += diff.normalize() * (1.0 - dist / _SEPARATION_RADIUS)
+
+            move_dir = move_dir + sep * _SEPARATION_WEIGHT
+            if move_dir.length() > 0:
+                move_dir = move_dir.normalize()
+
+            enemy._controller.move(move_dir, delta_time)
+
+            # ── Rotate enemy toward player ──────────────────────
+            if to_player.length() > 0:
+                enemy.rotation = to_player.angle_to(pygame.Vector2(0, -1))
+
+            # ── Tick hit-flash timer ────────────────────────────
+            enemy._hit_flash_timer = max(0.0, enemy._hit_flash_timer - delta_time)
 
     # ── Render ────────────────────────────────────────────────
 
@@ -150,8 +235,15 @@ class Level1Scene(Scene):
         im = self.director._input_handler
         delta_time = self.director.clock.get_time() / 1000.0
 
-        # Background
+        # Background (outside-arena void)
         screen.fill(_BG_COLOR)
+
+        # ── Arena floor + wall border ─────────────────────────
+        ax = _ACX - _ARENA_HALF - int(self.camera.position.x)
+        ay = _ACY - _ARENA_HALF - int(self.camera.position.y)
+        arena_rect = pygame.Rect(ax, ay, _ARENA_HALF * 2, _ARENA_HALF * 2)
+        pygame.draw.rect(screen, _FLOOR_COLOR, arena_rect)           # floor
+        pygame.draw.rect(screen, _WALL_COLOR,  arena_rect, _WALL_THICK)  # walls
 
         # Mouse position (for crosshair & aiming)
         mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
@@ -229,6 +321,13 @@ class Level1Scene(Scene):
         entity_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
         for enemy in self.enemies:
             enemy.draw(entity_surface, self.camera)
+            # Hit-flash: red overlay for _HIT_FLASH_DURATION seconds after damage
+            if enemy._hit_flash_timer > 0:
+                screen_pos = enemy.position - self.camera.position
+                flash_rect = enemy._render_asset.get_rect(center=screen_pos)
+                flash_surf = pygame.Surface(flash_rect.size, pygame.SRCALPHA)
+                flash_surf.fill((255, 30, 30, 180))
+                entity_surface.blit(flash_surf, flash_rect)
         screen.blit(entity_surface, (0, 0))
 
         # Draw player
@@ -252,6 +351,17 @@ class Level1Scene(Scene):
     def get_last_frame(self):
         """Return the last rendered frame (used by PauseScene)."""
         return self._last_frame
+
+    def _check_enemy_contact(self, delta_time):
+        """Deal damage to the player when touching an enemy. 0.75s cooldown."""
+        self._contact_damage_cooldown -= delta_time
+        if self._contact_damage_cooldown > 0:
+            return
+
+        hits = self.player.collider.check_collision(layers=[LAYERS["enemy"]])
+        if hits:
+            self.player.take_damage(10)
+            self._contact_damage_cooldown = 0.75
 
     def _camera_follow(self, target, delta_time, speed=10):
         """Smooth camera follow with dead-zone (same logic as game.py)."""

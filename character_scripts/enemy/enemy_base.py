@@ -21,6 +21,12 @@ class Enemy(Character):
         self.strength = strength
         self.behavior = None  # Placeholder for AI behavior
         self.collider.layer = LAYERS["enemy"]
+        self._hit_flash_timer = 0.0   # seconds remaining for red-flash feedback
+        self._HIT_FLASH_DURATION = 0.12
 
     def is_alive(self):
         return self.health > 0
+
+    def take_damage(self, amount):
+        super().take_damage(amount)
+        self._hit_flash_timer = self._HIT_FLASH_DURATION
