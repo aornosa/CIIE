@@ -56,7 +56,6 @@ player = Player("assets/player/survivor-idle_rifle_0.png", (0.0,0.0))
 controller = CharacterController( 250, player)
 
 enemies = spawn_enemies(5)
-
 test_weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
                      "7.62", 30, 0.1, 2, muzzle_offset=(35, 15))
 
@@ -117,16 +116,11 @@ def game_loop(screen, clock, im):
     cleanup_dead_enemies(enemies)
 
     map_loader.draw_active_chunks(screen, camera.position, tilesets_multi, player)
+
     #print(f"Player pos: {player.position.x:.0f}, {player.position.y:.0f}")
     #print(f"Player chunk: cx={int((player.position.x // TILE_SIZE) // CHUNK_SIZE)}, cy={int((player.position.y // TILE_SIZE) // CHUNK_SIZE)}")
-    #print(f"Active chunks: {len(map_loader.active_chunks)} positions: {list(map_loader.active_chunks.keys())[:25]}...")
-    #print(f"Chunks activos: {len(map_loader.active_chunks)} / total {len(mapa.chunks)}")
-
-
-    #print("=== DEBUG TILESETS ===")
-    #print("Keys:", list(tilesets_multi.keys()))  
-    #print("1025 tiles:", len(tilesets_multi.get(1025, {})))
-    #print("Sample 1025-1:", 1025+1-1 in [k for t in tilesets_multi.values() for k in t])
+    #print(f"Active chunks: {len(map_loader.active_chunks)} positions: {list(map_loader.active_chunks.keys())[:16]}...")
+    #print(f"Chunks activos: {len(map_loader.active_chunks)} / total {len(map_loader.map.chunks)}")
     #print(f"Player chunk: ({player.position.x // TILE_SIZE // CHUNK_SIZE}, {player.position.y // TILE_SIZE // CHUNK_SIZE})")
     #print(f"Player pixels: ({player.position.x}, {player.position.y})")
 

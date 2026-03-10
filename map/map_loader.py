@@ -39,6 +39,8 @@ class MapLoader:
                     for lx in range(width):
                         layer_matrix[ly][lx] = tiles_2d[ly][lx]        
                 chunk.tiles_layers.append(layer_matrix)
+                print(f"Chunk ({cx},{cy}): layer_matrix non-zero GIDs: {sum(sum(1 for c in row if c!=0) for row in layer_matrix)}")
+                print(f"Ejemplo GIDs: {layer_matrix[0][:5]}...")  # Primeros 5
 
     @staticmethod
     def save_map(map_object: Map, file_path):
@@ -78,8 +80,8 @@ class MapLoader:
             for x in range(0, w, tile_size[0]):
                 rect = pygame.Rect(x, y, *tile_size)
                 tile = sheet.subsurface(rect).convert_alpha()  
-                scaled_tile = pygame.transform.smoothscale(tile, (64, 64))
-                tile_images[tile_id] = scaled_tile
+                #scaled_tile = pygame.transform.smoothscale(tile, (16, 16))
+                tile_images[tile_id] = tile
                 tile_id += 1
         return tile_images 
     
