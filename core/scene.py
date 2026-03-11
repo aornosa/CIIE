@@ -23,9 +23,17 @@ class Scene(ABC):
         pass
 
     def on_enter(self):
-        """Called when this scene becomes the active scene."""
+        """Called when this scene becomes the active scene (first time or after replace)."""
         pass
 
     def on_exit(self):
-        """Called when this scene is no longer the active scene."""
+        """Called when this scene is permanently removed from the stack."""
+        pass
+
+    def on_pause(self):
+        """Called when another scene is pushed on top of this one."""
+        pass
+
+    def on_resume(self):
+        """Called when the scene on top is popped and this one becomes active again."""
         pass

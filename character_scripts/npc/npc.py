@@ -6,7 +6,7 @@ from map.interactables.interactable import Interactable
 class NPC(Character, Interactable):
 
     def __init__(self, name, position, dialog_tree=None, sprite_path=None, health=100,
-                 interact_radius=80):
+                 interact_radius=80, scale=1.0):
         if sprite_path is None:
             sprite_path = self._create_placeholder_sprite_file()
 
@@ -15,7 +15,7 @@ class NPC(Character, Interactable):
             asset=sprite_path,
             position=pygame.Vector2(position),
             rotation=0,
-            scale=1.0,
+            scale=scale,
             name=name,
             health=health
         )

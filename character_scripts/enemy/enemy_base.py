@@ -1,4 +1,5 @@
 from character_scripts.character import Character
+from core.collision.collision_manager import CollisionManager
 from core.collision.layers import LAYERS
 
 
@@ -10,6 +11,8 @@ class Enemy(Character):
         self.speed = speed
         self.brain = None
         self.collider.layer = LAYERS["enemy"]
+        self._hit_flash_timer = 0.0   # seconds remaining for red-flash feedback
+        self._HIT_FLASH_DURATION = 0.12
 
         self._player_ref = None
 
@@ -17,8 +20,7 @@ class Enemy(Character):
         return self.health > 0
 
     def die(self):
-        print(f"{self.name} has died.")
-        from core.collision.collision_manager import CollisionManager
+        """Remove this enemy's collider so dead bodies no longer block hits."""
         CollisionManager.dynamic_colliders.discard(self.collider)
 
         if self._player_ref is not None:
@@ -27,3 +29,9 @@ class Enemy(Character):
                 on_enemy_killed(self, self._player_ref)
             except Exception as e:
                 print(f"[LOOT] Error en on_enemy_killed: {e}")
+
+        super().die()
+
+    def take_damage(self, amount):
+        super().take_damage(amount)
+        self._hit_flash_timer = self._HIT_FLASH_DURATION

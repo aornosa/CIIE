@@ -3,14 +3,19 @@ import pygame
 TITLE_FONT        = None
 OPTION_FONT       = None
 OPTION_FONT_BOLD  = None
+VERSION_FONT      = None
+
+# ── Cambiar este número para verificar la build ──
+BUILD_VERSION = "0.1.0"
 
 
 def _get_fonts():
-    global TITLE_FONT, OPTION_FONT, OPTION_FONT_BOLD
+    global TITLE_FONT, OPTION_FONT, OPTION_FONT_BOLD, VERSION_FONT
     if TITLE_FONT is None:
         TITLE_FONT       = pygame.font.SysFont("consolas", 72, bold=True)
         OPTION_FONT      = pygame.font.SysFont("consolas", 36, bold=False)
         OPTION_FONT_BOLD = pygame.font.SysFont("consolas", 36, bold=True)
+        VERSION_FONT     = pygame.font.SysFont("consolas", 20)
     return TITLE_FONT, OPTION_FONT, OPTION_FONT_BOLD
 
 
@@ -38,3 +43,7 @@ def draw_main_menu(screen, options, selected_index):
 
         text_surface = font.render(prefix + option, True, color)
         screen.blit(text_surface, (cx - text_surface.get_width() // 2, start_y + i * 60))
+
+    # Version number — bottom right corner
+    ver_surface = VERSION_FONT.render(f"v{BUILD_VERSION}", True, (200, 200, 200))
+    screen.blit(ver_surface, (screen.get_width() - ver_surface.get_width() - 20, H - 40))

@@ -1,7 +1,8 @@
 class DialogNode:
-    def __init__(self, speaker, text, options=None, next_node=None, on_complete=None):
+    def __init__(self, speaker, text, portrait=None, options=None, next_node=None, on_complete=None):
         self.speaker = speaker
         self.text = text
+        self.portrait = portrait       # path to portrait image, or None
         self.options = options or []
         self.next_node = next_node
         self.on_complete = on_complete

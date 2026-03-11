@@ -123,34 +123,35 @@ class Ranged(Weapon, MonoliteBehaviour):
     def reload(self):
         if not self.parent:
             return False
-        
+
         if self.current_clip == self.clip_size:
             print("Magazine already full!")
             return False
-        
+
         if self._is_reloading:
             print("Already reloading...")
             return False
 
+        needed = self.clip_size - self.current_clip
         ammo_found = False
-        for item in self.parent.inventory.items:
+        for item in list(self.parent.inventory.items):
+            if needed <= 0:
+                break
             if item.ammo and item.ammo.ammo_type == self.ammo_type:
                 ammo_found = True
-                needed = self.clip_size - self.current_clip
                 to_load = min(needed, item.current_ammo)
                 self.current_clip += to_load
                 item.current_ammo -= to_load
+                needed -= to_load
                 if item.current_ammo <= 0:
                     self.parent.inventory.remove_item(item)
-                
-                print(f"Reloading [{to_load}] {self.ammo_type} rounds. Current clip: {self.current_clip}")
-                self._play_reload_sound()
-                break
-        
+
         if not ammo_found:
             print(f"No {self.ammo_type} ammo available to reload!")
             return False
-        
+
+        print(f"Reloaded {self.ammo_type}. Current clip: {self.current_clip}")
+        self._play_reload_sound()
         return True
 
     def _play_reload_sound(self):

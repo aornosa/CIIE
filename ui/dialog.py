@@ -20,6 +20,21 @@ COLOR_OPTION_SELECTED = (255, 255, 100)
 COLOR_OPTION_BG = (40, 40, 60)
 COLOR_OPTION_SELECTED_BG = (80, 80, 100)
 
+# Portrait image cache  {path: pygame.Surface}
+_portrait_cache: dict = {}
+
+def _get_portrait(path):
+    """Load and cache a portrait surface, scaled to PORTRAIT_SIZE."""
+    if path in _portrait_cache:
+        return _portrait_cache[path]
+    try:
+        surf = pygame.image.load(path).convert_alpha()
+        surf = pygame.transform.smoothscale(surf, (PORTRAIT_SIZE, PORTRAIT_SIZE))
+        _portrait_cache[path] = surf
+    except (pygame.error, FileNotFoundError):
+        _portrait_cache[path] = None
+    return _portrait_cache[path]
+
 def draw_dialog_ui(screen, dialog_manager):
     if not dialog_manager.is_dialog_active:
         return
@@ -47,17 +62,21 @@ def draw_dialog_ui(screen, dialog_manager):
     pygame.draw.rect(dialog_surface, COLOR_DIALOG_BORDER, 
                     (0, 0, box_width, DIALOG_BOX_HEIGHT), 3)
     
-    # Portrait placeholder
+    # Portrait
     portrait_x = PORTRAIT_MARGIN
     portrait_y = PORTRAIT_MARGIN
     portrait_rect = pygame.Rect(portrait_x, portrait_y, PORTRAIT_SIZE, PORTRAIT_SIZE)
-    pygame.draw.rect(dialog_surface, (60, 60, 80), portrait_rect)
-    pygame.draw.rect(dialog_surface, COLOR_DIALOG_BORDER, portrait_rect, 2)
-    
-    font_small = pygame.font.Font(None, 24)
-    portrait_text = font_small.render("Portrait", True, COLOR_TEXT)
-    portrait_text_rect = portrait_text.get_rect(center=portrait_rect.center)
-    dialog_surface.blit(portrait_text, portrait_text_rect)
+    pygame.draw.rect(dialog_surface, (60, 60, 80), portrait_rect)       # background slot
+    pygame.draw.rect(dialog_surface, COLOR_DIALOG_BORDER, portrait_rect, 2)  # border
+
+    portrait_surf = _get_portrait(current_node.portrait) if current_node.portrait else None
+    if portrait_surf:
+        dialog_surface.blit(portrait_surf, portrait_rect.topleft)
+    else:
+        font_small = pygame.font.Font(None, 24)
+        portrait_text = font_small.render("Portrait", True, COLOR_TEXT)
+        portrait_text_rect = portrait_text.get_rect(center=portrait_rect.center)
+        dialog_surface.blit(portrait_text, portrait_text_rect)
     
     # Text area
     text_x = portrait_x + PORTRAIT_SIZE + TEXT_MARGIN

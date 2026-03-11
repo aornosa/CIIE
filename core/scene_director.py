@@ -10,7 +10,7 @@ class SceneDirector:
     def push(self, scene):
         """Push a new scene onto the stack (pauses the current one)."""
         if self.scene_stack:
-            self.scene_stack[-1].on_exit()
+            self.scene_stack[-1].on_pause()
 
         scene.director = self
         self.scene_stack.append(scene)
@@ -24,7 +24,7 @@ class SceneDirector:
             old_scene.director = None
 
         if self.scene_stack:
-            self.scene_stack[-1].on_enter()
+            self.scene_stack[-1].on_resume()
         else:
             self.running = False
 

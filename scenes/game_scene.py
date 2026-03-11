@@ -19,6 +19,13 @@ class GameScene(Scene):
             self.director.push(PauseScene(self))
             return
 
+        if input_handler.actions.get("shop"):
+            input_handler.actions["shop"] = False
+            from scenes.shop_scene import ShopScene
+            from game import player
+            self.director.push(ShopScene(self, player))
+            return
+
     def update(self, delta_time):
         pass
 

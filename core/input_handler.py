@@ -17,6 +17,7 @@ class InputHandler:
             "inventory": False,
             "reload": False,
             "pause": False,
+            "shop": False,
             "look_around": False,
             "use_item": False,      
             "hotkey_slot": -1,      
@@ -75,6 +76,8 @@ class InputHandler:
             elif event.key == pygame.K_LCTRL:
                 self.actions["look_around"] = True
 
+            elif event.key == pygame.K_p:
+                self.actions["shop"] = True
             elif event.key == pygame.K_ESCAPE:
                 self.actions["pause"] = True
 

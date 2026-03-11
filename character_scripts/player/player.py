@@ -23,6 +23,17 @@ class Player(Character):
         self.audio_listener = AudioListener(self)
         self._recalculate_stats() 
 
+        self.coins = 200  # Starting coins
+
+    def add_coins(self, amount):
+        self.coins += amount
+
+    def spend_coins(self, amount):
+        if self.coins >= amount:
+            self.coins -= amount
+            return True
+        return False
+
     def add_score(self, points):
         self.score += points
 
