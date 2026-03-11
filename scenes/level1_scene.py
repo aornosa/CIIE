@@ -67,24 +67,26 @@ class Level1Scene(Scene):
         self.controller = None
         self.camera = None
         self.enemies = []
-        self._contact_damage_cooldown = 0.0  # seconds until next contact hit
+        self._contact_damage_cooldown = 0.0
         self.audres = None
         self._dialog_manager = None
         self._audres_intro_tree  = None
         self._cutscene_active    = False
-        self._cutscene_phase     = "idle"   # "walking" → "dialog" → done
+        self._cutscene_phase     = "idle"
         self._audres_walk_target = None
         # Wave-clear shop hint
-        self._enemies_spawned     = False   # True once _finish_cutscene() runs
-        self._shop_hint_triggered = False   # fires only once per run
-        self._wave_clear_timer    = -1.0    # counts down from 1.5 s
-        # Sistema de oleadas estructurado (arranca tras el diálogo de la tienda)
-        self._wave_manager           = None   # Level1WaveManager, creado tras el shop hint
-        # Fin de oleadas → nivel completo
-        self._wave2_clear_triggered  = False  # True once congratulation dialog starts
-        self._wave2_clear_timer      = -1.0   # 1.5 s delay before Audrey congratulates
-        self._going_level_complete   = False  # True once we navigate to LevelCompleteScene
-        self._total_kills            = 0      # running kill count for the stats screen
+        self._enemies_spawned     = False
+        self._shop_hint_triggered = False
+        self._wave_clear_timer    = -1.0
+        # Oleadas
+        self._wave_manager           = None
+        # Charcos tóxicos — lista compartida con el wave manager
+        self._toxic_puddles: list    = []
+        # Fin de oleadas
+        self._wave2_clear_triggered  = False
+        self._wave2_clear_timer      = -1.0
+        self._going_level_complete   = False
+        self._total_kills            = 0
         self.crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
         self.ads_effect = StatusEffect(
             "assets/effects/ads", "Aiming Down Sights", {"speed": -70}, -1
@@ -232,6 +234,7 @@ class Level1Scene(Scene):
         self._shop_hint_triggered = False
         self._wave_clear_timer    = -1.0
         self._wave_manager           = None
+        self._toxic_puddles          = []
         self._wave2_clear_triggered  = False
         self._wave2_clear_timer      = -1.0
         self._going_level_complete   = False
@@ -282,6 +285,14 @@ class Level1Scene(Scene):
             self.director.push(ShopScene(self, self.player))
             return
 
+        # ── Hotbar: select slot with 1-6 ─────────────────────
+        if input_handler.actions["hotkey_slot"] >= 0:
+            self.player.inventory.select_item(input_handler.actions["hotkey_slot"])
+
+        # ── Use selected consumable with F ────────────────────
+        if input_handler.actions["use_item"]:
+            self.player.inventory.use_selected_item(self.player)
+
     # ── Update ────────────────────────────────────────────────
 
     def update(self, delta_time):
@@ -305,8 +316,10 @@ class Level1Scene(Scene):
             self.player.add_coins(killed * 10)
             self._total_kills += killed
         if self.player:
+            self.player.update(delta_time)
             self._update_enemies(delta_time)
             self._check_enemy_contact(delta_time)
+            self._check_player_death()
 
         # ── Wave-clear shop hint (fires once, 1.5 s after all enemies die) ──
         if (self._enemies_spawned
@@ -382,6 +395,17 @@ class Level1Scene(Scene):
             if move_dir.length() > 0:
                 move_dir = move_dir.normalize()
 
+            # ── ShooterEnemy: handle its own AI and skip movement while aiming ─
+            from character_scripts.enemy.shooter_enemy import ShooterEnemy as _ShooterEnemy
+            if isinstance(enemy, _ShooterEnemy):
+                enemy.update(delta_time, self.player)
+                if enemy.is_shooting:
+                    # Rotate toward aim direction but don't move
+                    if to_player.length() > 0:
+                        enemy.rotation = to_player.angle_to(pygame.Vector2(0, -1))
+                    enemy._hit_flash_timer = max(0.0, enemy._hit_flash_timer - delta_time)
+                    continue  # skip movement + rest of loop for this enemy
+
             enemy._controller.move(move_dir, delta_time)
 
             # ── Rotate enemy toward player ──────────────────────
@@ -391,25 +415,41 @@ class Level1Scene(Scene):
             # ── Tick hit-flash timer ────────────────────────────
             enemy._hit_flash_timer = max(0.0, enemy._hit_flash_timer - delta_time)
 
-    _AUDRES_WALK_SPEED = 400   # px/s during the intro walk
+            # ── ToxicEnemy: generate puddles each frame ─────────
+            from character_scripts.enemy.toxic_enemy import ToxicEnemy as _ToxicEnemy
+            if isinstance(enemy, _ToxicEnemy):
+                enemy.update(delta_time)
+
+        # ── Update and prune toxic puddles ──────────────────────
+        for puddle in self._toxic_puddles:
+            puddle.update(delta_time, self.player)
+        self._toxic_puddles[:] = [p for p in self._toxic_puddles if p.is_alive]
+
+    _AUDRES_WALK_SPEED = 300   # px/s during the intro walk
 
     def _create_wave_manager(self):
-        """Instancia Level1WaveManager tras el diálogo del shop hint.
+        """Instancia Level1WaveManager con oleadas mixtas de enemigos.
 
-        Modifica wave_config, rest_time o spawn_duration aquí para ajustar
-        la dificultad del nivel:
-          wave_config     — lista con el nº de enemigos por oleada
-          rest_time       — segundos de descanso entre oleadas
-          spawn_duration  — segundos para distribuir el spawn de una oleada completa
+        Configura aquí los tipos de enemigos por oleada:
+          wave_config  — lista de ints o dicts {"normal":N, "tank":N, "toxic":N}
+          rest_time    — segundos de descanso entre oleadas
+          spawn_duration — segundos para distribuir el spawn
         """
         from runtime.level1_wave_manager import Level1WaveManager
         self._wave_manager = Level1WaveManager(
             arena_center=(_ACX, _ACY),
             arena_half=_ARENA_HALF,
-            wave_config=[20, 25, 30, 40, 50],   # enemigos por oleada
-            rest_time=3.0,                       # segundos de descanso entre oleadas
-            spawn_duration=8.0,                  # segundos para spawnear toda una oleada
+            wave_config=[
+                {"normal": 15, "tank": 2,  "toxic": 0,  "shooter": 2},  # Oleada 1
+                {"normal": 15, "tank": 2,  "toxic": 4,  "shooter": 3},  # Oleada 2
+                {"normal": 18, "tank": 4,  "toxic": 4,  "shooter": 4},  # Oleada 3
+                {"normal": 22, "tank": 5,  "toxic": 5,  "shooter": 5},  # Oleada 4
+                {"normal": 28, "tank": 7,  "toxic": 6,  "shooter": 6},  # Oleada 5
+            ],
+            rest_time=3.0,
+            spawn_duration=8.0,
             enemy_speed=_ENEMY_SPEED,
+            puddle_list=self._toxic_puddles,
         )
         self._wave_manager.set_on_complete(self._on_waves_complete)
 
@@ -542,12 +582,25 @@ class Level1Scene(Scene):
 
         # Move player
         self.controller.move(movement, delta_time)
+        # Record last non-zero movement for dash direction
+        if movement.length() > 0:
+            self.player._dash_direction = pygame.Vector2(movement)
 
         # Camera follow
         self._camera_follow(self.player.position, delta_time)
 
-        # Draw enemies
+        # Draw shooter danger zones (below puddles and enemies)
         active_enemies = self._wave_manager.enemies if self._wave_manager is not None else self.enemies
+        from character_scripts.enemy.shooter_enemy import ShooterEnemy as _ShooterEnemy
+        for enemy in active_enemies:
+            if isinstance(enemy, _ShooterEnemy) and enemy.zone_active:
+                enemy.draw_zone(screen, self.camera)
+
+        # Draw toxic puddles (below enemies)
+        for puddle in self._toxic_puddles:
+            puddle.draw(screen, self.camera)
+
+        # Draw enemies
         entity_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
         for enemy in active_enemies:
             enemy.draw(entity_surface, self.camera)
@@ -614,13 +667,18 @@ class Level1Scene(Scene):
             self.player.take_damage(10)
             self._contact_damage_cooldown = 0.75
 
-            # ── Player death ───────────────────────────────────
+            # ── Player death (also caught by _check_player_death, but keep for safety) ──
             if not self.player.is_alive():
-                from scenes.death_scene import DeathScene
-                self.director.replace(DeathScene(
-                    self._last_frame,
-                    {"kills": self._total_kills, "coins": self.player.coins},
-                ))
+                return  # _check_player_death will handle the scene transition
+
+    def _check_player_death(self):
+        """Transitions to DeathScene if the player has no HP. Called every frame."""
+        if self.player and not self.player.is_alive():
+            from scenes.death_scene import DeathScene
+            self.director.replace(DeathScene(
+                self._last_frame,
+                {"kills": self._total_kills, "coins": self.player.coins},
+            ))
 
     def _camera_follow(self, target, delta_time, speed=10):
         """Smooth camera follow with dead-zone (same logic as game.py)."""

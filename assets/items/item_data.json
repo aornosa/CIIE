@@ -62,5 +62,15 @@
     "description": "Experimental Armengard compound. Neutralises Phoenix Injector addiction and restores lost max health.",
     "type": "consumable",
     "effect": "rad_suppressor"
+  },
+
+  "dash_ability": {
+    "asset": "assets/items/dash_ability/dash_ability.png",
+    "name": "Dash",
+    "description": "Permite realizar un impulso rápido en la dirección en la que miras.",
+    "type": "consumable",
+    "effect": "dash",
+    "cooldown": 3.0,
+    "reusable": true
   }
 }

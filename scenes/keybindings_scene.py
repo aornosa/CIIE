@@ -9,7 +9,6 @@ KEYBINDINGS = {
     "Movimiento": [
         ("W / A / S / D",      "Mover al jugador"),
         ("LCtrl  (mantener)",  "Mover la cámara libremente"),
-        
     ],
     "Combate": [
         ("Clic izquierdo",     "Disparar / Atacar"),
@@ -17,9 +16,14 @@ KEYBINDINGS = {
         ("R",                  "Recargar arma"),
         ("Q",                  "Cambiar arma activa"),
     ],
+    "Inventario": [
+        ("1 – 6",              "Seleccionar hueco del inventario"),
+        ("F",                  "Usar el item seleccionado"),
+        ("Tab",                "Abrir / cerrar inventario"),
+    ],
     "Interacción": [
         ("E",                  "Interactuar / hablar con NPC"),
-        ("Tab",                "Abrir / cerrar inventario"),
+        ("P",                  "Abrir tienda"),
     ],
     "Menú": [
         ("Escape",             "Pausar / volver atrás"),

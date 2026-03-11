@@ -63,6 +63,25 @@ def draw_item_box(screen, item, position, selected=False):
             hint = FONT_12.render("[F] usar", True, COLOR_SELECTED_BORDER)
             screen.blit(hint, (position[0] + 5, position[1] + 82))
 
+        # Cooldown indicator
+        cooldown_timer = getattr(item, "cooldown_timer", 0.0)
+        cooldown_max = getattr(item, "cooldown", 0.0)
+        if cooldown_timer > 0 and cooldown_max > 0:
+            ratio = cooldown_timer / cooldown_max
+            h = int(100 * ratio)
+            cd_rect = pygame.Rect(position[0], position[1] + (100 - h), 100, h)
+            cd_surf = pygame.Surface((100, h), pygame.SRCALPHA)
+            cd_surf.fill((0, 0, 0, 180))  # Semi-transparent black
+            screen.blit(cd_surf, cd_rect)
+            
+            # Draw timer text
+            time_text = f"{cooldown_timer:.1f}"
+            time_surf = FONT_25.render(time_text, True, (255, 255, 255))
+            # Center the text
+            tx = position[0] + (100 - time_surf.get_width()) // 2
+            ty = position[1] + (100 - time_surf.get_height()) // 2
+            screen.blit(time_surf, (tx, ty))
+
 
 def draw_player_status(screen, player, position):
     draw_box(screen, (position[0], position[1]), (300, 400), (30, 30, 30))

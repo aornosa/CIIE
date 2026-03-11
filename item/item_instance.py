@@ -6,13 +6,30 @@ from item.item_type_data import ItemDefinition
 class ItemInstance:
     def __init__(self, definition: ItemDefinition):
         self.definition = definition
+        # Cooldown state — stored directly on the instance (NOT proxied to definition)
+        self._cooldown_timer = 0.0
 
         if definition.ammo:
             self.current_ammo = definition.ammo.capacity
         else:
             self.current_ammo = None
 
+    @property
+    def cooldown_timer(self) -> float:
+        return self._cooldown_timer
+
+    @cooldown_timer.setter
+    def cooldown_timer(self, value: float):
+        self._cooldown_timer = value
+
+    def update(self, delta_time: float):
+        if self._cooldown_timer > 0:
+            self._cooldown_timer -= delta_time
+            if self._cooldown_timer < 0:
+                self._cooldown_timer = 0.0
+
     def __getattr__(self, attr):
+        # Only called when attr is NOT found on the instance itself
         return getattr(self.definition, attr)
 
 

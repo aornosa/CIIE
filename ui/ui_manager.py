@@ -183,20 +183,43 @@ def _draw_hotkey_bar(screen, player, font_sml):
         slot_rect     = pygame.Rect(slot_x, 0, SLOT_SIZE, SLOT_SIZE)
         item          = inventory.items[i] if i < len(inventory.items) else None
         is_consumable = item is not None and item.type == "consumable"
+        is_selected   = (i == inventory.selected_item_index)
 
-        bg_color     = (70, 65, 20, 220) if is_consumable else ((30, 30, 35, 200) if item else (20, 20, 22, 140))
-        border_color = (255, 220, 50)    if is_consumable else ((60, 60, 70)       if item else (90, 90, 100))
+        # Base colors — neutral for all items
+        bg_color     = (30, 30, 35, 200) if item else (20, 20, 22, 140)
+        border_color = (60, 60, 70) if item else (90, 90, 100)
+
+        # Highlight if selected
+        if is_selected:
+            bg_color     = (100, 90, 30, 255)
+            border_color = (255, 255, 100)
 
         pygame.draw.rect(bar_surf, bg_color,     slot_rect, border_radius=6)
-        pygame.draw.rect(bar_surf, border_color, slot_rect, 2, border_radius=6)
+        pygame.draw.rect(bar_surf, border_color, slot_rect, 2 if not is_selected else 4, border_radius=6)
 
         if item is not None:
             icon = pygame.transform.scale(item.asset, (SLOT_SIZE - 14, SLOT_SIZE - 14))
             if not is_consumable:
                 icon.set_alpha(120)
             bar_surf.blit(icon, (slot_x + 7, 7))
+            
+            # Cooldown indicator for hotkey bar
+            cooldown_timer = getattr(item, "cooldown_timer", 0.0)
+            cooldown_max = getattr(item, "cooldown", 0.0)
+            if cooldown_timer > 0 and cooldown_max > 0:
+                ratio = cooldown_timer / cooldown_max
+                h = int(SLOT_SIZE * ratio)
+                cd_rect = pygame.Rect(slot_x, SLOT_SIZE - h, SLOT_SIZE, h)
+                pygame.draw.rect(bar_surf, (0, 0, 0, 180), cd_rect, border_radius=6)
+                
+                # We can't easily blit centered text without FONT_25 here, but we can use font_sml
+                time_text = f"{cooldown_timer:.1f}"
+                time_surf = font_sml.render(time_text, True, (255, 255, 255))
+                tx = slot_x + (SLOT_SIZE - time_surf.get_width()) // 2
+                ty = (SLOT_SIZE - time_surf.get_height()) // 2
+                bar_surf.blit(time_surf, (tx, ty))
 
-        label_color = (255, 255, 180) if is_consumable else (200, 200, 200)
+        label_color = (255, 255, 255) if is_selected else (200, 200, 200)
         bar_surf.blit(font_sml.render(str(i + 1), True, label_color), (slot_x + 4, 2))
 
     screen.blit(bar_surf, (BAR_X, BAR_Y))

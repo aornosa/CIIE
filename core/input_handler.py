@@ -42,7 +42,7 @@ class InputHandler:
         if event.type == pygame.KEYDOWN:
             self.keys_just_pressed[event.key] = True
 
-            # Hotkeys 1-6 → uso directo de consumible sin abrir inventario
+            # Hotkeys 1-6 → seleccionar consumible en la barra rápida
             if event.key in HOTKEY_KEYS:
                 self.actions["hotkey_slot"] = HOTKEY_KEYS.index(event.key)  # 0-based
 

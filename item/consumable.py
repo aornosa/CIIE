@@ -77,9 +77,26 @@ def _effect_rad_suppressor(player: "Character", item_def) -> bool:
     reset_addiction(player)
     return True
 
+def _effect_dash(player: "Character", item_def) -> bool:
+    import pygame
+    dash_distance = 150.0
+
+    # Use the last movement direction, stored as `_dash_direction` on the player.
+    # Falls back to facing direction if no movement was recorded.
+    direction = getattr(player, "_dash_direction", None)
+    if direction is None or direction.length() < 0.01:
+        # Fallback: use player facing direction
+        direction = pygame.Vector2(0, -1).rotate(-player.rotation)
+    else:
+        direction = direction.normalize()
+
+    player.position += direction * dash_distance
+    return True
+
 _EFFECT_HANDLERS = {
     "regen_health":     _effect_regen_health,
     "phoenix_injector": _effect_phoenix_injector,
     "adrenaline_shot":  _effect_adrenaline_shot,
     "rad_suppressor":   _effect_rad_suppressor,
+    "dash":             _effect_dash,
 }

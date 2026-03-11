@@ -18,9 +18,15 @@ class Inventory:
         self.max_size = 12
         self.items = []
         self.selected_item_index = -1
+        self.hotbar_size = 6  # Fixed visible hotbar size (slots 0-5)
 
         self.owner = None
         self.drop_manager = DropManager()
+
+    def update(self, delta_time: float):
+        for item in self.items:
+            if hasattr(item, "update"):
+                item.update(delta_time)
 
     def add_weapon(self, player, weapon, slot):
         weapon.parent = player
@@ -79,7 +85,8 @@ class Inventory:
         return len(self.items) >= self.max_size
 
     def select_item(self, index: int):
-        if 0 <= index < len(self.items):
+        """Select a hotbar slot (0-5). Slot is highlighted even if empty."""
+        if 0 <= index < self.hotbar_size:
             self.selected_item_index = index
         else:
             self.selected_item_index = -1
@@ -95,9 +102,17 @@ class Inventory:
         item = self.items[self.selected_item_index]
         if item.type != "consumable":
             return False
+            
+        if item.cooldown_timer > 0:
+            return False
+
         success = use_consumable(item, player)
         if success:
-            self.remove_item(item)
+            if getattr(item, "cooldown", 0.0) > 0:
+                item.cooldown_timer = item.cooldown
+                
+            if not getattr(item, "reusable", False):
+                self.remove_item(item)
         return success
 
     def use_consumable_hotkey(self, slot_index: int, player) -> bool:
@@ -106,11 +121,19 @@ class Inventory:
         item = self.items[slot_index]
         if item.type != "consumable":
             return False
+            
+        if getattr(item, "cooldown_timer", 0.0) > 0:
+            return False
+
         success = use_consumable(item, player)
         if success:
-            self.items.pop(slot_index)
-            if self.selected_item_index >= len(self.items):
-                self.selected_item_index = len(self.items) - 1
+            if getattr(item, "cooldown", 0.0) > 0:
+                item.cooldown_timer = item.cooldown
+            
+            if not getattr(item, "reusable", False):
+                self.items.pop(slot_index)
+                if self.selected_item_index >= len(self.items):
+                    self.selected_item_index = len(self.items) - 1
         return success
 
 

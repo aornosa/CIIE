@@ -42,3 +42,6 @@ class Player(Character):
 
     def get_inventory(self):
         return self.inventory
+
+    def update(self, delta_time: float):
+        self.inventory.update(delta_time)

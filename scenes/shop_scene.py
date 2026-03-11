@@ -60,6 +60,14 @@ SHOP_CATALOG = [
         "attr": "damage",
         "value": 15,
     },
+    {
+        "name": "Habilidad: Dash",
+        "desc": "Impulso rápido (CD: 3s).",
+        "cost": 150,
+        "type": "item",
+        "item_id": "dash_ability",
+        "unique": True,  # no se puede comprar más de una vez
+    },
 ]
 
 
@@ -184,6 +192,19 @@ class ShopScene(Scene):
                 return False
 
         elif entry["type"] == "item":
+            # Compra única: bloquear si ya tiene el item en el inventario
+            if entry.get("unique"):
+                item_id = entry.get("item_id", "")
+                already_owned = any(
+                    getattr(getattr(i, "item_data", None), "item_id", None) == item_id
+                    for i in self.player.inventory.items
+                )
+                if already_owned:
+                    self.player.coins += cost  # reembolso
+                    self.message = f"¡Ya tienes {entry['name']}!"
+                    self.message_timer = 2.0
+                    return False
+
             if self.player.inventory.check_full():
                 # Inventory full — refund
                 self.player.coins += cost

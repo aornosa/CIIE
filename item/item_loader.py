@@ -29,6 +29,9 @@ class ItemRegistry(MonoliteBehaviour):
             if "effect" in raw:
                 effect = raw["effect"]
 
+            cooldown = raw.get("cooldown", 0.0)
+            reusable = raw.get("reusable", False)
+
             item = ItemDefinition(
                 id=item_id,
                 asset=pygame.transform.scale(pygame.image.load(raw["asset"]), (50, 50)).convert_alpha(),
@@ -36,7 +39,9 @@ class ItemRegistry(MonoliteBehaviour):
                 description=raw["description"],
                 type=raw["type"],
                 ammo=ammo_data,
-                effect=effect
+                effect=effect,
+                cooldown=cooldown,
+                reusable=reusable
             )
 
             cls._items[item_id] = item

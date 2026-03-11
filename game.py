@@ -159,7 +159,7 @@ def game_loop(screen, clock, im):
         player.inventory.use_selected_item(player)
 
     if im.actions["hotkey_slot"] >= 0:
-        player.inventory.use_consumable_hotkey(im.actions["hotkey_slot"], player)
+        player.inventory.select_item(im.actions["hotkey_slot"])
 
     active_weapon      = player.inventory.get_weapon(player.inventory.active_weapon_slot)
     direction_to_mouse = mouse_pos - (player.position - camera.position)
@@ -189,6 +189,7 @@ def game_loop(screen, clock, im):
 
     weapon_controller.update(im, delta_time)
     controller.move(movement, delta_time)
+    player.update(delta_time)
 
     entity_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
     for enemy in enemies:
