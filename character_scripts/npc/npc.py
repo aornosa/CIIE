@@ -56,6 +56,15 @@ class NPC(Character, Interactable):
         else:
             print(f"{self.name} doesn't have anything to say.")
 
+    def destroy(self):
+        """Elimina el NPC del InteractionManager y del CollisionManager."""
+        from map.interactables.interaction_manager import InteractionManager
+        from core.collision.collision_manager import CollisionManager
+        InteractionManager().unregister(self)
+        if hasattr(self, 'collider') and self.collider is not None:
+            CollisionManager.dynamic_colliders.discard(self.collider)
+            self.collider = None
+
     def update(self, delta_time):
         for effect_name in list(self.effects.keys()):
             effect = self.effects[effect_name]

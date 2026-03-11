@@ -50,6 +50,7 @@ def draw_overlay(screen, player, wave_manager=None, delta_time=0.016):
 
     _draw_hotkey_bar(screen, player, font_sml)
     _draw_health(screen, player, font_med)
+    _draw_coins(screen, player, font_med)
     _draw_weapon(screen, player, font_big, font_med, font_sml)
     _draw_interaction_tooltip(screen, player)
     if wave_manager is not None:
@@ -105,6 +106,29 @@ def _draw_health(screen, player, font_med):
     pygame.draw.rect(screen, (30, 15, 15), (bar_x, bar_y, bar_w, bar_h), border_radius=3)
     pygame.draw.rect(screen, color, (bar_x, bar_y, max(2, int(bar_w * ratio)), bar_h), border_radius=3)
     pygame.draw.rect(screen, (80, 80, 100), (bar_x, bar_y, bar_w, bar_h), 1, border_radius=3)
+
+
+# ── Monedas ────────────────────────────────────────────────────────────────────
+
+_COIN_PANEL_W   = 160
+_COIN_PANEL_H   = 36
+_COIN_PANEL_GAP = 6   # separación respecto al panel de vida
+
+def _draw_coins(screen, player, font_med):
+    coins   = getattr(player, "coins", 0)
+    panel_x = 20
+    panel_y = PANEL_Y - _COIN_PANEL_H - _COIN_PANEL_GAP
+
+    panel = pygame.Surface((_COIN_PANEL_W, _COIN_PANEL_H), pygame.SRCALPHA)
+    panel.fill((10, 10, 20, 180))
+    pygame.draw.rect(panel, (80, 80, 100), (0, 0, _COIN_PANEL_W, _COIN_PANEL_H), 2, border_radius=6)
+    screen.blit(panel, (panel_x, panel_y))
+
+    icon = font_med.render("●", True, (255, 210, 0))
+    screen.blit(icon, (panel_x + 10, panel_y + (_COIN_PANEL_H - icon.get_height()) // 2))
+
+    txt = font_med.render(str(coins), True, (255, 230, 120))
+    screen.blit(txt, (panel_x + 10 + icon.get_width() + 6, panel_y + (_COIN_PANEL_H - txt.get_height()) // 2))
 
 
 # ── Arma y munición ────────────────────────────────────────────────────────────

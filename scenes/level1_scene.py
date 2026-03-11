@@ -78,11 +78,9 @@ class Level1Scene(Scene):
         self._enemies_spawned     = False   # True once _finish_cutscene() runs
         self._shop_hint_triggered = False   # fires only once per run
         self._wave_clear_timer    = -1.0    # counts down from 1.5 s
-        # Wave 2 — 30 enemies from arena edges
-        self._wave2_triggered     = False   # True once doc dialog ends
-        self._wave2_remaining     = 0       # enemies still to spawn
-        self._wave2_spawn_timer   = 0.0     # accumulates toward spawn interval
-        # Wave 2 clear → level complete
+        # Sistema de oleadas estructurado (arranca tras el diálogo de la tienda)
+        self._wave_manager           = None   # Level1WaveManager, creado tras el shop hint
+        # Fin de oleadas → nivel completo
         self._wave2_clear_triggered  = False  # True once congratulation dialog starts
         self._wave2_clear_timer      = -1.0   # 1.5 s delay before Audrey congratulates
         self._going_level_complete   = False  # True once we navigate to LevelCompleteScene
@@ -145,16 +143,10 @@ class Level1Scene(Scene):
         # Weapon + ammo
         weapon = Ranged(
             "assets/weapons/AK47.png", "AK-47", 60, 1500,
-            "7.62", 15, 0.15, 2, muzzle_offset=(35, 15),
+            "7.62", 15, 0.15, 0.6, muzzle_offset=(35, 15),
         )
+        weapon.infinite_reserve = True  # Reserva infinita: hay que recargar pero nunca faltan balas
         self.player.inventory.add_weapon(self.player, weapon, "primary")
-        self.player.inventory.add_item(
-            ItemInstance(ItemRegistry.get("ammo_clip_762"))
-        )
-        for _ in range(5):
-            self.player.inventory.add_item(
-                ItemInstance(ItemRegistry.get("ammo_clip_762"))
-            )
 
         # Camera
         self.camera = Camera()
@@ -239,9 +231,7 @@ class Level1Scene(Scene):
         self._enemies_spawned     = False
         self._shop_hint_triggered = False
         self._wave_clear_timer    = -1.0
-        self._wave2_triggered         = False
-        self._wave2_remaining         = 0
-        self._wave2_spawn_timer       = 0.0
+        self._wave_manager           = None
         self._wave2_clear_triggered  = False
         self._wave2_clear_timer      = -1.0
         self._going_level_complete   = False
@@ -273,6 +263,12 @@ class Level1Scene(Scene):
 
         # ── Forward dialog input when shop hint (or any dialog) is active ──
         if self._dialog_manager and self._dialog_manager.is_dialog_active:
+            # La tienda tiene prioridad: se puede abrir incluso con diálogo activo
+            if input_handler.actions.get("shop"):
+                input_handler.actions["shop"] = False
+                from scenes.shop_scene import ShopScene
+                self.director.push(ShopScene(self, self.player))
+                return
             self._dialog_manager.handle_input(
                 pygame.key.get_pressed(),
                 input_handler.keys_just_pressed,
@@ -292,9 +288,15 @@ class Level1Scene(Scene):
         if self._cutscene_active:
             self._update_cutscene(delta_time)
             return
-        alive_before = len(self.enemies)
-        cleanup_dead_enemies(self.enemies)
-        killed = alive_before - len(self.enemies)
+        if self._wave_manager is not None:
+            # Contar kills antes de que el wave_manager limpie su lista interna
+            alive_before = len(self._wave_manager.enemies)
+            self._wave_manager.update(delta_time)
+            killed = alive_before - len(self._wave_manager.enemies)
+        else:
+            alive_before = len(self.enemies)
+            cleanup_dead_enemies(self.enemies)
+            killed = alive_before - len(self.enemies)
         if killed > 0 and self.player:
             self.player.add_coins(killed * 10)
             self._total_kills += killed
@@ -319,37 +321,25 @@ class Level1Scene(Scene):
             else:
                 self._wave_clear_timer = -1.0             # reset if enemies respawn
 
-        # ── Wave 2: start once doc dialog finishes ──────────────────────
+        # ── Iniciar wave manager una vez que el diálogo del shop hint termine ────
         if (self._shop_hint_triggered
-                and not self._wave2_triggered
+                and self._wave_manager is None
                 and not (self._dialog_manager and self._dialog_manager.is_dialog_active)):
-            self._wave2_triggered   = True
-            self._wave2_remaining   = 30
-            self._wave2_spawn_timer = 0.0
+            self._create_wave_manager()
 
-        if self._wave2_triggered and self._wave2_remaining > 0:
-            self._tick_wave2_spawn(delta_time)
-
-        # ── Wave 2 clear: all 30 enemies dead → Audrey congratulates ────────
-        if (self._wave2_triggered
-                and self._wave2_remaining == 0
-                and len(self.enemies) == 0
-                and not self._wave2_clear_triggered
-                and not self._going_level_complete):
+        # ── Fin de oleadas: Audrey felicita tras 1.5 s ────────────────────────
+        if self._wave2_clear_timer >= 0 and not self._wave2_clear_triggered:
             if not (self._dialog_manager and self._dialog_manager.is_dialog_active):
-                if self._wave2_clear_timer < 0:
-                    self._wave2_clear_timer = 1.5          # start countdown
-                else:
-                    self._wave2_clear_timer -= delta_time
-                    if self._wave2_clear_timer <= 0:
-                        self._wave2_clear_timer = -1.0
-                        self._wave2_clear_triggered = True
-                        from dialogs.audres_dialogs import create_audres_wave2_clear
-                        self._dialog_manager.start_dialog(create_audres_wave2_clear())
+                self._wave2_clear_timer -= delta_time
+                if self._wave2_clear_timer <= 0:
+                    self._wave2_clear_timer = -1.0
+                    self._wave2_clear_triggered = True
+                    from dialogs.audres_dialogs import create_audres_wave2_clear
+                    self._dialog_manager.start_dialog(create_audres_wave2_clear())
             else:
-                self._wave2_clear_timer = -1.0             # reset if dialog already active
+                self._wave2_clear_timer = -1.0  # reset si ya hay otro diálogo activo
 
-        # ── Navigate to level complete once congratulation dialog ends ───────
+        # ── Navegar al nivel completo cuando termina el diálogo de felicitación ─
         if (self._wave2_clear_triggered
                 and not self._going_level_complete
                 and not (self._dialog_manager and self._dialog_manager.is_dialog_active)):
@@ -364,17 +354,18 @@ class Level1Scene(Scene):
 
     def _update_enemies(self, delta_time):
         """Chase the player + separation steering so enemies don't stack."""
-        for enemy in self.enemies:
-            # ── Chase direction ─────────────────────────────────
+        enemies = self._wave_manager.enemies if self._wave_manager is not None else self.enemies
+        for enemy in enemies:
+            # ── Chase direction ─────────────────────────────────────────────
             to_player = self.player.position - enemy.position
             if to_player.length() > 0:
                 move_dir = to_player.normalize()
             else:
                 move_dir = pygame.Vector2(0, 0)
 
-            # ── Separation from other enemies ───────────────────
+            # ── Separation from other enemies ───────────────────────────────
             sep = pygame.Vector2(0, 0)
-            for other in self.enemies:
+            for other in enemies:
                 if other is enemy:
                     continue
                 diff = enemy.position - other.position
@@ -396,39 +387,32 @@ class Level1Scene(Scene):
             # ── Tick hit-flash timer ────────────────────────────
             enemy._hit_flash_timer = max(0.0, enemy._hit_flash_timer - delta_time)
 
-    _AUDRES_WALK_SPEED = 200   # px/s during the intro walk
+    _AUDRES_WALK_SPEED = 400   # px/s during the intro walk
 
-    _WAVE2_INTERVAL = 0.4      # seconds between each wave-2 spawn
+    def _create_wave_manager(self):
+        """Instancia Level1WaveManager tras el diálogo del shop hint.
 
-    def _tick_wave2_spawn(self, delta_time):
-        """Spawn one enemy every _WAVE2_INTERVAL seconds from a random arena edge."""
-        import random
-        self._wave2_spawn_timer += delta_time
-        while self._wave2_spawn_timer >= self._WAVE2_INTERVAL and self._wave2_remaining > 0:
-            self._wave2_spawn_timer -= self._WAVE2_INTERVAL
-            self._wave2_remaining   -= 1
+        Modifica wave_config, rest_time o spawn_duration aquí para ajustar
+        la dificultad del nivel:
+          wave_config     — lista con el nº de enemigos por oleada
+          rest_time       — segundos de descanso entre oleadas
+          spawn_duration  — segundos para distribuir el spawn de una oleada completa
+        """
+        from runtime.level1_wave_manager import Level1WaveManager
+        self._wave_manager = Level1WaveManager(
+            arena_center=(_ACX, _ACY),
+            arena_half=_ARENA_HALF,
+            wave_config=[20, 25, 30, 40, 50],   # enemigos por oleada
+            rest_time=3.0,                       # segundos de descanso entre oleadas
+            spawn_duration=8.0,                  # segundos para spawnear toda una oleada
+            enemy_speed=_ENEMY_SPEED,
+        )
+        self._wave_manager.set_on_complete(self._on_waves_complete)
 
-            # Pick a random point just inside one of the 4 arena edges
-            margin = 60   # px inside the wall
-            edge   = random.randint(0, 3)
-            lo = -_ARENA_HALF + margin
-            hi =  _ARENA_HALF - margin
-            if edge == 0:   # top
-                ex = _ACX + random.uniform(lo, hi)
-                ey = _ACY + lo
-            elif edge == 1: # bottom
-                ex = _ACX + random.uniform(lo, hi)
-                ey = _ACY + hi
-            elif edge == 2: # left
-                ex = _ACX + lo
-                ey = _ACY + random.uniform(lo, hi)
-            else:           # right
-                ex = _ACX + hi
-                ey = _ACY + random.uniform(lo, hi)
-
-            enemy = Enemy("assets/icon.png", (ex, ey), 0, 0.05)
-            enemy._controller = CharacterController(_ENEMY_SPEED, enemy)
-            self.enemies.append(enemy)
+    def _on_waves_complete(self):
+        """Callback del Level1WaveManager: arranca el timer de felicitación."""
+        if not self._wave2_clear_triggered and not self._going_level_complete:
+            self._wave2_clear_timer = 1.5
 
     def _update_cutscene(self, delta_time):
         """State machine: walking → dialog → enemies spawn."""
@@ -453,6 +437,8 @@ class Level1Scene(Scene):
 
     def _finish_cutscene(self):
         """End the intro cutscene: hide Audrey and spawn the enemies."""
+        if self.audres is not None:
+            self.audres.destroy()
         self.audres = None
         self._cutscene_active = False
         self._cutscene_phase  = "idle"
@@ -557,8 +543,9 @@ class Level1Scene(Scene):
         self._camera_follow(self.player.position, delta_time)
 
         # Draw enemies
+        active_enemies = self._wave_manager.enemies if self._wave_manager is not None else self.enemies
         entity_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
-        for enemy in self.enemies:
+        for enemy in active_enemies:
             enemy.draw(entity_surface, self.camera)
             # Hit-flash: red overlay for _HIT_FLASH_DURATION seconds after damage
             if enemy._hit_flash_timer > 0:
@@ -576,6 +563,18 @@ class Level1Scene(Scene):
         # Draw player
         self.player.draw(screen, self.camera)
 
+        # Reload progress bar
+        if active_weapon is not None and active_weapon.is_reloading():
+            elapsed  = (pygame.time.get_ticks() - active_weapon._reload_start_time) / 1000.0
+            progress = min(elapsed / active_weapon.reload_time, 1.0)
+            sp = self.player.position - self.camera.position
+            bar_w, bar_h = 80, 8
+            bx = int(sp.x) - bar_w // 2
+            by = int(sp.y) + 32
+            pygame.draw.rect(screen, (20, 20, 20),   (bx - 1, by - 1, bar_w + 2, bar_h + 2), border_radius=4)
+            pygame.draw.rect(screen, (60, 60, 60),   (bx, by, bar_w, bar_h),                  border_radius=3)
+            pygame.draw.rect(screen, (255, 160, 20), (bx, by, int(bar_w * progress), bar_h),  border_radius=3)
+
         # Draw crosshair at mouse position
         screen.blit(
             pygame.transform.scale(self.crosshair, (40, 40)),
@@ -583,8 +582,7 @@ class Level1Scene(Scene):
         )
 
         # HUD
-        ui_manager.draw_overlay(screen, self.player)
-        self._draw_hud(screen, active_weapon)
+        ui_manager.draw_overlay(screen, self.player, wave_manager=self._wave_manager, delta_time=delta_time)
 
         # Dialog UI (drawn last so it's always on top)
         if self._dialog_manager:
@@ -615,12 +613,10 @@ class Level1Scene(Scene):
             # ── Player death ───────────────────────────────────
             if not self.player.is_alive():
                 from scenes.death_scene import DeathScene
-                kills = len(_ENEMY_SPAWNS) - len(self.enemies)
-                stats = {
-                    "kills": kills,
-                    "coins": self.player.coins,
-                }
-                self.director.replace(DeathScene(self._last_frame, stats))
+                self.director.replace(DeathScene(
+                    self._last_frame,
+                    {"kills": self._total_kills, "coins": self.player.coins},
+                ))
 
     def _camera_follow(self, target, delta_time, speed=10):
         """Smooth camera follow with dead-zone (same logic as game.py)."""
@@ -650,41 +646,3 @@ class Level1Scene(Scene):
         screen.blit(shadow, (x + 1, y + 1))
         screen.blit(text, (x, y))
 
-    # ── HUD ────────────────────────────────────────────────────
-
-    _hud_font = None
-
-    def _draw_hud(self, screen, active_weapon):
-        """Draw health bar and ammo counter on screen."""
-        if Level1Scene._hud_font is None:
-            Level1Scene._hud_font = pygame.font.SysFont("consolas", 36)
-        font = Level1Scene._hud_font
-
-        # ── Health bar (top-left, safe area) ─────────────────
-        bar_x, bar_y = 20, 20
-        bar_w, bar_h = 400, 40
-        max_hp = self.player.get_stat("max_health")
-        hp = max(0, self.player.health)
-        ratio = hp / max_hp if max_hp > 0 else 0
-
-        # Background
-        pygame.draw.rect(screen, (120, 0, 0), (bar_x, bar_y, bar_w, bar_h))
-        # Fill
-        pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, int(bar_w * ratio), bar_h))
-        # Border
-        pygame.draw.rect(screen, (255, 255, 255), (bar_x, bar_y, bar_w, bar_h), 3)
-        # Text
-        hp_text = font.render(f"HP  {int(hp)} / {int(max_hp)}", True, (255, 255, 255))
-        screen.blit(hp_text, (bar_x + 8, bar_y + bar_h // 2 - hp_text.get_height() // 2))
-
-        # ── Coins (right of health bar) ───────────────────────
-        coins_text = font.render(f"⬡ {self.player.coins}", True, (255, 215, 0))
-        screen.blit(coins_text, (bar_x + bar_w + 16, bar_y + bar_h // 2 - coins_text.get_height() // 2))
-
-        # ── Ammo counter (top-right, safe area) ──────────────
-        if active_weapon and hasattr(active_weapon, "current_clip"):
-            ammo_text = font.render(
-                f"AMMO  {active_weapon.current_clip} / {active_weapon.clip_size}",
-                True, (255, 0, 0),
-            )
-            screen.blit(ammo_text, (SCREEN_WIDTH - ammo_text.get_width() - 20, 20))

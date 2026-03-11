@@ -30,6 +30,7 @@ class Ranged(Weapon, MonoliteBehaviour):
         self._last_shot_time = 0
         self._is_reloading = False
         self._reload_start_time = 0
+        self.infinite_reserve = False  # Si True: recarga sin consumir inventario (reserva infinita)
 
         particle_asset = self._load_ammo_particle()
         particle_factory = lambda: Particle(particle_asset)
@@ -58,6 +59,8 @@ class Ranged(Weapon, MonoliteBehaviour):
             elapsed = (pygame.time.get_ticks() - self._reload_start_time) / 1000.0
             if elapsed >= self.reload_time:
                 self._is_reloading = False
+                if self.infinite_reserve:
+                    self.current_clip = self.clip_size
 
     def can_shoot(self) -> bool:
         return (self.current_clip > 0 and 
@@ -132,6 +135,12 @@ class Ranged(Weapon, MonoliteBehaviour):
             print("Already reloading...")
             return False
 
+        if self.infinite_reserve:
+            self._is_reloading = True
+            self._reload_start_time = pygame.time.get_ticks()
+            self._play_reload_sound()
+            return True
+
         needed = self.clip_size - self.current_clip
         ammo_found = False
         for item in list(self.parent.inventory.items):
@@ -172,4 +181,4 @@ class Ranged(Weapon, MonoliteBehaviour):
         return (self.current_clip, reserve)
 
     def play_trail_effect(self, screen, start_pos, direction):
-        pygame.draw.line(screen, pygame.Color("red"), start_pos, start_pos + direction * self.max_range, 2)
+        pass  # placeholder — añadir efecto visual de disparo aquí

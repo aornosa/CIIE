@@ -30,7 +30,7 @@ def create_audres_intro():
         "s4": DialogNode(
             speaker="AUDReS-01",
             portrait=_P + "portrait_happy.jpg",
-            text="Muévete con WASD, apunta con el ratón, dispara con clic izquierdo y recarga con R.",
+            text="Muévete con WASD, apunta manteniendo el click derecho del ratón, dispara con clic izquierdo y recarga con R.",
             next_node="s5",
         ),
         "s5": DialogNode(

@@ -44,6 +44,22 @@ SHOP_CATALOG = [
         "type": "heal",
         "value": 50,
     },
+    {
+        "name": "Gatillo Mejorado",
+        "desc": "-0.03s entre disparos (arma activa)",
+        "cost": 175,
+        "type": "weapon",
+        "attr": "fire_rate",
+        "value": -0.03,
+    },
+    {
+        "name": "Munición Perforante",
+        "desc": "+15 daño por bala (arma activa)",
+        "cost": 200,
+        "type": "weapon",
+        "attr": "damage",
+        "value": 15,
+    },
 ]
 
 
