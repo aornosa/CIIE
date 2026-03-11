@@ -1,5 +1,8 @@
 import pygame
+from core.collision.layers import LAYERS
+from core.collision.quadtree import Rectangle
 from settings import TILE_SIZE, CHUNK_SIZE
+from core.collision.collider import Collider
 
 class Chunk:
     def __init__(self, pos):
@@ -12,12 +15,13 @@ class Chunk:
     def _bake_collision(self):
         # Bake a collision box based on joint collision boxes
         collision_cache = None
-
         self.collision_cache = collision_cache
+
     
     def _bake_chunk(self, tilesets_multi):
         self.render_cache = pygame.Surface((CHUNK_SIZE * TILE_SIZE, CHUNK_SIZE * TILE_SIZE))
         self.render_cache.fill((0, 0, 0))
+        #self._bake_collision()
 
         H_FLIP = 0x80000000
         V_FLIP = 0x40000000

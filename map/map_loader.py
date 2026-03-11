@@ -2,6 +2,9 @@ import json
 from settings import TILE_SIZE, CHUNK_SIZE
 from map.map import Map
 import pygame
+from core.collision.collider import Collider
+from core.collision.quadtree import Rectangle
+from core.collision.layers import get_layer_value
 
 class MapLoader:
     def __init__(self):
@@ -41,6 +44,39 @@ class MapLoader:
                 chunk.tiles_layers.append(layer_matrix)
                 print(f"Chunk ({cx},{cy}): layer_matrix non-zero GIDs: {sum(sum(1 for c in row if c!=0) for row in layer_matrix)}")
                 print(f"Ejemplo GIDs: {layer_matrix[0][:5]}...")  # Primeros 5
+                
+    @staticmethod
+    def load_colliders_from_json(map_data):
+        # Buscamos en todas las capas del mapa
+        for layer in map_data.get('layers', []):
+            # Filtramos por tipo "objectgroup" y nombre "colliders" (como te dijo tu compañero)
+            if layer.get('type') == 'objectgroup' and layer.get('name') == 'colliders':
+                
+                for obj in layer.get('objects', []):
+                    tiled_x = obj['x']
+                    tiled_y = obj['y']
+                    width = obj['width']
+                    height = obj['height']
+                    
+                    # Convertimos de "Top-Left" (Tiled) a "Center + Half-Extents" (Tu sistema)
+                    center_x = tiled_x + (width / 2)
+                    center_y = tiled_y + (height / 2)
+                    half_w = width / 2
+                    half_h = height / 2
+                    
+                    # ¡OJO! Tu Rectangle recibe (x, y, h, w) - Nota que la 'h' va antes que la 'w'
+                    rect = Rectangle(center_x, center_y, half_h, half_w)
+                    
+                    # Instanciamos el collider estático.
+                    # El __init__ del Collider se encarga de meterlo en el CollisionManager automáticamente.
+                    Collider(
+                        owner=None, 
+                        rect=rect, 
+                        layer=get_layer_value("terrain"), 
+                        static=True
+                    )
+                
+                print(f"✅ Cargados {len(layer.get('objects', []))} colliders estáticos desde Tiled.")
 
     @staticmethod
     def save_map(map_object: Map, file_path):
