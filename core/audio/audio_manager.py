@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pygame
+import pygame.mixer_music
 
 if TYPE_CHECKING:
     from core.audio.audio_emitter import AudioEmitter
@@ -38,16 +39,74 @@ class AudioManager(MonoliteBehaviour):
             SoundCategory.SFX: 1.0,
         }
         self.active_channels = {}
+        self._current_music_path = None  # ruta del track actualmente cargado
 
     def set_listener(self, listener):
         self.listener = listener
 
     def set_master_volume(self, volume):
         self.master_volume = max(0.0, min(1.0, volume))
+        self._apply_music_volume()
 
     def set_mixer_volume(self, category, volume):
         if category in self.mixer_volumes:
             self.mixer_volumes[category] = max(0.0, min(1.0, volume))
+            if category == SoundCategory.MUSIC:
+                self._apply_music_volume()
+
+    # ── Música de fondo (pygame.mixer.music) ──────────────────────────────────
+
+    def play_music(self, path: str, loops: int = -1, fade_ms: int = 0):
+        """Carga y reproduce un archivo de música en bucle.
+
+        Parameters
+        ----------
+        path    : ruta al archivo (mp3/ogg/wav).
+        loops   : número de repeticiones adicionales (-1 = infinito).
+        fade_ms : fundido de entrada en milisegundos (0 = sin fundido).
+        """
+        if not self.mixer_available:
+            return
+        try:
+            if self._current_music_path != path:
+                pygame.mixer.music.load(path)
+                self._current_music_path = path
+            self._apply_music_volume()
+            if fade_ms > 0:
+                pygame.mixer.music.play(loops, fade_ms=fade_ms)
+            else:
+                pygame.mixer.music.play(loops)
+        except pygame.error as e:
+            print(f"[AudioManager] No se pudo reproducir música '{path}': {e}")
+
+    def stop_music(self, fade_ms: int = 0):
+        """Detiene la música de fondo."""
+        if not self.mixer_available:
+            return
+        if fade_ms > 0:
+            pygame.mixer.music.fadeout(fade_ms)
+        else:
+            pygame.mixer.music.stop()
+
+    def pause_music(self):
+        """Pausa la música sin perder la posición."""
+        if self.mixer_available:
+            pygame.mixer.music.pause()
+
+    def resume_music(self):
+        """Reanuda la música pausada."""
+        if self.mixer_available:
+            pygame.mixer.music.unpause()
+
+    def is_music_playing(self) -> bool:
+        return self.mixer_available and pygame.mixer.music.get_busy()
+
+    def _apply_music_volume(self):
+        """Aplica master_volume × music_volume a pygame.mixer.music."""
+        if not self.mixer_available:
+            return
+        vol = self.master_volume * self.mixer_volumes.get(SoundCategory.MUSIC, 1.0)
+        pygame.mixer.music.set_volume(max(0.0, min(1.0, vol)))
 
 
     def play_sound(self, audio_clip: AudioClip, emitter: AudioEmitter):

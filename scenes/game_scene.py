@@ -27,6 +27,9 @@ class GameScene(Scene):
             return
 
     def update(self, delta_time):
+        # ── Música ────────────────────────────────────────────
+        from core.audio.music_manager import MusicManager
+        MusicManager.instance().set_category("idle")
         pass
 
     def render(self, screen):

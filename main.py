@@ -1,5 +1,6 @@
 import pygame
 import pygame._sdl2 as sdl2
+pygame.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=4096)
 pygame.init()
 
 # Try to initialize audio, but continue if it fails (no audio device)
@@ -29,6 +30,7 @@ from core import input_handler as ih
 from core.scene_director import SceneDirector
 from scenes.main_menu_scene import MainMenuScene
 from core.monolite_behaviour import MonoliteBehaviour
+from core.audio.music_manager import MusicManager
 
 pygame.display.set_caption("Armengard")
 pygame.display.set_icon(pygame.image.load("assets/icon.png").convert())
@@ -48,6 +50,7 @@ while director.running:
         if event.type == pygame.QUIT:
             director.running = False
         im.handle_event(event)
+        MusicManager.instance().handle_event(event)
 
     screen.fill(SCREEN_BACKGROUND_COLOR)
     director.handle_events(im)

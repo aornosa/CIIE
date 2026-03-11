@@ -80,6 +80,8 @@ class ShopScene(Scene):
 
     def on_enter(self):
         pygame.mouse.set_visible(True)
+        from core.audio.music_manager import MusicManager
+        MusicManager.instance().set_category("idle")
 
     def on_exit(self):
         pygame.mouse.set_visible(False)

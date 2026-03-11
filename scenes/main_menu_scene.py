@@ -39,6 +39,8 @@ class MainMenuScene(Scene):
 
     def on_enter(self):
         pygame.mouse.set_visible(True)
+        from core.audio.music_manager import MusicManager
+        MusicManager.instance().set_category("menu")
 
     def _select_option(self):
         option = self.options[self.selected]

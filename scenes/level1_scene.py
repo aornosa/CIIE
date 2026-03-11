@@ -285,6 +285,10 @@ class Level1Scene(Scene):
     # ── Update ────────────────────────────────────────────────
 
     def update(self, delta_time):
+        # ── Música ────────────────────────────────────────────
+        from core.audio.music_manager import MusicManager
+        MusicManager.instance().set_category("idle")
+
         if self._cutscene_active:
             self._update_cutscene(delta_time)
             return
