@@ -8,12 +8,11 @@ class PauseScene(Scene):
 
     def __init__(self, game_scene):
         super().__init__()
-        self.game_scene = game_scene  # Keep reference to render frozen game beneath
+        self.game_scene = game_scene
         self.options = ["Reanudar", "Opciones", "Salir al Menu"]
         self.selected = 0
 
     def handle_events(self, input_handler):
-        # ESC to resume
         if input_handler.actions.get("pause"):
             input_handler.actions["pause"] = False
             self.director.pop()
@@ -34,17 +33,13 @@ class PauseScene(Scene):
         pass
 
     def render(self, screen):
-        # Draw the frozen game underneath
         last_frame = self.game_scene.get_last_frame()
         if last_frame is not None:
             screen.blit(last_frame, (0, 0))
-        # Draw pause menu overlay on top
         draw_pause_menu(screen, self.options, self.selected)
 
     def on_enter(self):
         pygame.mouse.set_visible(True)
-        from core.audio.music_manager import MusicManager
-        MusicManager.instance().set_category("idle")
 
     def on_exit(self):
         pygame.mouse.set_visible(False)
@@ -60,8 +55,11 @@ class PauseScene(Scene):
             self.director.push(SettingsScene())
 
         elif option == "Salir al Menu":
+            # Stack antes:    [Level1Scene, PauseScene]
+            # Hacemos pop de PauseScene y push del menú sobre Level1Scene.
+            # Stack resultado: [Level1Scene, MainMenuScene]
+            # "Continuar" en el menú hará pop() y vuelve a Level1Scene intacto.
             from scenes.main_menu_scene import MainMenuScene
-            # Save reference before pop clears self.director
             director = self.director
-            director.pop()
-            director.replace(MainMenuScene(has_active_game=True))
+            director.pop()   # quita PauseScene — Level1Scene queda debajo
+            director.push(MainMenuScene(has_active_game=True))

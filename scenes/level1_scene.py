@@ -21,7 +21,6 @@ from character_scripts.npc.npc import NPC
 from character_scripts.player.player import Player
 from dialogs.dialog_manager import DialogManager
 from ui.dialog import draw_dialog_ui
-from game_math import utils as math
 from item.item_loader import ItemRegistry
 from runtime.round_manager import WaveManager, cleanup_dead_enemies
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT, _CAM_BORDER_RADIUS
@@ -29,8 +28,18 @@ from ui import ui_manager
 from weapons.ranged.ranged import Ranged
 from weapons.melee.melee import Melee
 from weapons.melee.melee_types import TacticalKnife
+from weapons.weapon_controller import WeaponController
 
 # ── Colores ───────────────────────────────────────────────────────────────────
+
+def _destroy_enemy(enemy):
+    """Destruye los MonoliteBehaviour internos de un enemigo."""
+    if hasattr(enemy, "audio_emitter") and enemy.audio_emitter:
+        enemy.audio_emitter.destroy()
+    from core.collision.collision_manager import CollisionManager
+    if hasattr(enemy, "collider") and enemy.collider:
+        CollisionManager.dynamic_colliders.discard(enemy.collider)
+        CollisionManager.static_colliders.discard(enemy.collider)
 _BG_COLOR    = (20, 20, 28)
 _FLOOR_COLOR = (45, 45, 55)
 _WALL_COLOR  = (110, 90, 70)
@@ -58,7 +67,8 @@ class Level1Scene(Scene):
         self.player        = None
         self.controller    = None
         self.camera        = None
-        self.enemies: list = []          # solo para los enemigos de la cutscene
+        self.weapon_controller: WeaponController | None = None
+        self.enemies: list = []
         self._toxic_puddles: list = []
         self._contact_dmg_cd = 0.0
 
@@ -82,7 +92,7 @@ class Level1Scene(Scene):
         self._wave2_clear_timer      = -1.0
         self._going_level_complete   = False
         self._total_kills            = 0
-
+        self._inventory_open         = False
 
         # Mapa / puerta
         self._door             = None
@@ -95,10 +105,6 @@ class Level1Scene(Scene):
         self._north_room_sealed   = False
         self._north_seal_collider = None
 
-        # ADS
-        self.ads_effect = StatusEffect(
-            "assets/effects/ads", "Aiming Down Sights", {"speed": -70}, -1
-        )
         self.crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -110,7 +116,9 @@ class Level1Scene(Scene):
             ih = self.director._input_handler
             ih.actions["move_x"] = 0
             ih.actions["move_y"] = 0
-        self._build_level()
+        # Solo construir si no hay partida activa (primera entrada o tras nueva partida)
+        if self.player is None:
+            self._build_level()
 
     def on_exit(self):
         MonoliteBehaviour.time_scale = 0.0
@@ -120,6 +128,7 @@ class Level1Scene(Scene):
         MonoliteBehaviour.time_scale = 0.0
 
     def on_resume(self):
+        # Volver de pausa o menu — partida intacta, no reconstruir
         MonoliteBehaviour.time_scale = 1.0
         pygame.mouse.set_visible(False)
 
@@ -162,6 +171,12 @@ class Level1Scene(Scene):
         self._toxic_puddles = []
         self.enemies = []
 
+        # ADS effect + WeaponController
+        ads_effect = StatusEffect(
+            "assets/effects/ads", "Aiming Down Sights", {"speed": -70}, -1
+        )
+        self.weapon_controller = WeaponController(self.player, self.camera, ads_effect)
+
         self._build_walls()
         self._build_doors()
 
@@ -185,12 +200,12 @@ class Level1Scene(Scene):
             scale=0.16,
         )
         self._dialog_manager = DialogManager()
-        self._dialog_manager.active_dialog        = None
-        self._dialog_manager.is_dialog_active     = False
-        self._dialog_manager.selected_option      = 0
-        self._dialog_manager._cached_dialog_surface = None
-        self._dialog_manager._cached_node_id      = None
-        self._dialog_manager._needs_redraw        = True
+        self._dialog_manager.active_dialog            = None
+        self._dialog_manager.is_dialog_active         = False
+        self._dialog_manager.selected_option          = 0
+        self._dialog_manager._cached_dialog_surface   = None
+        self._dialog_manager._cached_node_id          = None
+        self._dialog_manager._needs_redraw            = True
 
         self._cutscene_active    = True
         self._cutscene_phase     = "walking"
@@ -243,15 +258,45 @@ class Level1Scene(Scene):
         )
 
     def _teardown_level(self):
+        # ── Destruir MonoliteBehaviour de la partida para evitar fugas ────────
+        # Los weapons (Ranged/Melee) y sus emitters se registran en _instances
+        # al crearse y deben destruirse explícitamente al salir del nivel.
+        if self.player:
+            inv = self.player.inventory
+            for slot in ("primary", "secondary"):
+                w = inv.get_weapon(slot)
+                if w is not None:
+                    # Destruir emitter de partículas interno
+                    emitter = getattr(w, "emitter", None) or getattr(w, "impact_emitter", None)
+                    if emitter is not None:
+                        emitter.destroy()
+                    w.destroy() if hasattr(w, "destroy") else None
+            if hasattr(inv, "drop_manager") and inv.drop_manager is not None:
+                inv.drop_manager.destroy()
+            if hasattr(self.player, "audio_emitter") and self.player.audio_emitter:
+                self.player.audio_emitter.destroy()
+            if hasattr(self.player, "audio_listener") and self.player.audio_listener:
+                self.player.audio_listener.destroy()
+
+        if self._wave_manager is not None:
+            for e in list(self._wave_manager.enemies):
+                _destroy_enemy(e)
+        if self._wave_manager_north is not None:
+            for e in list(self._wave_manager_north.enemies):
+                _destroy_enemy(e)
+        for e in list(self.enemies):
+            _destroy_enemy(e)
+
         CollisionManager.dynamic_colliders.clear()
         CollisionManager.static_colliders.clear()
         if CollisionManager._active is not None:
             CollisionManager._active.dynamic_qtree.clear()
             CollisionManager._active.static_qtree.clear()
 
-        self.player = None
-        self.controller = None
-        self.audres = None
+        self.player            = None
+        self.controller        = None
+        self.weapon_controller = None
+        self.audres            = None
         self._cutscene_active    = False
         self._cutscene_phase     = "idle"
         self._audres_walk_target = None
@@ -319,6 +364,11 @@ class Level1Scene(Scene):
         from map.interactables.interaction_manager import InteractionManager
         InteractionManager().check_interaction(self.player, input_handler)
 
+        if input_handler.actions.get("inventory"):
+            input_handler.actions["inventory"] = False
+            self._inventory_open = not self._inventory_open
+            return
+
         if input_handler.actions["hotkey_slot"] >= 0:
             self.player.inventory.select_item(input_handler.actions["hotkey_slot"])
         if input_handler.actions["use_item"]:
@@ -354,7 +404,7 @@ class Level1Scene(Scene):
             self.player.add_coins(kills * 10)
             self._total_kills += kills
 
-        # Charcos tóxicos (actualización independiente del wave manager)
+        # Charcos tóxicos
         for puddle in self._toxic_puddles:
             puddle.update(delta_time, self.player)
         self._toxic_puddles[:] = [p for p in self._toxic_puddles if p.is_alive]
@@ -453,7 +503,7 @@ class Level1Scene(Scene):
     def _create_wave_manager(self):
         self._wave_manager = WaveManager(
             player=self.player,
-            total_waves=None,           # infinito
+            total_waves=None,
             arena_center=(_ACX, _ACY),
             arena_half=_ARENA_HALF,
             arena_mix=True,
@@ -490,7 +540,6 @@ class Level1Scene(Scene):
             CollisionManager.static_colliders.discard(self._door_collider)
             CollisionManager.static_dirty = True
             self._door_collider = None
-        # Limpiar oleada principal al abrir la puerta
         if self._wave_manager:
             for e in list(self._wave_manager.enemies):
                 e.take_damage(e.health)
@@ -540,24 +589,31 @@ class Level1Scene(Scene):
         screen.fill(_BG_COLOR)
         self._draw_map(screen)
 
-        mouse_pos    = pygame.Vector2(pygame.mouse.get_pos())
+        mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
         active_weapon = self.player.inventory.get_weapon(
             self.player.inventory.active_weapon_slot
         )
 
-        if active_weapon and isinstance(active_weapon, Ranged):
-            active_weapon.emitter.surface = screen
-            active_weapon.emitter.camera  = self.camera
+        # Configurar emitter de partículas del arma ranged
+        if self.weapon_controller:
+            self.weapon_controller.setup_emitter(screen)
 
-        if not self._cutscene_active:
-            self._handle_weapon_input(im, active_weapon, mouse_pos, delta_time)
+        # Movimiento del jugador
+        if self._cutscene_active:
+            movement = pygame.Vector2(0, 0)
+        else:
+            movement = pygame.Vector2(im.actions["move_x"], im.actions["move_y"])
 
-        movement = (pygame.Vector2(0, 0) if self._cutscene_active
-                    else pygame.Vector2(im.actions["move_x"], im.actions["move_y"]))
         self.controller.speed = self.player.get_stat("speed")
         self.controller.move(movement, delta_time)
         if movement.length() > 0:
             self.player._dash_direction = pygame.Vector2(movement)
+
+        # WeaponController: apuntado + disparo (solo fuera de cutscene y diálogo)
+        if (not self._cutscene_active
+                and not (self._dialog_manager and self._dialog_manager.is_dialog_active)
+                and self.weapon_controller):
+            self.weapon_controller.update(im, delta_time, mouse_pos)
 
         self._camera_follow(self.player.position, delta_time)
 
@@ -584,7 +640,6 @@ class Level1Scene(Scene):
                 fs = pygame.Surface(fr.size, pygame.SRCALPHA)
                 fs.fill((255, 30, 30, 180))
                 entity_surf.blit(fs, fr)
-            # Balas del shooter
             if isinstance(enemy, ShooterEnemy):
                 enemy.draw_bullets(screen, self.camera)
         screen.blit(entity_surf, (0, 0))
@@ -601,6 +656,11 @@ class Level1Scene(Scene):
         if isinstance(active_weapon, Melee):
             active_weapon.draw_attack_cone(screen, self.camera)
 
+        # Trail visual del ranged (partículas de bala)
+        if self.weapon_controller and not self._cutscene_active:
+            player_screen_pos = self.player.position - self.camera.position
+            self.weapon_controller.draw_trail(screen, player_screen_pos, active_weapon)
+
         # Crosshair
         screen.blit(
             pygame.transform.scale(self.crosshair, (40, 40)),
@@ -614,52 +674,19 @@ class Level1Scene(Scene):
         if self._dialog_manager:
             draw_dialog_ui(screen, self._dialog_manager)
 
-        self._last_frame = screen.copy()
-
-    def _handle_weapon_input(self, im, active_weapon, mouse_pos, delta_time):
-        if im.actions["swap_weapon"]:
-            im.actions["swap_weapon"] = False
-            self.player.inventory.swap_weapons()
-            active_weapon = self.player.inventory.get_weapon(
-                self.player.inventory.active_weapon_slot
-            )
-
-        if im.actions["reload"]:
-            im.actions["reload"] = False
-            if isinstance(active_weapon, Ranged):
-                active_weapon.reload()
-
-        # Posicion del jugador en pantalla
-        player_screen_pos = self.player.position - self.camera.position
-        direction_to_mouse = mouse_pos - player_screen_pos
-
-        if im.actions["attack"] or im.actions["aim"]:
-            self.player.add_effect(self.ads_effect)
-            # Rotar siempre hacia el raton al apuntar/atacar
-            if direction_to_mouse.length() > 0:
-                target_angle = direction_to_mouse.angle_to(pygame.Vector2(0, -1))
-                self.player.set_rotation(
-                    math.lerp_angle(self.player.rotation, target_angle, 10 * delta_time) + 0.164
-                )
-            if im.actions["attack"] and active_weapon:
-                direction = pygame.Vector2(0, -1).rotate(-self.player.rotation)
-                if isinstance(active_weapon, Ranged):
-                    active_weapon.play_trail_effect(
-                        None,
-                        player_screen_pos
-                        + direction * active_weapon.muzzle_offset[0]
-                        + direction.rotate(90) * active_weapon.muzzle_offset[1],
-                        direction,
-                    )
-                active_weapon.shoot()
+        if self._inventory_open:
+            mouse_pos = self.director._input_handler.mouse_position
+            im = self.director._input_handler
+            if im.actions.get("click_drop"):
+                im.actions["click_drop"] = False
+                self.player.inventory.click_drop_item(mouse_pos)
+            from character_scripts.player.inventory import show_inventory
+            show_inventory(screen, self.player)
         else:
-            movement = pygame.Vector2(im.actions["move_x"], im.actions["move_y"])
-            if movement.length() > 0:
-                target_angle = movement.angle_to(pygame.Vector2(0, -1))
-                self.player.rotation = math.lerp_angle(
-                    self.player.rotation, target_angle, 7.5 * delta_time
-                )
-            self.player.remove_effect("Aiming Down Sights")
+            if self.director._input_handler:
+                self.director._input_handler.actions["click_drop"] = False
+
+        self._last_frame = screen.copy()
 
     def _draw_map(self, screen):
         cx   = int(self.camera.position.x) if self.camera else 0

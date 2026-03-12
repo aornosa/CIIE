@@ -3,12 +3,12 @@ character_scripts/enemy/enemy_types.py
 ---------------------------------------
 Todos los tipos de enemigo del juego en un único módulo.
 
-Melee (brain gestionado externamente por WaveManager / round_manager):
+Melee (brain gestionado por WaveManager):
   InfectedCommon  — civil infectado, rápido y débil
   InfectedSoldier — soldado infectado, más duro y dañino
   LabSubject      — sujeto de laboratorio, lentísimo pero muy resistente
 
-Arena / Nivel 1 (brain propio, también gestionado por WaveManager):
+Arena / Nivel 1 (brain gestionado por WaveManager):
   TankEnemy       — tanque lento y muy resistente
   ToxicEnemy      — deja charcos de ácido al moverse
   ShooterEnemy    — dispara a distancia, huye si el jugador se acerca
@@ -33,6 +33,7 @@ class InfectedCommon(Enemy):
         super().__init__(
             asset="assets/enemies/infected_common/infected_common.png",
             position=position,
+            scale=0.25,
             name="Infectado",
             health=160,
             strength=12,
@@ -58,6 +59,7 @@ class InfectedSoldier(Enemy):
         super().__init__(
             asset="assets/enemies/infected_soldier/infected_soldier.png",
             position=position,
+            scale=0.28,
             name="Soldado Infectado",
             health=420,
             strength=28,
@@ -83,6 +85,7 @@ class LabSubject(Enemy):
         super().__init__(
             asset="assets/enemies/lab_subject/lab_subject.png",
             position=position,
+            scale=0.35,
             name="Sujeto de Laboratorio",
             health=800,
             strength=55,
@@ -100,6 +103,7 @@ class LabSubject(Enemy):
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ARENA — Nivel 1
+# Usan sprites genéricos de color hasta tener assets definitivos.
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TankEnemy(Enemy):
@@ -111,8 +115,9 @@ class TankEnemy(Enemy):
 
     def __init__(self, position=(0, 0)):
         super().__init__(
-            asset="assets/enemies/tank/tank.png",
+            asset="assets/enemies/red.png",
             position=position,
+            scale=0.38,
             name="Tanque",
             health=600,
             strength=35,
@@ -173,8 +178,9 @@ class ToxicEnemy(Enemy):
 
     def __init__(self, position=(0, 0)):
         super().__init__(
-            asset="assets/enemies/toxic/toxic.png",
+            asset="assets/enemies/green.png",
             position=position,
+            scale=0.25,
             name="Tóxico",
             health=220,
             strength=15,
@@ -208,8 +214,8 @@ class ToxicEnemy(Enemy):
 class ShooterEnemy(Enemy):
     """Tirador a distancia. Huye si el jugador se acerca. Gestiona sus propias balas."""
     DEFAULT_SPEED   = 90
-    ATTACK_RANGE    = 350   # rango de disparo
-    FLEE_RANGE      = 180   # retrocede si el jugador está más cerca
+    ATTACK_RANGE    = 350
+    FLEE_RANGE      = 180
     DETECTION_RANGE = 700
     ATTACK_COOLDOWN = 1.8
     BULLET_SPEED    = 420
@@ -220,8 +226,9 @@ class ShooterEnemy(Enemy):
 
     def __init__(self, position=(0, 0)):
         super().__init__(
-            asset="assets/enemies/shooter/shooter.png",
+            asset="assets/enemies/yellow.png",
             position=position,
+            scale=0.22,
             name="Tirador",
             health=180,
             strength=ShooterEnemy.BULLET_DAMAGE,

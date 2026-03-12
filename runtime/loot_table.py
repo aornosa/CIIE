@@ -4,6 +4,9 @@ runtime/loot_table.py
 Tablas de loot y puntuación para todos los tipos de enemigo.
 on_enemy_killed() es llamado automáticamente desde enemy_base.Enemy.die()
 cuando enemy._player_ref está asignado (lo hace WaveManager al spawnear).
+
+IDs de items válidos (definidos en assets/items/item_data.json):
+  phoenix_injector, adrenaline_shot, rad_suppressor, stim_patch, dash_ability
 """
 from __future__ import annotations
 import random
@@ -18,36 +21,36 @@ if TYPE_CHECKING:
 LOOT_TABLES = {
     # Oleadas clásicas
     "InfectedCommon": [
-        ("ammo_clip_762",   0.10),
-        ("health_injector", 0.04),
+        ("stim_patch",        0.08),
+        ("phoenix_injector",  0.04),
     ],
     "InfectedSoldier": [
-        ("ammo_clip_762",   0.18),
-        ("health_injector", 0.07),
-        ("stim_patch",      0.04),
+        ("stim_patch",        0.12),
+        ("phoenix_injector",  0.07),
+        ("adrenaline_shot",   0.04),
     ],
     "LabSubject": [
-        ("ammo_clip_762",   0.25),
-        ("health_injector", 0.12),
-        ("adrenaline_shot", 0.08),
-        ("rad_suppressor",  0.06),
+        ("phoenix_injector",  0.15),
+        ("adrenaline_shot",   0.10),
+        ("rad_suppressor",    0.08),
+        ("stim_patch",        0.06),
     ],
 
     # Arena — Nivel 1
     "TankEnemy": [
-        ("health_injector", 0.20),
-        ("ammo_clip_762",   0.15),
-        ("stim_patch",      0.08),
+        ("phoenix_injector",  0.20),
+        ("stim_patch",        0.12),
+        ("adrenaline_shot",   0.06),
     ],
     "ToxicEnemy": [
-        ("ammo_clip_762",   0.12),
-        ("rad_suppressor",  0.10),
-        ("health_injector", 0.05),
+        ("rad_suppressor",    0.12),
+        ("stim_patch",        0.08),
+        ("phoenix_injector",  0.05),
     ],
     "ShooterEnemy": [
-        ("ammo_clip_762",   0.20),
-        ("health_injector", 0.06),
-        ("stim_patch",      0.05),
+        ("stim_patch",        0.15),
+        ("phoenix_injector",  0.06),
+        ("adrenaline_shot",   0.05),
     ],
 }
 

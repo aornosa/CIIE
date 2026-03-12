@@ -7,6 +7,6 @@ FPS = -60  # Unlimited FPS (clock.tick() called without arg)
 MAX_AUDIO_CHANNELS = 32
 ENABLE_COLLISION_DEBUG  = False
 ENABLE_MONOLITE_DEBUG   = False   # True → imprime cada MonoliteBehaviour al crearse
-_CAM_BORDER_RADIUS = 300
+_CAM_BORDER_RADIUS = 0            # 0 = cámara siempre centrada sobre el jugador
 TILE_SIZE  = 64
 CHUNK_SIZE = 8
