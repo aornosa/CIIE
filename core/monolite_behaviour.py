@@ -1,85 +1,56 @@
-## Based on Unity's MonoBehaviour adapted to Python for game development.
+"""
+core/monolite_behaviour.py
+---------------------------
+Base class for all game objects that need per-frame updates.
+
+delta_time  — atributo de clase, actualizado cada frame en update_all().
+              Accesible globalmente como MonoliteBehaviour.delta_time.
+time_scale  — escala de tiempo global (0 = pausa, 1 = normal).
+
+Para ver los prints de creación en consola, activar en settings.py:
+    ENABLE_MONOLITE_DEBUG = True
+"""
+from __future__ import annotations
+import inspect
+
 
 class MonoliteBehaviour:
-    _subclasses = []  # Class variable to track subclasses
-    _instances = []  # Global class variable for running instances
-    delta_time = 0  # Class variable to hold delta time for all instances
-    time_scale = 1.0  # 1.0 = normal, 0.0 = paused
+    _instances: list["MonoliteBehaviour"] = []
+    time_scale: float = 1.0
+    delta_time: float = 0.0   # último delta escalado; usado por partículas etc.
 
     def __init__(self):
-        self._enabled = True  # Whether the behaviour is active
+        MonoliteBehaviour._instances.append(self)
 
-        self._awakened = False  # To track if awake() has been called
-        self._started = False  # To track if start() has been called
+        try:
+            from settings import ENABLE_MONOLITE_DEBUG
+            if ENABLE_MONOLITE_DEBUG:
+                print(f"[Monolite] + {self.__class__.__name__}")
+        except ImportError:
+            pass
 
-        MonoliteBehaviour._instances.append(self)  # Add instance to the global list
-        print(self.__class__.__name__ + " - subscribed to MonoliteBehaviour")
-
-        self._call_awake()
-
-    def __init_subclass__(cls):
-        super().__init_subclass__()
-        MonoliteBehaviour._subclasses.append(cls)
-
-    def _call_awake(self):
-        if not self._awakened:
-            self.awake()
-            self._awakened = True
-
-
-    def awake(self):
+    def update(self, delta_time: float = 0.0):
         pass
-
-    def start(self):
-        pass
-
-    def update(self):
-        pass
-
-    def on_enable(self):
-        pass
-
-    def on_disable(self):
-        pass
-
-    @property
-    def enabled(self):
-        return self._enabled
-
-    @enabled.setter
-    def enabled(self, value):
-        if self._enabled == value:
-            return
-        self._enabled = value
-        if self._enabled:
-            self.on_enable()
-        else:
-            self.on_disable()
-
 
     def destroy(self):
-        self.on_destroy()
         if self in MonoliteBehaviour._instances:
-            MonoliteBehaviour._instances.remove(self)  # Remove instance from the global list
-
-    def on_destroy(self):
-        pass
+            MonoliteBehaviour._instances.remove(self)
 
     @classmethod
-    def instantiate_all(cls):
-        for sub in cls._subclasses:
-            sub()
+    def update_all(cls, delta_time: float):
+        scaled = delta_time * cls.time_scale
+        cls.delta_time = scaled   # disponible globalmente este frame
 
-    @classmethod
-    def update_all(cls, dt):
-        cls.delta_time = dt * cls.time_scale
-        for instance in cls._instances:
-            if instance.enabled:
-                instance.update()
-
-            if not instance.enabled:
-                continue
-
-            if not instance._started:
-                instance.start()
-                instance._started = True
+        for instance in list(cls._instances):
+            # Llamar con o sin argumento según la firma del método
+            try:
+                params = inspect.signature(instance.update).parameters
+                required = [p for p in params.values()
+                            if p.name != "self"
+                            and p.default is inspect.Parameter.empty]
+                if required:
+                    instance.update(scaled)
+                else:
+                    instance.update()
+            except Exception as e:
+                print(f"[Monolite] Error en {instance.__class__.__name__}.update(): {e}")

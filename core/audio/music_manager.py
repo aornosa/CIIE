@@ -2,22 +2,6 @@
 MusicManager
 ------------
 Gestiona la música de fondo del juego.
-
-Categorías:
-  "fight"  → assets/music/fight_music/   (durante el combate)
-  "idle"   → assets/music/idle_music/    (diálogos, descanso, sin enemigos)
-  "menu"   → assets/music/menu_music/    (menú principal, pausa, tienda)
-
-Uso:
-    MusicManager.instance().set_category("fight")     # desde cualquier escena
-    MusicManager.instance().handle_event(event)       # en el event loop de main.py
-
-Notas:
-  - set_category() es idempotente: no interrumpe la pista si ya está en esa categoría.
-  - Usa pygame ENDEVENT en lugar de polling: cero overhead por frame.
-  - Al terminar una pista elige otra al azar de la misma carpeta sin repetir
-    hasta haber reproducido todas.
-  - Volumen respeta AudioManager (SoundCategory.MUSIC × master_volume).
 """
 from __future__ import annotations
 
@@ -31,8 +15,8 @@ _MUSIC_DIRS = {
     "menu":  "assets/music/menu_music",
 }
 
-_FADE_MS        = 800          # ms de fundido entre cambios de categoría
-_MUSIC_ENDEVENT = pygame.USEREVENT + 10   # evento que pygame lanza al terminar pista
+_FADE_MS        = 800
+_MUSIC_ENDEVENT = pygame.USEREVENT + 10
 
 
 class MusicManager:
@@ -51,34 +35,49 @@ class MusicManager:
 
         self._current_category: str | None = None
         self._playlist: list[str] = []
-        self._mixer_ok = pygame.mixer.get_init() is not None
 
-        # Registrar ENDEVENT: pygame avisará cuando termine la pista, sin polling
+        # ── Comprobar mixer de forma segura ──────────────────────────────────
+        try:
+            self._mixer_ok = pygame.mixer.get_init() is not None
+        except pygame.error:
+            self._mixer_ok = False
+
         if self._mixer_ok:
-            pygame.mixer.music.set_endevent(_MUSIC_ENDEVENT)
+            try:
+                pygame.mixer.music.set_endevent(_MUSIC_ENDEVENT)
+            except pygame.error:
+                self._mixer_ok = False
 
     # ── API pública ────────────────────────────────────────────────────────────
 
     def set_category(self, category: str):
         """Cambia a la categoría indicada. No hace nada si ya está activa."""
+        if not self._mixer_ok:
+            return
         if category == self._current_category:
             return
         if category not in self._tracks or not self._tracks[category]:
             return
         self._current_category = category
         self._playlist = []
-        self._play_next(fade_out=pygame.mixer.music.get_busy())
+        try:
+            self._play_next(fade_out=pygame.mixer.music.get_busy())
+        except pygame.error:
+            self._mixer_ok = False
 
     def handle_event(self, event: pygame.event.Event):
-        """Pasar todos los eventos del loop principal. Reacciona solo al ENDEVENT."""
+        if not self._mixer_ok:
+            return
         if event.type == _MUSIC_ENDEVENT:
             self._play_next(fade_out=False)
 
     def stop(self, fade_ms: int = _FADE_MS):
-        """Detiene la música completamente."""
         self._current_category = None
         if self._mixer_ok:
-            pygame.mixer.music.fadeout(fade_ms)
+            try:
+                pygame.mixer.music.fadeout(fade_ms)
+            except pygame.error:
+                pass
 
     # ── Lógica interna ─────────────────────────────────────────────────────────
 
@@ -105,7 +104,6 @@ class MusicManager:
             print(f"[MusicManager] No se pudo reproducir '{path}': {e}")
 
     def _apply_volume(self):
-        """Lee el volumen de AudioManager y lo aplica a pygame.mixer.music."""
         try:
             from core.audio.audio_manager import AudioManager
             from core.audio.audio_mixer_category import SoundCategory
@@ -113,7 +111,10 @@ class MusicManager:
             vol = am.master_volume * am.mixer_volumes.get(SoundCategory.MUSIC, 1.0)
             pygame.mixer.music.set_volume(max(0.0, min(1.0, vol)))
         except Exception:
-            pygame.mixer.music.set_volume(1.0)
+            try:
+                pygame.mixer.music.set_volume(1.0)
+            except pygame.error:
+                pass
 
     @staticmethod
     def _scan(folder: str) -> list[str]:

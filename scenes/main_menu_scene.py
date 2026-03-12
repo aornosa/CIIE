@@ -9,14 +9,13 @@ class MainMenuScene(Scene):
     def __init__(self, has_active_game: bool = False):
         super().__init__()
         if has_active_game:
-            self.options = ["Continuar", "Nueva Partida", "Nivel 1", "Opciones", "Salir"]
+            self.options = ["Continuar", "Nueva Partida", "Opciones", "Salir"]
         else:
-            self.options = ["Jugar", "Nivel 1", "Opciones", "Salir"]
+            self.options = ["Jugar", "Opciones", "Salir"]
         self.selected = 0
         self._has_active_game = has_active_game
 
     def handle_events(self, input_handler):
-        # ESC has no effect in main menu — consume to avoid residual state
         if input_handler.actions.get("pause"):
             input_handler.actions["pause"] = False
 
@@ -45,17 +44,11 @@ class MainMenuScene(Scene):
     def _select_option(self):
         option = self.options[self.selected]
 
-        if option == "Jugar" or option == "Nueva Partida":
-            from game import reset_game
-            from scenes.game_scene import GameScene
-            reset_game()
-            self.director.replace(GameScene())
+        if option in ("Jugar", "Nueva Partida"):
+            from scenes.level1_scene import Level1Scene
+            self.director.replace(Level1Scene())
 
         elif option == "Continuar":
-            from scenes.game_scene import GameScene
-            self.director.replace(GameScene())
-
-        elif option == "Nivel 1":
             from scenes.level1_scene import Level1Scene
             self.director.replace(Level1Scene())
 
