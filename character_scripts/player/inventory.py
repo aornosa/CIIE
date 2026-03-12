@@ -15,7 +15,7 @@ class Inventory:
         self.active_weapon_slot = "primary"
         self.primary_weapon = None
         self.secondary_weapon = None
-        self.max_size = 12
+        self.max_size = 24
         self.items = []
         self.selected_item_index = -1
 

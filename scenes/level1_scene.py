@@ -8,6 +8,9 @@ CAMBIOS:
     inventario se muestra el overlay de selección de slot (Primario/Secundario/Cancelar)
   • Al confirmar slot, el WeaponItem se consume, el arma se equipa y la anterior
     se tira al suelo
+  • Helicóptero de extracción en sala norte — interactuar con [E] lleva a VictoryScene
+  • Puerta de salida norte con diálogo de Audrey al abrirse
+  • player.score arranca en 4000
 """
 import pygame
 
@@ -112,6 +115,13 @@ class Level1Scene(Scene):
         self._north_room_entered  = False
         self._north_room_sealed   = False
         self._north_seal_collider = None
+
+        # Puerta de salida norte (acceso al helicóptero) y helicóptero
+        self._exit_door             = None
+        self._exit_door_rect        = None
+        self._exit_door_collider    = None
+        self._helicopter            = None  # HelicopterInteractable
+        self._helicopter_spawned    = False
 
         self.crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
 
@@ -244,11 +254,21 @@ class Level1Scene(Scene):
         cx, cy = _ACX, _ACY
         h, t   = _ARENA_HALF, _WALL_THICK
         door_w = 240
+        # Puerta norte (acceso al pasillo)
         dx, dy = cx, cy - h - t // 2
-        self._door = Door("Puerta Norte", (dx, dy), 100000, self._on_north_door_open)
+        self._door = Door("Puerta Norte", (dx, dy), 1000, self._on_north_door_open)
         self._door_rect = pygame.Rect(dx - door_w // 2, dy - t // 2, door_w, t)
         self._door_collider = Collider(
             object(), Rectangle(dx, dy, t // 2, door_w // 2),
+            layer=LAYERS["terrain"], static=True)
+        # Puerta de salida norte (hacia el helicóptero) — empieza cerrada
+        corridor_h = 800
+        north_sq   = int(_ARENA_HALF * 1.2)
+        ex, ey     = cx, cy - h - corridor_h - north_sq * 2 - t // 2
+        self._exit_door = Door("Salida Norte", (ex, ey), 5000, self._on_exit_door_open)
+        self._exit_door_rect = pygame.Rect(ex - door_w // 2, ey - t // 2, door_w, t)
+        self._exit_door_collider = Collider(
+            object(), Rectangle(ex, ey, t // 2, door_w // 2),
             layer=LAYERS["terrain"], static=True)
 
     def _teardown_level(self):
@@ -301,6 +321,14 @@ class Level1Scene(Scene):
             from map.interactables.interaction_manager import InteractionManager
             InteractionManager().unregister(self._door)
         self._door = self._door_collider = None
+        if self._exit_door:
+            from map.interactables.interaction_manager import InteractionManager
+            InteractionManager().unregister(self._exit_door)
+        self._exit_door = self._exit_door_collider = self._exit_door_rect = None
+        if self._helicopter:
+            self._helicopter._unregister()
+        self._helicopter = None
+        self._helicopter_spawned = False
         self._north_room_entered = self._north_room_sealed = False
         self._north_seal_collider = None
         if self._corridor_weapon:
@@ -318,20 +346,17 @@ class Level1Scene(Scene):
         self._aim_was_pressed = aim_now
 
         # ── Overlay de asignación de arma ──────────────────────────────────────
-        # Mientras está abierto, solo aceptamos clics del ratón
+        # Selección por teclado: 1 → primario, 2 → secundario, ESC → cancelar
         if self._pending_weapon_item is not None:
-            if input_handler.actions.get("click_drop"):
-                input_handler.actions["click_drop"] = False
-                input_handler.actions["attack"]     = False
-                mouse_pos = input_handler.mouse_position
-                self._handle_weapon_assign_click(mouse_pos)
-            # Cancelar con ESC / I
-            if (input_handler.actions.get("pause") or
-                    input_handler.actions.get("inventory")):
-                input_handler.actions["pause"]     = False
-                input_handler.actions["inventory"] = False
+            keys = input_handler.keys_just_pressed
+            if pygame.K_1 in keys:
+                self._handle_weapon_assign("primary")
+            elif pygame.K_2 in keys:
+                self._handle_weapon_assign("secondary")
+            elif pygame.K_ESCAPE in keys or input_handler.actions.get("inventory"):
                 self._pending_weapon_item  = None
                 self._pending_weapon_index = -1
+                input_handler.actions["inventory"] = False
             return
 
         if input_handler.actions.get("pause"):
@@ -404,51 +429,47 @@ class Level1Scene(Scene):
             return
 
         if input_handler.actions["hotkey_slot"] >= 0:
-            self.player.inventory.select_item(input_handler.actions["hotkey_slot"])
+            slot = input_handler.actions["hotkey_slot"]
+            self.player.inventory.select_item(slot)
+            # Usar el consumible directamente al pulsar la tecla numérica
+            self.player.inventory.use_consumable_hotkey(slot, self.player)
         if input_handler.actions["use_item"]:
             self.player.inventory.use_selected_item(self.player)
 
-    def _handle_weapon_assign_click(self, mouse_pos):
-        """Procesa el clic sobre los botones del overlay de asignación."""
-        from ui.inventory_menu import get_overlay_rects
-        rects = get_overlay_rects()
-        if not rects:
-            return
-
+    def _handle_weapon_assign(self, slot: str):
+        """Equipa el weapon_item pendiente en el slot dado ('primary'/'secondary')."""
         weapon_item = self._pending_weapon_item
         idx         = self._pending_weapon_index
 
-        for key, rect in rects.items():
-            if rect.collidepoint(mouse_pos):
-                if key == "cancel":
-                    self._pending_weapon_item  = None
-                    self._pending_weapon_index = -1
-                    return
+        weapon = weapon_item.weapon
+        weapon.parent        = self.player
+        weapon.audio_emitter = self.player.audio_emitter
 
-                # key es "primary" o "secondary"
-                slot   = key
-                weapon = weapon_item.weapon
-                weapon.parent        = self.player
-                weapon.audio_emitter = self.player.audio_emitter
-
-                # Tirar el arma actual al suelo antes de reemplazar
-                old = self.player.inventory.get_weapon(slot)
-                if old is not None:
-                    self.player.inventory.drop_weapon(slot)
-
-                # Equipar
+        # Mover el arma actual al inventario (o al suelo si está lleno)
+        old = self.player.inventory.get_weapon(slot)
+        if old is not None:
+            from item.weapon_item import WeaponItem as WI
+            old_wi = WI(old)
+            if not self.player.inventory.add_item(old_wi):
+                self.player.inventory.drop_weapon(slot)
+            else:
                 if slot == "primary":
-                    self.player.inventory.primary_weapon = weapon
+                    self.player.inventory.primary_weapon = None
                 else:
-                    self.player.inventory.secondary_weapon = weapon
+                    self.player.inventory.secondary_weapon = None
 
-                # Eliminar el WeaponItem del inventario
-                if 0 <= idx < len(self.player.inventory.items):
-                    self.player.inventory.items.pop(idx)
+        # Equipar nueva arma
+        if slot == "primary":
+            self.player.inventory.primary_weapon = weapon
+        else:
+            self.player.inventory.secondary_weapon = weapon
 
-                self._pending_weapon_item  = None
-                self._pending_weapon_index = -1
-                return
+        # Eliminar el WeaponItem del inventario
+        if 0 <= idx < len(self.player.inventory.items):
+            self.player.inventory.items.pop(idx)
+
+        self._pending_weapon_item  = None
+        self._pending_weapon_index = -1
 
     # ── Update ────────────────────────────────────────────────────────────────
 
@@ -484,9 +505,12 @@ class Level1Scene(Scene):
             self.player.add_coins(kills * 10)
             self._total_kills += kills
 
-        for puddle in self._toxic_puddles:
-            puddle.update(delta_time, self.player)
-        self._toxic_puddles[:] = [p for p in self._toxic_puddles if p.is_alive]
+        # Solo actualizar charcos manualmente si no hay WaveManager activo
+        # (con WaveManager activo, él los actualiza internamente)
+        if self._wave_manager is None and self._wave_manager_north is None:
+            for puddle in list(self._toxic_puddles):
+                puddle.update(delta_time, self.player)
+            self._toxic_puddles[:] = [p for p in self._toxic_puddles if p.is_alive]
 
         if self.player:
             self.player.update(delta_time)
@@ -533,14 +557,6 @@ class Level1Scene(Scene):
                 self._wave2_clear_triggered = True
                 from dialogs.audres_dialogs import create_audres_wave2_clear
                 self._dialog_manager.start_dialog(create_audres_wave2_clear())
-
-        if self._wave2_clear_triggered and not self._going_level_complete and not dialog_active:
-            self._going_level_complete = True
-            from scenes.level_complete_scene import LevelCompleteScene
-            self.director.replace(LevelCompleteScene(
-                self._last_frame, "Nivel 1",
-                {"kills": self._total_kills, "coins": self.player.coins if self.player else 0},
-                next_scene_class=None))
 
     def _all_enemies(self) -> list:
         out = list(self._wave_manager.enemies if self._wave_manager else self.enemies)
@@ -622,6 +638,31 @@ class Level1Scene(Scene):
             object(), Rectangle(cx, cy - h - t // 2, t // 2, dw // 2),
             layer=LAYERS["terrain"], static=True)
 
+    def _on_exit_door_open(self):
+        """Callback invocado por Door al alcanzar 500k score — quita el collider,
+        lanza el diálogo de Audrey y spawna el helicóptero de extracción."""
+        # Quitar el collider de la puerta de salida
+        if self._exit_door_collider:
+            cm = CollisionManager._active
+            if cm:
+                cm.static_qtree.remove(self._exit_door_collider)
+            CollisionManager.static_colliders.discard(self._exit_door_collider)
+            CollisionManager.static_dirty = True
+            self._exit_door_collider = None
+        if not self._helicopter_spawned:
+            self._helicopter_spawned = True
+            # Diálogo de Audrey indicando que está el helicóptero
+            from dialogs.audres_dialogs import create_audres_exit_door
+            if self._dialog_manager:
+                self._dialog_manager.start_dialog(create_audres_exit_door())
+            # Spawnear helicóptero en el fondo de la sala norte
+            corridor_h = 800
+            north_sq   = int(_ARENA_HALF * 1.2)
+            heli_x     = _ACX
+            heli_y     = _ACY - _ARENA_HALF - corridor_h - north_sq * 2 + north_sq // 2
+            from item.item_drop_manager import HelicopterInteractable
+            self._helicopter = HelicopterInteractable((heli_x, heli_y), self)
+
     # ── Colisiones / muerte ───────────────────────────────────────────────────
 
     def _check_enemy_contact(self, delta_time):
@@ -686,6 +727,9 @@ class Level1Scene(Scene):
 
         for puddle in self._toxic_puddles:
             puddle.draw(screen, self.camera)
+
+        if self._helicopter:
+            self._helicopter.draw(screen, self.camera)
 
         if self._corridor_weapon:
             self._corridor_weapon.draw(screen, self.camera)
@@ -776,6 +820,13 @@ class Level1Scene(Scene):
                 pygame.draw.rect(screen, (80, 50, 20), dr)
                 pygame.draw.rect(screen, (20, 15, 10), dr, 4)
             self._door.draw(screen, self.camera)
+
+        if self._exit_door and self._exit_door_rect:
+            if not getattr(self._exit_door, 'is_open', True):
+                er = self._exit_door_rect.move(-cx, -cy)
+                pygame.draw.rect(screen, (80, 50, 20), er)
+                pygame.draw.rect(screen, (20, 15, 10), er, 4)
+            self._exit_door.draw(screen, self.camera)
 
         if self._north_room_sealed and self._door_rect:
             pygame.draw.rect(screen, _WALL_COLOR, self._door_rect.move(-cx, -cy))

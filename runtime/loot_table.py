@@ -34,24 +34,23 @@ LOOT_TABLES = {
     ],
     "TankEnemy": [
         ("ammo_clip_762",    0.20),
-        ("ammo_clip_12gauge",0.15),  # también carga la SPAS-12
+        ("ammo_clip_12gauge",0.15),
         ("health_injector",  0.10),
         ("stim_patch",       0.08),
     ],
     "ToxicEnemy": [
-        ("ammo_clip_762", 0.20),
-        ("stim_patch",    0.10),
+        ("ammo_clip_762",  0.20),
+        ("stim_patch",     0.10),
         ("rad_suppressor", 0.06),
     ],
     "ShooterEnemy": [
-        ("ammo_clip_762",  0.25),
-        ("ammo_clip_9mm",  0.15),
-        ("stim_patch",     0.08),
-        ("adrenaline_shot",0.06),
+        ("ammo_clip_762",   0.25),
+        ("ammo_clip_9mm",   0.15),
+        ("stim_patch",      0.08),
+        ("adrenaline_shot", 0.06),
     ],
 }
 
-# Puntuación inflada ×5 respecto a la versión original
 SCORE_REWARDS = {
     "InfectedCommon":  500,
     "InfectedSoldier": 1250,

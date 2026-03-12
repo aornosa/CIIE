@@ -1,20 +1,19 @@
 """
 character_scripts/enemy/enemy_brain.py
 ----------------------------------------
-Sistema de IA de enemigos. Todos los tipos persiguen activamente al jugador.
+Sistema de IA de enemigos.
 
 Melee:
-  InfectedCommonBrain  — persigue directo sin patrulla
-  InfectedSoldierBrain — persigue sin fases de acecho
+  InfectedCommonBrain  — persigue directo al jugador
+  InfectedSoldierBrain — persigue directo al jugador
   LabSubjectBrain      — persigue sin condición de alerta
 
 Arena (Nivel 1):
-  TankBrain            — persigue directo, ataca al contacto
-  ToxicBrain           — persigue y genera charcos; ataca al contacto
-  ShooterBrain         — dispara a distancia, huye si el jugador se acerca
+  TankBrain    — persigue directo, ataca al contacto
+  ToxicBrain   — persigue y genera charcos; ataca al contacto
+  ShooterBrain — dispara proyectiles reales, huye si el jugador se acerca
 """
 
-import random
 import pygame
 from character_scripts.character_controller import CharacterController
 from character_scripts.enemy.enemy_base import Enemy
@@ -106,7 +105,7 @@ class LabSubjectBrain(EnemyBrain):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TankBrain(EnemyBrain):
-    """Persigue directo al jugador y golpea al contacto. Sin patrulla."""
+    """Persigue directo al jugador y golpea al contacto."""
     def decide_action(self, delta_time):
         self.face_player()
         dist = self.distance_to_player()
@@ -121,9 +120,9 @@ class ToxicBrain(EnemyBrain):
     """Persigue al jugador generando charcos. Ataca al contacto."""
     def decide_action(self, delta_time):
         self.face_player()
-        dist = self.distance_to_player()
-        # Genera charcos mientras se mueve
+        # update() del ToxicEnemy gestiona la generación de charcos
         self.enemy.update(delta_time)
+        dist = self.distance_to_player()
         if dist <= self.enemy.ATTACK_RANGE:
             self.controller.move(pygame.Vector2(0, 0), delta_time)
             self.try_attack(delta_time)
@@ -132,22 +131,26 @@ class ToxicBrain(EnemyBrain):
 
 
 class ShooterBrain(EnemyBrain):
-    """Dispara a distancia. Huye si el jugador se acerca demasiado."""
+    """
+    Dispara proyectiles físicos al jugador.
+    Huye si el jugador entra en FLEE_RANGE.
+    Se acerca hasta ATTACK_RANGE para disparar.
+    """
     def decide_action(self, delta_time):
         self.face_player()
         dist = self.distance_to_player()
 
-        # Actualiza balas en vuelo
+        # Actualizar proyectiles en vuelo
         self.enemy.update_bullets(delta_time, self.player)
 
         if dist < self.enemy.FLEE_RANGE:
-            # Huir: moverse en dirección contraria al jugador
+            # Huir en dirección contraria al jugador
             flee_dir = -self.direction_to_player()
             self.controller.speed = self.enemy.speed
             self.controller.move(flee_dir, delta_time)
 
         elif dist <= self.enemy.ATTACK_RANGE:
-            # Posición de disparo: quieto y disparar
+            # En rango de disparo: pararse y disparar
             self.controller.move(pygame.Vector2(0, 0), delta_time)
             if self.enemy.can_attack(delta_time):
                 self.enemy.shoot(self.player)

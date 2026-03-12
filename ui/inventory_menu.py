@@ -11,10 +11,10 @@ CAMBIOS:
 import pygame
 
 # ── Layout ────────────────────────────────────────────────────────────────────
-ITEM_SLOT_ORIGIN = (100, 550)
+ITEM_SLOT_ORIGIN = (100, 510)
 ITEM_SLOT_SIZE   = 96
 ITEM_SLOT_GAP    = 110
-ITEM_COLS        = 6
+ITEM_COLS        = 8
 
 # ── Colores ───────────────────────────────────────────────────────────────────
 COLOR_SLOT_BG          = (50,  50,  50)
@@ -174,72 +174,58 @@ def draw_player_status(screen, player, position):
 
 
 # ── Overlay de asignación de slot ─────────────────────────────────────────────
+# Selección por teclado: [1] Primario  [2] Secundario  [ESC] Cancelar
 
-# Rects globales para que level1_scene pueda leerlos en el hit-test
-_OVERLAY_RECTS: dict = {}   # {"primary": Rect, "secondary": Rect, "cancel": Rect}
-
-
-def draw_slot_assign_overlay(screen, weapon_item) -> dict:
+def draw_slot_assign_overlay(screen, weapon_item) -> None:
     """
     Dibuja el popup de selección de slot sobre el inventario.
-    Devuelve el dict de rects para que la escena pueda detectar clics.
+    Selección por teclado: 1 = Primario, 2 = Secundario, ESC = Cancelar.
     """
-    sw, sh  = screen.get_size()
-    bw, bh  = 420, 260
-    bx      = sw // 2 - bw // 2
-    by      = sh // 2 - bh // 2
+    sw, sh = screen.get_size()
+    bw, bh = 500, 220
+    bx     = sw // 2 - bw // 2
+    by     = sh // 2 - bh // 2
 
     # Fondo del popup
     panel = pygame.Surface((bw, bh), pygame.SRCALPHA)
-    panel.fill((20, 20, 35, 230))
+    panel.fill((20, 20, 35, 235))
     pygame.draw.rect(panel, (80, 140, 255), (0, 0, bw, bh), 2, border_radius=10)
     screen.blit(panel, (bx, by))
 
     # Título
-    title = _font(24, bold=True).render(
-        f"Equipar: {weapon_item.name}", True, (255, 255, 255))
-    screen.blit(title, (bx + bw // 2 - title.get_width() // 2, by + 18))
-    subtitle = _font(18).render("¿En qué ranura?", True, (180, 180, 220))
-    screen.blit(subtitle, (bx + bw // 2 - subtitle.get_width() // 2, by + 50))
+    title = _font(22, bold=True).render(f"Equipar: {weapon_item.name}", True, (255, 255, 255))
+    screen.blit(title, (bx + bw // 2 - title.get_width() // 2, by + 16))
 
-    # Botones
-    btn_w, btn_h = 160, 48
-    gap          = 20
-    total_w      = btn_w * 3 + gap * 2
-    btn_x_start  = bx + bw // 2 - total_w // 2
-    btn_y        = by + 100
+    subtitle = _font(17).render("¿En qué ranura?", True, (160, 160, 210))
+    screen.blit(subtitle, (bx + bw // 2 - subtitle.get_width() // 2, by + 46))
 
-    labels     = [("Primario", "primary"), ("Secundario", "secondary"), ("Cancelar", "cancel")]
-    colors     = [(60, 120, 60), (60, 80, 160), (100, 40, 40)]
-    hover_col  = [(90, 180, 90), (90, 120, 220), (160, 60, 60)]
+    # Opciones apiladas verticalmente con atajo de teclado
+    options = [
+        ("[1]  Primario",   (60, 140, 60),  (90, 200, 90)),
+        ("[2]  Secundario", (60, 80,  160), (90, 120, 220)),
+        ("[ESC] Cancelar",  (110, 40, 40),  (170, 60, 60)),
+    ]
+    btn_w, btn_h = 360, 36
+    gap          = 8
+    total_h      = len(options) * btn_h + (len(options) - 1) * gap
+    btn_x        = bx + bw // 2 - btn_w // 2
+    btn_y_start  = by + 82
 
-    mouse_pos  = pygame.mouse.get_pos()
-    rects      = {}
+    for i, (label, base_col, _hov_col) in enumerate(options):
+        ry = btn_y_start + i * (btn_h + gap)
+        r  = pygame.Rect(btn_x, ry, btn_w, btn_h)
+        pygame.draw.rect(screen, base_col, r, border_radius=6)
+        pygame.draw.rect(screen, (130, 130, 180), r, 1, border_radius=6)
+        txt = _font(18, bold=True).render(label, True, (255, 255, 255))
+        screen.blit(txt, (btn_x + btn_w // 2 - txt.get_width() // 2,
+                          ry + btn_h // 2 - txt.get_height() // 2))
 
-    for i, ((label, key), base_col, hov_col) in enumerate(zip(labels, colors, hover_col)):
-        rx = btn_x_start + i * (btn_w + gap)
-        r  = pygame.Rect(rx, btn_y, btn_w, btn_h)
-        rects[key] = r
-
-        col = hov_col if r.collidepoint(mouse_pos) else base_col
-        pygame.draw.rect(screen, col, r, border_radius=7)
-        pygame.draw.rect(screen, (150, 150, 200), r, 1, border_radius=7)
-
-        txt = _font(20, bold=True).render(label, True, (255, 255, 255))
-        screen.blit(txt, (rx + btn_w // 2 - txt.get_width() // 2,
-                           btn_y + btn_h // 2 - txt.get_height() // 2))
-
-    # Nota informativa
-    note = _font(15).render("El arma actual se tirará al suelo", True, (180, 150, 100))
-    screen.blit(note, (bx + bw // 2 - note.get_width() // 2, by + bh - 36))
-
-    global _OVERLAY_RECTS
-    _OVERLAY_RECTS = rects
-    return rects
+    note = _font(14).render("Arma anterior → inventario (o suelo si está lleno)", True, (160, 140, 90))
+    screen.blit(note, (bx + bw // 2 - note.get_width() // 2, by + bh - 22))
 
 
 def get_overlay_rects() -> dict:
-    return _OVERLAY_RECTS
+    return {}  # ya no se usa — selección por teclado
 
 
 # ── Pantalla completa ─────────────────────────────────────────────────────────

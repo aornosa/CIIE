@@ -131,7 +131,9 @@ def _draw_hotkey_bar(screen, player, font_sml):
         slot_x        = i * (SLOT_SIZE + SLOT_GAP)
         slot_rect     = pygame.Rect(slot_x, 0, SLOT_SIZE, SLOT_SIZE)
         item          = inventory.items[i] if i < len(inventory.items) else None
-        is_consumable = item is not None and item.type == "consumable"
+        # FIX: guard para items sin atributo .type (e.g. TacticalKnife directo en inventario)
+        item_type     = getattr(item, "type", None)
+        is_consumable = item is not None and item_type == "consumable"
 
         bg_color     = (70, 65, 20, 220) if is_consumable else ((30, 30, 35, 200) if item else (20, 20, 22, 140))
         border_color = (255, 220, 50)    if is_consumable else ((60, 60, 70)       if item else (90, 90, 100))
@@ -140,10 +142,13 @@ def _draw_hotkey_bar(screen, player, font_sml):
         pygame.draw.rect(bar_surf, border_color, slot_rect, 2, border_radius=6)
 
         if item is not None:
-            icon = pygame.transform.scale(item.asset, (SLOT_SIZE - 14, SLOT_SIZE - 14))
-            if not is_consumable:
-                icon.set_alpha(120)
-            bar_surf.blit(icon, (slot_x + 7, 7))
+            try:
+                icon = pygame.transform.scale(item.asset, (SLOT_SIZE - 14, SLOT_SIZE - 14))
+                if not is_consumable:
+                    icon.set_alpha(120)
+                bar_surf.blit(icon, (slot_x + 7, 7))
+            except Exception:
+                pass
 
         label_color = (255, 255, 180) if is_consumable else (200, 200, 200)
         bar_surf.blit(font_sml.render(str(i + 1), True, label_color), (slot_x + 4, 2))
@@ -192,10 +197,8 @@ def _draw_wave_hud(screen, wave_manager, player, font_big, font_med, font_sml):
 
     screen.blit(font_sml.render(f"Pts: {player.score}", True, (180, 255, 180)),
                 (panel_x + 12, panel_y + 74))
-
-    # Sin banner entre oleadas — las rondas son continuas
-
-
+    screen.blit(font_sml.render(f"$ {getattr(player, 'coins', 0)}", True, (255, 220, 80)),
+                (panel_x + 120, panel_y + 74))
 def _draw_next_wave_banner(screen, font_big, font_med, info):
     """Banner minimalista: número de oleada entrante + cuenta atrás."""
     next_wave = info['wave'] + 1

@@ -150,3 +150,27 @@ def create_audres_north_room_entry():
         ),
     }
     return DialogTree("n1", nodes)
+
+def create_audres_exit_door():
+    """Diálogo al abrir la puerta de salida — helicóptero de evacuación."""
+    nodes = {
+        "exit1": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_happy.jpg",
+            text="¡Soldado! He llamado a un helicóptero de evacuación. Está aterrizando ahora mismo al norte.",
+            next_node="exit2",
+        ),
+        "exit2": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_neutral.jpg",
+            text="Corre hacia él y pulsa E para subir. Ha sido un placer luchar a tu lado.",
+            next_node="exit3",
+        ),
+        "exit3": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_happy.jpg",
+            text="Y no te preocupes por mí... los robots no necesitamos evacuación. Aunque quizás sí un poco de compañía.",
+            next_node=None,
+        ),
+    }
+    return DialogTree("exit1", nodes)

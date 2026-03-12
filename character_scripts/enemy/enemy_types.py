@@ -11,7 +11,7 @@ Melee (brain gestionado por WaveManager):
 Arena / Nivel 1 (brain gestionado por WaveManager):
   TankEnemy       — tanque lento y muy resistente
   ToxicEnemy      — deja charcos de ácido al moverse
-  ShooterEnemy    — dispara a distancia, huye si el jugador se acerca
+  ShooterEnemy    — dispara proyectiles reales, huye si el jugador se acerca
   ToxicPuddle     — auxiliar de ToxicEnemy (no es Enemy)
 """
 
@@ -106,7 +106,7 @@ class LabSubject(Enemy):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TankEnemy(Enemy):
-    """Tanque: muy resistente, lento, empuja al contacto."""
+    """Tanque: muy resistente, lento, golpea fuerte al contacto."""
     DEFAULT_SPEED   = 85
     ATTACK_RANGE    = 40
     DETECTION_RANGE = 800
@@ -132,47 +132,90 @@ class TankEnemy(Enemy):
         return False
 
 
+# ── ToxicPuddle ───────────────────────────────────────────────────────────────
+# Versión completa con fade-out, burbujas decorativas y reset de timer al salir
+
 class ToxicPuddle:
-    """Charco ácido dejado por ToxicEnemy. No es un Enemy."""
-    DAMAGE_INTERVAL = 0.5
-    LIFETIME        = 8.0
-    RADIUS          = 40
-    DAMAGE          = 8
+    """Charco tóxico dejado por ToxicEnemy."""
+    DAMAGE_INTERVAL = 0.75
+    LIFETIME        = 12.0
+    RADIUS          = 30
+    DAMAGE          = 5
+
+    _COLOR_BASE   = (30,  180, 30,  80)
+    _COLOR_RING   = (60,  220, 60, 160)
+    _COLOR_BUBBLE = (80,  255, 80, 120)
 
     def __init__(self, position):
-        self.position   = pygame.Vector2(position)
-        self._lifetime  = self.LIFETIME
-        # FIX: start timer at full interval so the puddle doesn't deal
-        # instant damage the very first frame it is created.
-        self._dmg_timer = self.DAMAGE_INTERVAL
-        self.is_alive   = True
+        self.position      = pygame.Vector2(position)
+        self._lifetime     = self.LIFETIME
+        self._age          = 0.0
+        # FIX: arranca en DAMAGE_INTERVAL para no hacer daño instantáneo al spawnear
+        self._dmg_timer    = self.DAMAGE_INTERVAL
+        self._player_inside = False
+        self.is_alive      = True
+
+        # Superficie precalculada
+        diam = self.RADIUS * 2 + 4
+        self._surf = pygame.Surface((diam, diam), pygame.SRCALPHA)
+        self._bake_surface()
+
+    def _bake_surface(self):
+        import math
+        cx = cy = self.RADIUS + 2
+        pygame.draw.circle(self._surf, self._COLOR_BASE,   (cx, cy), self.RADIUS)
+        pygame.draw.circle(self._surf, self._COLOR_RING,   (cx, cy), self.RADIUS, 3)
+        for i in range(4):
+            angle = i * (math.pi / 2)
+            bx = int(cx + self.RADIUS * 0.5 * math.cos(angle))
+            by = int(cy + self.RADIUS * 0.5 * math.sin(angle))
+            pygame.draw.circle(self._surf, self._COLOR_BUBBLE,
+                               (bx, by), max(2, self.RADIUS // 7))
 
     def update(self, delta_time, player):
+        self._age      += delta_time
         self._lifetime -= delta_time
         if self._lifetime <= 0:
             self.is_alive = False
             return
-        if self.position.distance_to(player.position) <= self.RADIUS:
-            self._dmg_timer -= delta_time
-            if self._dmg_timer <= 0:
-                self._dmg_timer = self.DAMAGE_INTERVAL
+
+        dist             = (player.position - self.position).length()
+        currently_inside = dist <= self.RADIUS
+
+        if currently_inside and not self._player_inside:
+            # Daño instantáneo al entrar
+            player.take_damage(self.DAMAGE)
+            self._dmg_timer = 0.0
+        elif currently_inside:
+            self._dmg_timer += delta_time
+            if self._dmg_timer >= self.DAMAGE_INTERVAL:
+                self._dmg_timer -= self.DAMAGE_INTERVAL
                 player.take_damage(self.DAMAGE)
         else:
-            # Reset timer when player steps out so there's no instant
-            # damage the moment they walk back in.
+            # Resetear timer al salir para evitar daño inmediato al volver a entrar
             self._dmg_timer = self.DAMAGE_INTERVAL
 
+        self._player_inside = currently_inside
+
     def draw(self, screen, camera):
-        pos   = self.position - camera.position
-        alpha = int(180 * (self._lifetime / self.LIFETIME))
-        r     = self.RADIUS
-        surf  = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
-        pygame.draw.circle(surf, (80, 200, 50, alpha), (r, r), r)
-        screen.blit(surf, (pos.x - r, pos.y - r))
+        if not self.is_alive:
+            return
+        screen_pos = self.position - camera.position
+        rect = self._surf.get_rect(center=(int(screen_pos.x), int(screen_pos.y)))
+
+        # Fade-out en los últimos 2 segundos
+        fade_start = max(0.0, self.LIFETIME - 2.0)
+        if self._age >= fade_start:
+            alpha = int(255 * (1.0 - (self._age - fade_start) / 2.0))
+            tmp = self._surf.copy()
+            tmp.set_alpha(max(0, alpha))
+            screen.blit(tmp, rect)
+        else:
+            screen.blit(self._surf, rect)
 
 
 class ToxicEnemy(Enemy):
-    """Tóxico: deja charcos de ácido periódicamente al moverse."""
+    """Tóxico: deja charcos periódicamente al moverse. Ataca al contacto."""
     DEFAULT_SPEED   = 110
     ATTACK_RANGE    = 35
     DETECTION_RANGE = 600
@@ -194,7 +237,7 @@ class ToxicEnemy(Enemy):
         self._puddle_list: list = []
 
     def register_puddle_list(self, puddle_list: list):
-        """Recibe la lista compartida de charcos de la escena."""
+        """La escena/WaveManager debe llamar esto para conectar la lista compartida."""
         self._puddle_list = puddle_list
 
     def can_attack(self, delta_time):
@@ -205,7 +248,7 @@ class ToxicEnemy(Enemy):
         return False
 
     def update(self, delta_time):
-        """Genera charcos periódicamente. Llamar desde el brain en cada frame."""
+        """Genera charcos periódicamente. Llamar desde ToxicBrain cada frame."""
         if not self._puddle_list:
             return
         self._puddle_timer += delta_time
@@ -215,7 +258,11 @@ class ToxicEnemy(Enemy):
 
 
 class ShooterEnemy(Enemy):
-    """Tirador a distancia. Huye si el jugador se acerca. Gestiona sus propias balas."""
+    """
+    Tirador a distancia con proyectiles físicos reales.
+    Huye si el jugador se acerca demasiado (FLEE_RANGE).
+    Gestiona sus propias balas internamente.
+    """
     DEFAULT_SPEED   = 130
     ATTACK_RANGE    = 350
     FLEE_RANGE      = 180
@@ -224,6 +271,7 @@ class ShooterEnemy(Enemy):
     BULLET_SPEED    = 420
     BULLET_DAMAGE   = 18
 
+    # Compatibilidad con draw_zone de level1_scene (no dibuja zona telegráfica)
     zone_active = False
     is_shooting = False
 
@@ -248,7 +296,7 @@ class ShooterEnemy(Enemy):
         return False
 
     def shoot(self, player):
-        """Dispara un proyectil hacia el jugador. Llamar desde ShooterBrain."""
+        """Dispara un proyectil hacia el jugador. Llamado desde ShooterBrain."""
         direction = player.position - self.position
         if direction.length() == 0:
             return
@@ -257,32 +305,28 @@ class ShooterEnemy(Enemy):
             "dir":    direction.normalize(),
             "damage": self.BULLET_DAMAGE,
         })
-        self.is_shooting = True
-        self.zone_active = True
 
     def update_bullets(self, delta_time, player):
-        """Mueve proyectiles y comprueba impacto. Llamar desde ShooterBrain."""
+        """Mueve proyectiles y comprueba impacto. Llamado desde ShooterBrain."""
         alive = []
         for b in self._bullets:
             b["pos"] += b["dir"] * self.BULLET_SPEED * delta_time
-            dist_player = b["pos"].distance_to(player.position)
-            dist_origin = b["pos"].distance_to(self.position)
-            if dist_player < 24:
+            if b["pos"].distance_to(player.position) < 24:
                 player.take_damage(b["damage"])
-            elif dist_origin < 1200:
+            elif b["pos"].distance_to(self.position) < 1200:
                 alive.append(b)
         self._bullets = alive
-        self.is_shooting = False
-        self.zone_active = False
 
     def draw_zone(self, screen, camera):
+        """Dibuja un aura circular tenue alrededor del tirador (rango de disparo)."""
         pos  = self.position - camera.position
         r    = self.ATTACK_RANGE
         surf = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
         pygame.draw.circle(surf, (220, 80, 0, 35), (r, r), r)
-        screen.blit(surf, (pos.x - r, pos.y - r))
+        screen.blit(surf, (int(pos.x) - r, int(pos.y) - r))
 
     def draw_bullets(self, screen, camera):
+        """Dibuja los proyectiles en vuelo."""
         for b in self._bullets:
             pos = b["pos"] - camera.position
             pygame.draw.circle(screen, (255, 200, 0), (int(pos.x), int(pos.y)), 5)
