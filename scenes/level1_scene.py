@@ -93,6 +93,8 @@ class Level1Scene(Scene):
         self._going_level_complete   = False
         self._total_kills            = 0
         self._inventory_open         = False
+        self._inv_right_click        = False  # un solo frame
+        self._aim_was_pressed         = False  # para detectar flanco
 
         # Mapa / puerta
         self._door             = None
@@ -146,8 +148,10 @@ class Level1Scene(Scene):
 
         if AudioManager._instance is None:
             AudioManager._instance = AudioManager()
+        # Cargar items siempre — ItemRegistry es idempotente si _items ya está lleno
         if not ItemRegistry._items:
             ItemRegistry()
+        if not ItemRegistry._items:
             ItemRegistry.load("assets/items/item_data.json")
 
         # Jugador
@@ -161,11 +165,28 @@ class Level1Scene(Scene):
         # Armas iniciales
         weapon = Ranged(
             "assets/weapons/AK47.png", "AK-47", 60, 1500,
-            "7.62", 15, 0.15, 0.6, muzzle_offset=(35, 15),
+            "7.62", 45, 0.15, 0.6, muzzle_offset=(35, 15),
         )
-        weapon.infinite_reserve = True
         self.player.inventory.add_weapon(self.player, weapon, "primary")
         self.player.inventory.add_weapon(self.player, TacticalKnife(), "secondary")
+
+        # Inventario inicial — IDs válidos de item_data.json
+        from item.item_instance import ItemInstance
+        _starting_items = [
+            "stim_patch",
+            "stim_patch",
+            "health_injector",
+            "adrenaline_shot",
+            "rad_suppressor",
+            "ammo_clip_762",    # 60 balas para AK-47
+            "ammo_clip_762",    # 60 balas para AK-47
+            "ammo_clip_12gauge", # 16 cartuchos para SPAS-12
+        ]
+        for item_id in _starting_items:
+            try:
+                self.player.inventory.add_item(ItemInstance(ItemRegistry.get(item_id)))
+            except Exception as e:
+                print(f"[INVENTORY] Item no encontrado '{item_id}': {e}")
 
         self.camera = Camera()
         self._toxic_puddles = []
@@ -173,7 +194,7 @@ class Level1Scene(Scene):
 
         # ADS effect + WeaponController
         ads_effect = StatusEffect(
-            "assets/effects/ads", "Aiming Down Sights", {"speed": -70}, -1
+            "assets/effects/ads", "Aiming Down Sights", {"speed": -30}, -1
         )
         self.weapon_controller = WeaponController(self.player, self.camera, ads_effect)
 
@@ -184,7 +205,7 @@ class Level1Scene(Scene):
         from item.item_drop_manager import DroppedWeapon
         from weapons.ranged.ranged_types import SPAS12
         pickup = SPAS12()
-        pickup.infinite_reserve = True
+        # Sin munición infinita — el jugador necesita ammo_clip_12gauge
         self._corridor_weapon = DroppedWeapon(
             pickup, (_ACX, _ACY - _ARENA_HALF - 400), slot="secondary"
         )
@@ -250,7 +271,7 @@ class Level1Scene(Scene):
         h, t   = _ARENA_HALF, _WALL_THICK
         door_w = 240
         dx, dy = cx, cy - h - t // 2
-        self._door = Door("Puerta Norte", (dx, dy), 500, self._on_north_door_open)
+        self._door = Door("Puerta Norte", (dx, dy), 100000, self._on_north_door_open)
         self._door_rect = pygame.Rect(dx - door_w // 2, dy - t // 2, door_w, t)
         self._door_collider = Collider(
             object(), Rectangle(dx, dy, t // 2, door_w // 2),
@@ -328,6 +349,11 @@ class Level1Scene(Scene):
     # ── Input ─────────────────────────────────────────────────────────────────
 
     def handle_events(self, input_handler):
+        # Click derecho: detectar flanco (False→True) de aim para inventario
+        aim_now = input_handler.actions.get("aim", False)
+        self._inv_right_click = aim_now and not self._aim_was_pressed
+        self._aim_was_pressed = aim_now
+
         if input_handler.actions.get("pause"):
             input_handler.actions["pause"] = False
             from scenes.pause_scene import PauseScene
@@ -369,6 +395,28 @@ class Level1Scene(Scene):
             self._inventory_open = not self._inventory_open
             return
 
+        if self._inventory_open:
+            from ui.inventory_menu import get_item_slot_rect
+            mouse_pos = input_handler.mouse_position
+
+            # Click izquierdo → usar consumible (solo en el frame del click)
+            if input_handler.actions.get("click_drop"):
+                input_handler.actions["click_drop"] = False
+                input_handler.actions["attack"] = False
+                for i in range(len(self.player.inventory.items)):
+                    if get_item_slot_rect(i).collidepoint(mouse_pos):
+                        self.player.inventory.use_consumable_hotkey(i, self.player)
+                        break
+
+            # Click derecho → tirar item (solo en KEYDOWN, no continuo)
+            if input_handler.keys_just_pressed.get(pygame.K_RSHIFT, False):
+                # fallback — no usar aim porque es estado continuo
+                pass
+            if self._inv_right_click:
+                self._inv_right_click = False
+                self.player.inventory.click_drop_item(mouse_pos)
+            return
+
         if input_handler.actions["hotkey_slot"] >= 0:
             self.player.inventory.select_item(input_handler.actions["hotkey_slot"])
         if input_handler.actions["use_item"]:
@@ -382,6 +430,12 @@ class Level1Scene(Scene):
 
         if self._cutscene_active:
             self._update_cutscene(delta_time)
+            return
+
+        # Pausar lógica de juego mientras hay diálogo o inventario activo
+        if self._dialog_manager and self._dialog_manager.is_dialog_active:
+            return
+        if self._inventory_open:
             return
 
         # ── Wave managers ──────────────────────────────────────────────────
@@ -507,7 +561,7 @@ class Level1Scene(Scene):
             arena_center=(_ACX, _ACY),
             arena_half=_ARENA_HALF,
             arena_mix=True,
-            rest_time=8.0,
+            rest_time=3.0,
             puddle_list=self._toxic_puddles,
         )
         self._wave_manager.set_on_complete(self._on_waves_complete)
@@ -522,7 +576,7 @@ class Level1Scene(Scene):
             arena_center=(_ACX, north_cy),
             arena_half=north_sq,
             arena_mix=True,
-            rest_time=5.0,
+            rest_time=3.0,
             puddle_list=self._toxic_puddles,
             start_wave=7,
             hp_scale_per_wave=0.10,
@@ -644,6 +698,10 @@ class Level1Scene(Scene):
                 enemy.draw_bullets(screen, self.camera)
         screen.blit(entity_surf, (0, 0))
 
+        # Items dropeados en el suelo
+        if self.player and self.player.inventory.drop_manager:
+            self.player.inventory.drop_manager.draw(screen, self.camera)
+
         if self.audres:
             self.audres.draw(screen, self.camera)
         self.player.draw(screen, self.camera)
@@ -675,13 +733,8 @@ class Level1Scene(Scene):
             draw_dialog_ui(screen, self._dialog_manager)
 
         if self._inventory_open:
-            mouse_pos = self.director._input_handler.mouse_position
-            im = self.director._input_handler
-            if im.actions.get("click_drop"):
-                im.actions["click_drop"] = False
-                self.player.inventory.click_drop_item(mouse_pos)
-            from character_scripts.player.inventory import show_inventory
-            show_inventory(screen, self.player)
+            from ui.inventory_menu import draw_inventory_screen
+            draw_inventory_screen(screen, self.player, mouse_pos)
         else:
             if self.director._input_handler:
                 self.director._input_handler.actions["click_drop"] = False

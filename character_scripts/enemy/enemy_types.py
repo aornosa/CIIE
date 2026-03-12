@@ -25,7 +25,7 @@ from character_scripts.enemy.enemy_base import Enemy
 
 class InfectedCommon(Enemy):
     """Civil infectado. Bajo HP, bajo daño, velocidad media."""
-    ATTACK_RANGE    = 45
+    ATTACK_RANGE    = 32
     DETECTION_RANGE = 500
     ATTACK_COOLDOWN = 1.2
 
@@ -33,11 +33,11 @@ class InfectedCommon(Enemy):
         super().__init__(
             asset="assets/enemies/infected_common/infected_common.png",
             position=position,
-            scale=0.25,
+            scale=0.20,
             name="Infectado",
             health=160,
             strength=12,
-            speed=90,
+            speed=120,
         )
         self._attack_timer = 0.0
 
@@ -51,7 +51,7 @@ class InfectedCommon(Enemy):
 
 class InfectedSoldier(Enemy):
     """Exsoldado infectado. HP medio-alto, daño alto, velocidad media-baja."""
-    ATTACK_RANGE    = 55
+    ATTACK_RANGE    = 38
     DETECTION_RANGE = 600
     ATTACK_COOLDOWN = 1.8
 
@@ -59,11 +59,11 @@ class InfectedSoldier(Enemy):
         super().__init__(
             asset="assets/enemies/infected_soldier/infected_soldier.png",
             position=position,
-            scale=0.28,
+            scale=0.22,
             name="Soldado Infectado",
             health=420,
             strength=28,
-            speed=70,
+            speed=95,
         )
         self._attack_timer = 0.0
 
@@ -77,7 +77,7 @@ class InfectedSoldier(Enemy):
 
 class LabSubject(Enemy):
     """Sujeto de laboratorio. Muy alto HP, daño devastador, muy lento."""
-    ATTACK_RANGE    = 70
+    ATTACK_RANGE    = 42
     DETECTION_RANGE = 400
     ATTACK_COOLDOWN = 2.5
 
@@ -85,11 +85,11 @@ class LabSubject(Enemy):
         super().__init__(
             asset="assets/enemies/lab_subject/lab_subject.png",
             position=position,
-            scale=0.35,
+            scale=0.28,
             name="Sujeto de Laboratorio",
             health=800,
             strength=55,
-            speed=45,
+            speed=60,
         )
         self._attack_timer = 0.0
 
@@ -108,8 +108,8 @@ class LabSubject(Enemy):
 
 class TankEnemy(Enemy):
     """Tanque: muy resistente, lento, empuja al contacto."""
-    DEFAULT_SPEED   = 65
-    ATTACK_RANGE    = 60
+    DEFAULT_SPEED   = 85
+    ATTACK_RANGE    = 40
     DETECTION_RANGE = 800
     ATTACK_COOLDOWN = 2.0
 
@@ -117,7 +117,7 @@ class TankEnemy(Enemy):
         super().__init__(
             asset="assets/enemies/red.png",
             position=position,
-            scale=0.38,
+            scale=0.15,
             name="Tanque",
             health=600,
             strength=35,
@@ -170,8 +170,8 @@ class ToxicPuddle:
 
 class ToxicEnemy(Enemy):
     """Tóxico: deja charcos de ácido periódicamente al moverse."""
-    DEFAULT_SPEED   = 80
-    ATTACK_RANGE    = 50
+    DEFAULT_SPEED   = 110
+    ATTACK_RANGE    = 35
     DETECTION_RANGE = 600
     ATTACK_COOLDOWN = 1.5
     PUDDLE_INTERVAL = 2.5
@@ -180,7 +180,7 @@ class ToxicEnemy(Enemy):
         super().__init__(
             asset="assets/enemies/green.png",
             position=position,
-            scale=0.25,
+            scale=0.12,
             name="Tóxico",
             health=220,
             strength=15,
@@ -213,7 +213,7 @@ class ToxicEnemy(Enemy):
 
 class ShooterEnemy(Enemy):
     """Tirador a distancia. Huye si el jugador se acerca. Gestiona sus propias balas."""
-    DEFAULT_SPEED   = 90
+    DEFAULT_SPEED   = 130
     ATTACK_RANGE    = 350
     FLEE_RANGE      = 180
     DETECTION_RANGE = 700
@@ -228,7 +228,7 @@ class ShooterEnemy(Enemy):
         super().__init__(
             asset="assets/enemies/yellow.png",
             position=position,
-            scale=0.22,
+            scale=0.10,
             name="Tirador",
             health=180,
             strength=ShooterEnemy.BULLET_DAMAGE,
@@ -262,10 +262,14 @@ class ShooterEnemy(Enemy):
         alive = []
         for b in self._bullets:
             b["pos"] += b["dir"] * self.BULLET_SPEED * delta_time
-            if b["pos"].distance_to(player.position) < 24:
+            dist_player = b["pos"].distance_to(player.position)
+            dist_origin = b["pos"].distance_to(self.position)
+            if dist_player < 24:
                 player.take_damage(b["damage"])
-            elif b["pos"].distance_to(self.position) < 900:
+                # bala consumida — no se añade a alive
+            elif dist_origin < 1200:
                 alive.append(b)
+            # si supera 1200px del origen, se descarta silenciosamente
         self._bullets = alive
         self.is_shooting = False
         self.zone_active = False

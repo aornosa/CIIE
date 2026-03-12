@@ -1,12 +1,12 @@
 """
 character_scripts/enemy/enemy_brain.py
 ----------------------------------------
-Sistema de IA de enemigos. Cada Brain implementa decide_action().
+Sistema de IA de enemigos. Todos los tipos persiguen activamente al jugador.
 
 Melee:
-  InfectedCommonBrain  — persigue y ataca cuerpo a cuerpo
-  InfectedSoldierBrain — acecha lento, carga rápido al acercarse
-  LabSubjectBrain      — patrulla errática; una vez alertado, no se detiene
+  InfectedCommonBrain  — persigue directo sin patrulla
+  InfectedSoldierBrain — persigue sin fases de acecho
+  LabSubjectBrain      — persigue sin condición de alerta
 
 Arena (Nivel 1):
   TankBrain            — persigue directo, ataca al contacto
@@ -60,105 +60,45 @@ class EnemyBrain:
                 and self.enemy.can_attack(delta_time)):
             self.player.take_damage(self.enemy.strength)
 
-    # ── Patrulla genérica reutilizable ────────────────────────────────────
-
-    def _init_patrol(self, radius=150):
-        self._patrol_origin = pygame.Vector2(self.enemy.position)
-        self._patrol_target = self._new_patrol_target(radius)
-        self._patrol_radius = radius
-        self._patrol_wait   = 0.0
-
-    def _new_patrol_target(self, radius=None):
-        r      = radius or getattr(self, "_patrol_radius", 150)
-        offset = pygame.Vector2(r, 0).rotate(random.uniform(0, 360))
-        return self._patrol_origin + offset
-
-    def _patrol(self, delta_time, speed_factor=0.4):
-        if self._patrol_wait > 0:
-            self._patrol_wait -= delta_time
-            self.controller.move(pygame.Vector2(0, 0), delta_time)
-            return
-        dist = self.enemy.position.distance_to(self._patrol_target)
-        if dist < 24:
-            self._patrol_target = self._new_patrol_target()
-            self._patrol_wait   = random.uniform(0.5, 1.5)
-            return
-        direction = (self._patrol_target - self.enemy.position).normalize()
-        self.enemy.rotation         = direction.angle_to(pygame.Vector2(0, -1))
-        self.controller.speed       = self.enemy.speed * speed_factor
-        self.controller.move(direction, delta_time)
-
 
 # ══════════════════════════════════════════════════════════════════════════════
-# MELEE
+# MELEE — todos persiguen sin fases de espera
 # ══════════════════════════════════════════════════════════════════════════════
 
 class InfectedCommonBrain(EnemyBrain):
-    """Deambula lentamente; persigue y ataca al detectar al jugador."""
-    def __init__(self, enemy, controller, player):
-        super().__init__(enemy, controller, player)
-        self._init_patrol(radius=180)
-
+    """Persigue directamente al jugador en todo momento."""
     def decide_action(self, delta_time):
-        dist = self.distance_to_player()
         self.face_player()
-        if dist <= self.enemy.DETECTION_RANGE:
-            if dist <= self.enemy.ATTACK_RANGE:
-                self.controller.move(pygame.Vector2(0, 0), delta_time)
-                self.try_attack(delta_time)
-            else:
-                self.follow(delta_time)
-        else:
-            self._patrol(delta_time, speed_factor=0.35)
-
-
-class InfectedSoldierBrain(EnemyBrain):
-    """Patrulla amplia; acecha lento, carga rápido al acercarse."""
-    CHASE_RANGE = 180
-
-    def __init__(self, enemy, controller, player):
-        super().__init__(enemy, controller, player)
-        self._stalk_speed = max(30, enemy.speed * 0.5)
-        self._chase_speed = enemy.speed
-        self._init_patrol(radius=250)
-
-    def decide_action(self, delta_time):
         dist = self.distance_to_player()
-        self.face_player()
-        if dist > self.enemy.DETECTION_RANGE:
-            self._patrol(delta_time, speed_factor=0.4)
-            return
         if dist <= self.enemy.ATTACK_RANGE:
             self.controller.move(pygame.Vector2(0, 0), delta_time)
             self.try_attack(delta_time)
-        elif dist <= self.CHASE_RANGE:
-            self.controller.speed = self._chase_speed
-            self.controller.move(self.direction_to_player(), delta_time)
         else:
-            self.controller.speed = self._stalk_speed
-            self.controller.move(self.direction_to_player(), delta_time)
+            self.follow(delta_time)
+
+
+class InfectedSoldierBrain(EnemyBrain):
+    """Persigue al jugador sin fases de acecho ni patrulla."""
+    def decide_action(self, delta_time):
+        self.face_player()
+        dist = self.distance_to_player()
+        if dist <= self.enemy.ATTACK_RANGE:
+            self.controller.move(pygame.Vector2(0, 0), delta_time)
+            self.try_attack(delta_time)
+        else:
+            self.follow(delta_time)
 
 
 class LabSubjectBrain(EnemyBrain):
-    """Patrulla errática; una vez alertado no para hasta atacar."""
-    def __init__(self, enemy, controller, player):
-        super().__init__(enemy, controller, player)
-        self._init_patrol(radius=120)
-        self._alerted = False
-
+    """Persigue sin condición de alerta — siempre va a por el jugador."""
     def decide_action(self, delta_time):
-        dist = self.distance_to_player()
         self.face_player()
-        if dist <= self.enemy.DETECTION_RANGE:
-            self._alerted = True
-        if self._alerted:
-            if dist <= self.enemy.ATTACK_RANGE:
-                self.controller.move(pygame.Vector2(0, 0), delta_time)
-                self.try_attack(delta_time)
-            else:
-                self.follow(delta_time)
+        dist = self.distance_to_player()
+        if dist <= self.enemy.ATTACK_RANGE:
+            self.controller.move(pygame.Vector2(0, 0), delta_time)
+            self.try_attack(delta_time)
         else:
-            self._patrol(delta_time, speed_factor=0.45)
+            self.follow(delta_time)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

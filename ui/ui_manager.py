@@ -6,11 +6,10 @@ FONT_28 = None
 FONT_22 = None
 FONT_18 = None
 
-# ── Damage flash state ─────────────────────────────────────────────────────────
-_last_hp        = None   # hp del frame anterior
-_flash_alpha    = 0.0    # alpha actual del overlay rojo (0-120)
-_FLASH_PEAK     = 90    # alpha máximo al recibir daño
-_FLASH_DECAY    = 70     # unidades de alpha que se pierden por segundo (~1.7s duración)
+_last_hp        = None
+_flash_alpha    = 0.0
+_FLASH_PEAK     = 90
+_FLASH_DECAY    = 70
 
 
 def _get_fonts():
@@ -22,27 +21,23 @@ def _get_fonts():
     return FONT_28, FONT_22, FONT_18
 
 
-# ── Constantes de layout ───────────────────────────────────────────────────────
 SLOT_COUNT  = 6
 SLOT_SIZE   = 64
 SLOT_GAP    = 8
 TOTAL_WIDTH = SLOT_COUNT * SLOT_SIZE + (SLOT_COUNT - 1) * SLOT_GAP
 BAR_X       = (SCREEN_WIDTH - TOTAL_WIDTH) // 2
-BAR_Y       = SCREEN_HEIGHT - SLOT_SIZE - 20  # y=996 a 1080p
+BAR_Y       = SCREEN_HEIGHT - SLOT_SIZE - 20
 
 PANEL_W = 260
 PANEL_H = 70
-PANEL_Y = BAR_Y  # alineado con la hotbar
+PANEL_Y = BAR_Y
 
-
-# ── Entrada pública ────────────────────────────────────────────────────────────
 
 def draw_overlay(screen, player, wave_manager=None, delta_time=0.016):
     global _last_hp, _flash_alpha
 
     font_big, font_med, font_sml = _get_fonts()
 
-    # Detectar daño recibido
     current_hp = player.health
     if _last_hp is not None and current_hp < _last_hp:
         _flash_alpha = _FLASH_PEAK
@@ -50,35 +45,23 @@ def draw_overlay(screen, player, wave_manager=None, delta_time=0.016):
 
     _draw_hotkey_bar(screen, player, font_sml)
     _draw_health(screen, player, font_med)
-    _draw_coins(screen, player, font_med)
     _draw_weapon(screen, player, font_big, font_med, font_sml)
     _draw_interaction_tooltip(screen, player)
     if wave_manager is not None:
         _draw_wave_hud(screen, wave_manager, player, font_big, font_med, font_sml)
 
-    # Damage flash — se dibuja encima de todo el HUD
     if _flash_alpha > 0:
         _draw_damage_flash(screen, delta_time)
 
 
-# ── Damage flash ───────────────────────────────────────────────────────────────
-
 def _draw_damage_flash(screen, delta_time):
     global _flash_alpha
-
-    W = screen.get_width()
-    H = screen.get_height()
-
-    # Surface rojo semitransparente sobre toda la pantalla
+    W, H = screen.get_width(), screen.get_height()
     overlay = pygame.Surface((W, H), pygame.SRCALPHA)
     overlay.fill((180, 0, 0, int(_flash_alpha)))
     screen.blit(overlay, (0, 0))
-
-    # Desvanecer gradualmente
     _flash_alpha = max(0.0, _flash_alpha - _FLASH_DECAY * delta_time)
 
-
-# ── Vida ───────────────────────────────────────────────────────────────────────
 
 def _draw_health(screen, player, font_med):
     hp     = max(0, player.health)
@@ -91,47 +74,16 @@ def _draw_health(screen, player, font_med):
     pygame.draw.rect(panel, (80, 80, 100), (0, 0, PANEL_W, PANEL_H), 2, border_radius=6)
     screen.blit(panel, (panel_x, PANEL_Y))
 
-    label = font_med.render("VIDA", True, (180, 180, 180))
-    screen.blit(label, (panel_x + 12, PANEL_Y + 8))
-
+    screen.blit(font_med.render("VIDA", True, (180, 180, 180)), (panel_x + 12, PANEL_Y + 8))
     val = font_med.render(f"{hp} / {hp_max}", True, (255, 255, 255))
     screen.blit(val, (panel_x + PANEL_W - val.get_width() - 12, PANEL_Y + 8))
 
-    bar_x = panel_x + 12
-    bar_y = PANEL_Y + 42
-    bar_w = PANEL_W - 24
-    bar_h = 14
-
+    bar_x, bar_y, bar_w, bar_h = panel_x + 12, PANEL_Y + 42, PANEL_W - 24, 14
     color = (60, 220, 90) if ratio > 0.6 else (230, 190, 40) if ratio > 0.3 else (220, 50, 50)
     pygame.draw.rect(screen, (30, 15, 15), (bar_x, bar_y, bar_w, bar_h), border_radius=3)
     pygame.draw.rect(screen, color, (bar_x, bar_y, max(2, int(bar_w * ratio)), bar_h), border_radius=3)
     pygame.draw.rect(screen, (80, 80, 100), (bar_x, bar_y, bar_w, bar_h), 1, border_radius=3)
 
-
-# ── Monedas ────────────────────────────────────────────────────────────────────
-
-_COIN_PANEL_W   = 160
-_COIN_PANEL_H   = 36
-_COIN_PANEL_GAP = 6   # separación respecto al panel de vida
-
-def _draw_coins(screen, player, font_med):
-    coins   = getattr(player, "coins", 0)
-    panel_x = 20
-    panel_y = PANEL_Y - _COIN_PANEL_H - _COIN_PANEL_GAP
-
-    panel = pygame.Surface((_COIN_PANEL_W, _COIN_PANEL_H), pygame.SRCALPHA)
-    panel.fill((10, 10, 20, 180))
-    pygame.draw.rect(panel, (80, 80, 100), (0, 0, _COIN_PANEL_W, _COIN_PANEL_H), 2, border_radius=6)
-    screen.blit(panel, (panel_x, panel_y))
-
-    icon = font_med.render("●", True, (255, 210, 0))
-    screen.blit(icon, (panel_x + 10, panel_y + (_COIN_PANEL_H - icon.get_height()) // 2))
-
-    txt = font_med.render(str(coins), True, (255, 230, 120))
-    screen.blit(txt, (panel_x + 10 + icon.get_width() + 6, panel_y + (_COIN_PANEL_H - txt.get_height()) // 2))
-
-
-# ── Arma y munición ────────────────────────────────────────────────────────────
 
 def _draw_weapon(screen, player, font_big, font_med, font_sml):
     weapon  = player.inventory.get_weapon(player.inventory.active_weapon_slot)
@@ -143,8 +95,7 @@ def _draw_weapon(screen, player, font_big, font_med, font_sml):
     screen.blit(panel, (panel_x, PANEL_Y))
 
     if weapon is None:
-        txt = font_med.render("Sin arma", True, (130, 130, 130))
-        screen.blit(txt, (panel_x + 12, PANEL_Y + 22))
+        screen.blit(font_med.render("Sin arma", True, (130, 130, 130)), (panel_x + 12, PANEL_Y + 22))
         return
 
     screen.blit(font_med.render(weapon.name, True, (180, 180, 220)), (panel_x + 12, PANEL_Y + 8))
@@ -172,8 +123,6 @@ def _get_reserve(weapon) -> int:
     return total
 
 
-# ── Hotkey bar ─────────────────────────────────────────────────────────────────
-
 def _draw_hotkey_bar(screen, player, font_sml):
     inventory = player.inventory
     bar_surf  = pygame.Surface((TOTAL_WIDTH + SLOT_GAP, SLOT_SIZE + SLOT_GAP), pygame.SRCALPHA)
@@ -183,49 +132,24 @@ def _draw_hotkey_bar(screen, player, font_sml):
         slot_rect     = pygame.Rect(slot_x, 0, SLOT_SIZE, SLOT_SIZE)
         item          = inventory.items[i] if i < len(inventory.items) else None
         is_consumable = item is not None and item.type == "consumable"
-        is_selected   = (i == inventory.selected_item_index)
 
-        # Base colors — neutral for all items
-        bg_color     = (30, 30, 35, 200) if item else (20, 20, 22, 140)
-        border_color = (60, 60, 70) if item else (90, 90, 100)
-
-        # Highlight if selected
-        if is_selected:
-            bg_color     = (100, 90, 30, 255)
-            border_color = (255, 255, 100)
+        bg_color     = (70, 65, 20, 220) if is_consumable else ((30, 30, 35, 200) if item else (20, 20, 22, 140))
+        border_color = (255, 220, 50)    if is_consumable else ((60, 60, 70)       if item else (90, 90, 100))
 
         pygame.draw.rect(bar_surf, bg_color,     slot_rect, border_radius=6)
-        pygame.draw.rect(bar_surf, border_color, slot_rect, 2 if not is_selected else 4, border_radius=6)
+        pygame.draw.rect(bar_surf, border_color, slot_rect, 2, border_radius=6)
 
         if item is not None:
             icon = pygame.transform.scale(item.asset, (SLOT_SIZE - 14, SLOT_SIZE - 14))
             if not is_consumable:
                 icon.set_alpha(120)
             bar_surf.blit(icon, (slot_x + 7, 7))
-            
-            # Cooldown indicator for hotkey bar
-            cooldown_timer = getattr(item, "cooldown_timer", 0.0)
-            cooldown_max = getattr(item, "cooldown", 0.0)
-            if cooldown_timer > 0 and cooldown_max > 0:
-                ratio = cooldown_timer / cooldown_max
-                h = int(SLOT_SIZE * ratio)
-                cd_rect = pygame.Rect(slot_x, SLOT_SIZE - h, SLOT_SIZE, h)
-                pygame.draw.rect(bar_surf, (0, 0, 0, 180), cd_rect, border_radius=6)
-                
-                # We can't easily blit centered text without FONT_25 here, but we can use font_sml
-                time_text = f"{cooldown_timer:.1f}"
-                time_surf = font_sml.render(time_text, True, (255, 255, 255))
-                tx = slot_x + (SLOT_SIZE - time_surf.get_width()) // 2
-                ty = (SLOT_SIZE - time_surf.get_height()) // 2
-                bar_surf.blit(time_surf, (tx, ty))
 
-        label_color = (255, 255, 255) if is_selected else (200, 200, 200)
+        label_color = (255, 255, 180) if is_consumable else (200, 200, 200)
         bar_surf.blit(font_sml.render(str(i + 1), True, label_color), (slot_x + 4, 2))
 
     screen.blit(bar_surf, (BAR_X, BAR_Y))
 
-
-# ── Tooltip de interacción ─────────────────────────────────────────────────────
 
 def _draw_interaction_tooltip(screen, player):
     from map.interactables.interaction_manager import InteractionManager
@@ -247,8 +171,6 @@ def _draw_interaction_tooltip(screen, player):
     screen.blit(surface, (bg_rect.x + padding, bg_rect.y + padding // 2))
 
 
-# ── Wave HUD ───────────────────────────────────────────────────────────────────
-
 def _draw_wave_hud(screen, wave_manager, player, font_big, font_med, font_sml):
     info    = wave_manager.get_hud_info()
     panel_w = 260
@@ -268,30 +190,30 @@ def _draw_wave_hud(screen, wave_manager, player, font_big, font_med, font_sml):
     screen.blit(font_med.render(f"Enemigos: {info['enemies_left']}", True, enemy_color),
                 (panel_x + 12, panel_y + 44))
 
-    screen.blit(font_sml.render(f"Puntuación: {player.score}", True, (180, 255, 180)),
+    screen.blit(font_sml.render(f"Pts: {player.score}", True, (180, 255, 180)),
                 (panel_x + 12, panel_y + 74))
 
-    if info["state"] == "resting":
-        _draw_rest_banner(screen, font_big, font_med, info)
+    # Sin banner entre oleadas — las rondas son continuas
 
 
-def _draw_rest_banner(screen, font_big, font_med, info):
-    lines = [
-        (f"OLEADA {info['wave']} COMPLETADA!",                      (255, 220, 50),  font_big),
-        (f"Proxima oleada: {info['wave']+1}/{info['total_waves']}", (200, 200, 200), font_med),
-        (f"Comenzando en {info['rest_timer']:.1f}s...",             (255, 100, 100), font_med),
-    ]
-    line_h   = 40
-    total_h  = len(lines) * line_h + 30
-    banner_w = 620
+def _draw_next_wave_banner(screen, font_big, font_med, info):
+    """Banner minimalista: número de oleada entrante + cuenta atrás."""
+    next_wave = info['wave'] + 1
+    total     = info['total_waves']
+    secs      = info['rest_timer']
+
+    line1 = font_big.render(f"OLEADA {next_wave} / {total}", True, (255, 220, 50))
+    line2 = font_med.render(f"Comenzando en {secs:.1f}s", True, (200, 200, 200))
+
+    banner_w = max(line1.get_width(), line2.get_width()) + 80
+    banner_h = 96
     bx = SCREEN_WIDTH  // 2 - banner_w // 2
-    by = SCREEN_HEIGHT // 2 - total_h  // 2 - 40
+    by = SCREEN_HEIGHT // 2 - banner_h // 2 - 60
 
-    banner = pygame.Surface((banner_w, total_h), pygame.SRCALPHA)
-    banner.fill((10, 10, 20, 200))
-    pygame.draw.rect(banner, (100, 100, 130), (0, 0, banner_w, total_h), 2, border_radius=8)
+    banner = pygame.Surface((banner_w, banner_h), pygame.SRCALPHA)
+    banner.fill((10, 10, 20, 210))
+    pygame.draw.rect(banner, (100, 100, 130), (0, 0, banner_w, banner_h), 2, border_radius=8)
     screen.blit(banner, (bx, by))
 
-    for i, (text, color, font) in enumerate(lines):
-        surf = font.render(text, True, color)
-        screen.blit(surf, (bx + banner_w // 2 - surf.get_width() // 2, by + 15 + i * line_h))
+    screen.blit(line1, (bx + banner_w // 2 - line1.get_width() // 2, by + 12))
+    screen.blit(line2, (bx + banner_w // 2 - line2.get_width() // 2, by + 56))

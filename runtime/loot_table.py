@@ -1,12 +1,11 @@
 """
 runtime/loot_table.py
------------------------
-Tablas de loot y puntuación para todos los tipos de enemigo.
-on_enemy_killed() es llamado automáticamente desde enemy_base.Enemy.die()
-cuando enemy._player_ref está asignado (lo hace WaveManager al spawnear).
+----------------------
+Tablas de loot y recompensas de puntuación por tipo de enemigo.
 
-IDs de items válidos (definidos en assets/items/item_data.json):
-  phoenix_injector, adrenaline_shot, rad_suppressor, stim_patch, dash_ability
+IDs válidos (item_data.json):
+  ammo_clip_762 (cap 60), ammo_clip_12gauge (cap 16), ammo_clip_9mm (cap 30)
+  health_injector, stim_patch, adrenaline_shot, rad_suppressor
 """
 from __future__ import annotations
 import random
@@ -17,66 +16,61 @@ if TYPE_CHECKING:
     from character_scripts.player.player import Player
 
 
-# ── Loot (item_id, probabilidad de drop) ─────────────────────────────────────
 LOOT_TABLES = {
-    # Oleadas clásicas
     "InfectedCommon": [
-        ("stim_patch",        0.08),
-        ("phoenix_injector",  0.04),
+        ("ammo_clip_762", 0.20),
+        ("stim_patch",    0.08),
     ],
     "InfectedSoldier": [
-        ("stim_patch",        0.12),
-        ("phoenix_injector",  0.07),
-        ("adrenaline_shot",   0.04),
+        ("ammo_clip_762",   0.25),
+        ("stim_patch",      0.12),
+        ("health_injector", 0.05),
     ],
     "LabSubject": [
-        ("phoenix_injector",  0.15),
-        ("adrenaline_shot",   0.10),
-        ("rad_suppressor",    0.08),
-        ("stim_patch",        0.06),
+        ("ammo_clip_762",   0.30),
+        ("health_injector", 0.15),
+        ("adrenaline_shot", 0.10),
+        ("rad_suppressor",  0.07),
     ],
-
-    # Arena — Nivel 1
     "TankEnemy": [
-        ("phoenix_injector",  0.20),
-        ("stim_patch",        0.12),
-        ("adrenaline_shot",   0.06),
+        ("ammo_clip_762",    0.20),
+        ("ammo_clip_12gauge",0.15),  # también carga la SPAS-12
+        ("health_injector",  0.10),
+        ("stim_patch",       0.08),
     ],
     "ToxicEnemy": [
-        ("rad_suppressor",    0.12),
-        ("stim_patch",        0.08),
-        ("phoenix_injector",  0.05),
+        ("ammo_clip_762", 0.20),
+        ("stim_patch",    0.10),
+        ("rad_suppressor", 0.06),
     ],
     "ShooterEnemy": [
-        ("stim_patch",        0.15),
-        ("phoenix_injector",  0.06),
-        ("adrenaline_shot",   0.05),
+        ("ammo_clip_762",  0.25),
+        ("ammo_clip_9mm",  0.15),
+        ("stim_patch",     0.08),
+        ("adrenaline_shot",0.06),
     ],
 }
 
-# ── Puntuación por muerte ─────────────────────────────────────────────────────
+# Puntuación inflada ×5 respecto a la versión original
 SCORE_REWARDS = {
-    "InfectedCommon":  100,
-    "InfectedSoldier": 250,
-    "LabSubject":      500,
-    "TankEnemy":       350,
-    "ToxicEnemy":      200,
-    "ShooterEnemy":    220,
+    "InfectedCommon":  500,
+    "InfectedSoldier": 1250,
+    "LabSubject":      2500,
+    "TankEnemy":       1750,
+    "ToxicEnemy":      1000,
+    "ShooterEnemy":    1100,
 }
 
 
 def on_enemy_killed(enemy: "Enemy", player: "Player"):
-    """
-    Llamado desde Enemy.die() cuando _player_ref está asignado.
-    Otorga puntos y lanza la tirada de loot.
-    """
     enemy_type = type(enemy).__name__
 
-    points = SCORE_REWARDS.get(enemy_type, 100)
+    points = SCORE_REWARDS.get(enemy_type, 500)
     player.add_score(points)
     print(f"[LOOT] +{points} pts ({enemy_type}). Total: {player.score}")
 
-    _try_drop(LOOT_TABLES.get(enemy_type, []), enemy, player)
+    table = LOOT_TABLES.get(enemy_type, [])
+    _try_drop(table, enemy, player)
 
 
 def _try_drop(table: list, enemy: "Enemy", player: "Player"):
@@ -87,8 +81,10 @@ def _try_drop(table: list, enemy: "Enemy", player: "Player"):
         if random.random() > chance:
             continue
         try:
-            item = ItemInstance(ItemRegistry.get(item_id))
+            item_def = ItemRegistry.get(item_id)
+            item     = ItemInstance(item_def)
             player.inventory.drop_manager.drop_item(item, enemy.position)
-            print(f"[LOOT] Drop al suelo: {item_id}")
+            print(f"[LOOT] Drop: {item_def.name}")
+            return   # máximo 1 item por enemigo
         except Exception as e:
             print(f"[LOOT] Error al soltar {item_id}: {e}")

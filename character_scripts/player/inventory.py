@@ -18,15 +18,9 @@ class Inventory:
         self.max_size = 12
         self.items = []
         self.selected_item_index = -1
-        self.hotbar_size = 6  # Fixed visible hotbar size (slots 0-5)
 
         self.owner = None
         self.drop_manager = DropManager()
-
-    def update(self, delta_time: float):
-        for item in self.items:
-            if hasattr(item, "update"):
-                item.update(delta_time)
 
     def add_weapon(self, player, weapon, slot):
         weapon.parent = player
@@ -49,14 +43,10 @@ class Inventory:
 
     def drop_weapon(self, slot):
         if slot == "primary":
-            # instance weapon to ground (implement)
             self.drop_manager.drop_item(self.primary_weapon, self.primary_weapon.parent.position)
-            # Null slot
             self.primary_weapon = None
         elif slot == "secondary":
-            # instance weapon to ground
             self.drop_manager.drop_item(self.secondary_weapon, self.secondary_weapon.parent.position)
-            # Null slot
             self.secondary_weapon = None
 
     def swap_weapons(self):
@@ -69,9 +59,7 @@ class Inventory:
         return False
 
     def drop_item(self, item):
-        # instance item to ground (implement)
         self.drop_manager.drop_item(item, self.owner.position)
-        # Remove from inventory
         if item in self.items:
             self.items.remove(item)
 
@@ -85,8 +73,7 @@ class Inventory:
         return len(self.items) >= self.max_size
 
     def select_item(self, index: int):
-        """Select a hotbar slot (0-5). Slot is highlighted even if empty."""
-        if 0 <= index < self.hotbar_size:
+        if 0 <= index < len(self.items):
             self.selected_item_index = index
         else:
             self.selected_item_index = -1
@@ -102,65 +89,47 @@ class Inventory:
         item = self.items[self.selected_item_index]
         if item.type != "consumable":
             return False
-            
-        if item.cooldown_timer > 0:
-            return False
-
         success = use_consumable(item, player)
         if success:
-            if getattr(item, "cooldown", 0.0) > 0:
-                item.cooldown_timer = item.cooldown
-                
-            if not getattr(item, "reusable", False):
-                self.remove_item(item)
+            self.remove_item(item)
         return success
 
     def use_consumable_hotkey(self, slot_index: int, player) -> bool:
+        """Usa el consumible en slot_index (0-based). Devuelve True si se usó."""
         if slot_index < 0 or slot_index >= len(self.items):
             return False
         item = self.items[slot_index]
         if item.type != "consumable":
             return False
-            
-        if getattr(item, "cooldown_timer", 0.0) > 0:
-            return False
-
         success = use_consumable(item, player)
         if success:
-            if getattr(item, "cooldown", 0.0) > 0:
-                item.cooldown_timer = item.cooldown
-            
-            if not getattr(item, "reusable", False):
-                self.items.pop(slot_index)
-                if self.selected_item_index >= len(self.items):
-                    self.selected_item_index = len(self.items) - 1
+            self.items.pop(slot_index)
+            if self.selected_item_index >= len(self.items):
+                self.selected_item_index = len(self.items) - 1
         return success
 
+    def update(self, delta_time: float):
+        """Llamado cada frame por player.update(). Actualiza efectos de tiempo."""
+        pass  # Reservado para futuros efectos de duración (e.g. comida podrida)
 
     def click_drop_item(self, mouse_pos):
+        """Tira al suelo el item cuyo slot está bajo mouse_pos (clic der en inventario)."""
         for i, item in enumerate(self.items):
-            x = 100 + (i % 6) * 110
-            y = 550 + (i // 6) * 110
-            rect = pygame.Rect(x, y, 96, 96)
-
-
+            rect = menu.get_item_slot_rect(i)
             if rect.collidepoint(mouse_pos):
                 self.drop_item(item)
                 return True
-
         return False
 
+
 def show_inventory(screen, player):
-    menu.draw_weapon_box(screen, player.inventory.primary_weapon, (100, 100))
+    """Compatibilidad: dibuja el inventario SIN hover/tooltips (legacy)."""
+    menu.draw_weapon_box(screen, player.inventory.primary_weapon,   (100, 100))
     menu.draw_weapon_box(screen, player.inventory.secondary_weapon, (700, 100))
     menu.draw_player_status(screen, player, (1300, 100))
 
     for i in range(player.inventory.max_size):
-        x = 100 + (i % 6) * 110
-        y = 550 + (i // 6) * 110
-        if i < len(player.inventory.items):
-            item = player.inventory.items[i]
-            is_selected = (i == player.inventory.selected_item_index)
-            menu.draw_item_box(screen, item, (x, y), selected=is_selected)
-        else:
-            menu.draw_item_box(screen, None, (x, y))
+        rect = menu.get_item_slot_rect(i)
+        item = player.inventory.items[i] if i < len(player.inventory.items) else None
+        is_selected = (i == player.inventory.selected_item_index)
+        menu.draw_item_box(screen, item, rect.topleft, selected=is_selected)

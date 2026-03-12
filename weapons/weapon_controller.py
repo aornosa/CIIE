@@ -1,179 +1,143 @@
 """
 weapons/weapon_controller.py
------------------------------
-Gestiona toda la lógica de entrada relacionada con armas:
-  - Apuntado continuo hacia el ratón (siempre activo)
-  - Disparo  (ranged: shoot / melee: attack)
-  - Recarga
-  - Cambio de arma
-  - Efecto ADS (velocidad reducida al apuntar/disparar)
-
-Uso desde la escena:
-    # En __init__ / _build_level:
-    self.weapon_controller = WeaponController(self.player, self.camera, ads_effect)
-
-    # En render (necesita delta_time y el input_handler):
-    self.weapon_controller.update(input_handler, delta_time, player_screen_pos, mouse_pos)
-
-    # Para el trail visual del ranged (llamar después de update si se necesita):
-    self.weapon_controller.draw_trail(screen, player_screen_pos)
+------------------------------
+Gestiona disparo, recarga, cambio de arma y el bonus de velocidad
+al llevar un arma melee equipada.
 """
-
-from __future__ import annotations
-
 import pygame
-from game_math.utils import lerp_angle
 from weapons.ranged.ranged import Ranged
 from weapons.melee.melee import Melee
+from core.status_effects import StatusEffect
+
+_MELEE_SPEED_EFFECT_NAME = "Melee Agility"
+_MELEE_SPEED_BONUS       = 80    # +80 de velocidad con melee equipado
 
 
 class WeaponController:
-    """
-    Controlador de armas desacoplado de la escena.
 
-    Parámetros
-    ----------
-    player      — referencia al jugador
-    camera      — referencia a la cámara (para calcular posición en pantalla)
-    ads_effect  — StatusEffect a aplicar mientras se apunta/dispara (puede ser None)
-    """
-
-    def __init__(self, player, camera, ads_effect=None):
+    def __init__(self, player, camera=None, ads_effect=None):
         self.player     = player
         self.camera     = camera
         self.ads_effect = ads_effect
+        self._last_attack_time  = 0
+        self._attack_hold_time  = 0
+        self._melee_bonus_active = False
 
-        # Dirección actual hacia el ratón (normalizada), para uso externo
-        self.aim_direction: pygame.Vector2 = pygame.Vector2(0, -1)
+    # ── Actualización principal ───────────────────────────────────────────────
 
-    # ── API pública ────────────────────────────────────────────────────────────
-
-    def update(
-        self,
-        input_handler,
-        delta_time: float,
-        mouse_pos: pygame.Vector2,
-    ) -> None:
-        """
-        Llama una vez por frame desde la escena.
-
-        Parámetros
-        ----------
-        input_handler  — InputHandler con las acciones del frame
-        delta_time     — segundos desde el frame anterior
-        mouse_pos      — posición del ratón en coordenadas de pantalla
-        """
-        player = self.player
-        weapon = self._active_weapon()
-
-        # ── 1. Apuntado continuo al ratón ──────────────────────────────────
-        player_screen = player.position - self.camera.position
-        to_mouse = mouse_pos - player_screen
-
-        if to_mouse.length() > 1:
-            self.aim_direction = to_mouse.normalize()
-            target_angle = to_mouse.angle_to(pygame.Vector2(0, -1))
-            # Lerp más rápido cuando se está apuntando/disparando, suave en movimiento
-            lerp_speed = 14.0 if (input_handler.actions["attack"] or input_handler.actions["aim"]) else 8.0
-            player.rotation = lerp_angle(player.rotation, target_angle, lerp_speed * delta_time)
-
-        # ── 2. ADS ─────────────────────────────────────────────────────────
-        if self.ads_effect is not None:
-            if input_handler.actions["attack"] or input_handler.actions["aim"]:
-                player.add_effect(self.ads_effect)
-            else:
-                player.remove_effect(self.ads_effect.name)
-
-        if not weapon:
+    def update(self, input_handler, delta_time, mouse_pos=None):
+        if not self.player or not self.player.inventory:
             return
 
-        # ── 3. Cambio de arma ──────────────────────────────────────────────
-        if input_handler.actions["swap_weapon"]:
-            input_handler.actions["swap_weapon"] = False
-            player.inventory.swap_weapons()
-            weapon = self._active_weapon()
-
-        # ── 4. Recarga ─────────────────────────────────────────────────────
-        if input_handler.actions["reload"]:
-            input_handler.actions["reload"] = False
-            if isinstance(weapon, Ranged):
-                weapon.reload()
-
-        # ── 5. Disparo / ataque ────────────────────────────────────────────
-        if input_handler.actions["attack"]:
-            if isinstance(weapon, Ranged):
-                self._fire_ranged(weapon, player_screen)
-            elif isinstance(weapon, Melee):
-                weapon.attack()
-
-    def draw_trail(
-        self,
-        screen: pygame.Surface,
-        player_screen: pygame.Vector2,
-        weapon: Ranged | None = None,
-    ) -> None:
-        """
-        Dibuja el efecto de partículas de disparo del arma ranged activa.
-        Llamar después de update(), antes del flip.
-        """
-        if weapon is None:
-            weapon = self._active_weapon()
-        if not isinstance(weapon, Ranged):
-            return
-
-        direction = pygame.Vector2(0, -1).rotate(-self.player.rotation)
-        muzzle_pos = (
-            player_screen
-            + direction * weapon.muzzle_offset[0]
-            + direction.rotate(90) * weapon.muzzle_offset[1]
+        active_weapon = self.player.inventory.get_weapon(
+            self.player.inventory.active_weapon_slot
         )
-        weapon.play_trail_effect(screen, muzzle_pos, direction)
+        if not active_weapon:
+            self._remove_melee_bonus()
+            return
 
-    def setup_emitter(self, screen: pygame.Surface) -> None:
-        """Asigna screen y camera al emitter del arma ranged activa."""
-        weapon = self._active_weapon()
-        if isinstance(weapon, Ranged):
+        if hasattr(active_weapon, 'update'):
+            active_weapon.update()
+
+        # Rotar jugador hacia el ratón
+        if mouse_pos is not None and self.camera is not None:
+            from game_math import utils as math
+            direction = mouse_pos - (self.player.position - self.camera.position)
+            if direction.length() > 5:
+                target_angle = direction.angle_to(pygame.Vector2(0, -1))
+                aiming = input_handler.actions.get("attack") or input_handler.actions.get("aim")
+                lerp_speed = 20 * delta_time if aiming else 12 * delta_time
+                self.player.set_rotation(
+                    math.lerp_angle(self.player.rotation, target_angle, lerp_speed) + 0.164
+                )
+
+        # ADS effect
+        if self.ads_effect:
+            if input_handler.actions.get("attack") or input_handler.actions.get("aim"):
+                self.player.add_effect(self.ads_effect)
+            else:
+                self.player.remove_effect(self.ads_effect.name)
+
+        # Bonus de velocidad con melee
+        if isinstance(active_weapon, Melee):
+            self._apply_melee_bonus()
+        else:
+            self._remove_melee_bonus()
+
+        self._handle_attack(input_handler, active_weapon, delta_time)
+        self._handle_reload(input_handler, active_weapon)
+        self._handle_weapon_swap(input_handler)
+
+    # ── Melee speed bonus ─────────────────────────────────────────────────────
+
+    def _apply_melee_bonus(self):
+        if not self._melee_bonus_active:
+            effect = StatusEffect(
+                icon=None,
+                name=_MELEE_SPEED_EFFECT_NAME,
+                modifiers={"speed": _MELEE_SPEED_BONUS},
+                duration=-1,
+                is_buff=True,
+            )
+            self.player.add_effect(effect)
+            self._melee_bonus_active = True
+
+    def _remove_melee_bonus(self):
+        if self._melee_bonus_active:
+            self.player.remove_effect(_MELEE_SPEED_EFFECT_NAME)
+            self._melee_bonus_active = False
+
+    # ── Trail visual ──────────────────────────────────────────────────────────
+
+    def setup_emitter(self, screen):
+        """Configura el emitter de partículas del arma ranged activa."""
+        weapon = self.player.inventory.get_weapon(self.player.inventory.active_weapon_slot)
+        if isinstance(weapon, Ranged) and hasattr(weapon, 'emitter'):
             weapon.emitter.surface = screen
             weapon.emitter.camera  = self.camera
 
-    # ── Internos ───────────────────────────────────────────────────────────────
+    def draw_trail(self, screen, player_screen_pos, active_weapon):
+        if isinstance(active_weapon, Ranged) and hasattr(active_weapon, 'emitter'):
+            active_weapon.emitter.surface = screen
+            active_weapon.emitter.camera  = self.camera
 
-    def _active_weapon(self):
-        inv = self.player.inventory
-        return inv.get_weapon(inv.active_weapon_slot)
+    # ── Acciones ──────────────────────────────────────────────────────────────
 
-    def _fire_ranged(self, weapon: Ranged, player_screen: pygame.Vector2) -> None:
-        direction = pygame.Vector2(0, -1).rotate(-self.player.rotation)
-        muzzle_pos = (
-            player_screen
-            + direction * weapon.muzzle_offset[0]
-            + direction.rotate(90) * weapon.muzzle_offset[1]
-        )
-        weapon.play_trail_effect(None, muzzle_pos, direction)
-        weapon.shoot()
-
-
-class WeaponUIHelper:
-    """Utilidades estáticas para la UI de armas."""
-
-    @staticmethod
-    def format_ammo_display(weapon: Ranged) -> str:
-        in_clip, in_reserve = weapon.get_ammo_count()
-        return f"{in_clip}/{weapon.clip_size} ({in_reserve})"
-
-    @staticmethod
-    def get_reload_progress(weapon: Ranged) -> float:
-        if not weapon.is_reloading():
-            return 0.0
-        elapsed = (pygame.time.get_ticks() - weapon._reload_start_time) / 1000.0
-        return min(1.0, elapsed / weapon.reload_time)
-
-    @staticmethod
-    def get_attack_color(weapon) -> tuple:
+    def _handle_attack(self, input_handler, weapon, delta_time):
+        if not input_handler.actions.get("attack", False):
+            self._attack_hold_time = 0
+            return
+        self._attack_hold_time += delta_time
         if isinstance(weapon, Ranged):
-            if weapon.is_reloading():
-                return (255, 165, 0)
-            return (0, 255, 0) if weapon.can_shoot() else (255, 0, 0)
-        if isinstance(weapon, Melee):
-            return (0, 255, 0) if weapon.can_attack() else (255, 0, 0)
-        return (255, 255, 255)
+            weapon.shoot()
+        elif isinstance(weapon, Melee):
+            weapon.attack()
+
+    def _handle_reload(self, input_handler, weapon):
+        if not input_handler.actions.get("reload", False):
+            return
+        if isinstance(weapon, Ranged):
+            weapon.reload()
+            input_handler.actions["reload"] = False
+
+    def _handle_weapon_swap(self, input_handler):
+        if not input_handler.actions.get("swap_weapon", False):
+            return
+        self.player.inventory.swap_weapons()
+        input_handler.actions["swap_weapon"] = False
+
+    # ── Info ──────────────────────────────────────────────────────────────────
+
+    def get_active_weapon_info(self) -> dict:
+        weapon = self.player.inventory.get_weapon(self.player.inventory.active_weapon_slot)
+        if not weapon:
+            return None
+        info = {"name": weapon.name, "damage": weapon.damage,
+                "type": "ranged" if isinstance(weapon, Ranged) else "melee"}
+        if isinstance(weapon, Ranged):
+            info.update({"ammo_in_clip": weapon.current_clip, "clip_size": weapon.clip_size,
+                         "is_reloading": weapon.is_reloading(), "can_shoot": weapon.can_shoot()})
+        elif isinstance(weapon, Melee):
+            info.update({"attack_progress": weapon.get_attack_progress(),
+                         "can_attack": weapon.can_attack(), "reach": weapon.reach})
+        return info

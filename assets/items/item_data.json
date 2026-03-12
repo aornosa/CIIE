@@ -6,7 +6,7 @@
     "type": "ammo_clip",
     "ammo": {
       "ammo_type": "9x19",
-      "capacity": 15
+      "capacity": 30
     }
   },
 
@@ -17,7 +17,7 @@
     "type": "ammo_clip",
     "ammo": {
       "ammo_type": "12gauge",
-      "capacity": 8
+      "capacity": 16
     }
   },
 
@@ -28,7 +28,7 @@
     "type": "ammo_clip",
     "ammo": {
       "ammo_type": "7.62",
-      "capacity": 30
+      "capacity": 60
     }
   },
 
