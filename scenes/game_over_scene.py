@@ -9,12 +9,26 @@ _SELECT_COLOR  = (255, 220, 50)
 
 
 class GameOverScene(Scene):
-    def __init__(self, score: int, wave_reached: int):
+    # FIX: Accept either the new dict-based call  GameOverScene(stats={...})
+    # or the legacy positional call GameOverScene(score, wave_reached).
+    def __init__(self, stats=None, score: int = 0, wave_reached: int = 0):
         super().__init__()
-        self.score        = score
-        self.wave_reached = wave_reached
-        self.options      = ["Nueva Partida", "Menú Principal", "Salir"]
-        self.selected     = 0
+
+        if stats is not None and isinstance(stats, dict):
+            # New-style call from level1_scene: GameOverScene(stats={...})
+            self.score        = stats.get("score", 0)
+            self.wave_reached = stats.get("wave", stats.get("wave_reached", 0))
+            self.kills        = stats.get("kills", 0)
+            self.coins        = stats.get("coins", 0)
+        else:
+            # Legacy positional call: GameOverScene(score, wave_reached)
+            self.score        = score
+            self.wave_reached = wave_reached
+            self.kills        = 0
+            self.coins        = 0
+
+        self.options  = ["Nueva Partida", "Menú Principal", "Salir"]
+        self.selected = 0
 
         self._font_title       = pygame.font.SysFont("consolas", 72, bold=True)
         self._font_info        = pygame.font.SysFont("consolas", 36)
@@ -49,17 +63,24 @@ class GameOverScene(Scene):
         screen.fill((15, 5, 5))
 
         title = self._font_title.render("GAME OVER", True, _TITLE_COLOR)
-        screen.blit(title, (cx - title.get_width() // 2, int(H * 0.18)))
+        screen.blit(title, (cx - title.get_width() // 2, int(H * 0.15)))
 
-        cy = int(H * 0.38)
-        wave_surf = self._font_info.render(
-            f"Oleada alcanzada: {self.wave_reached}", True, _INFO_COLOR)
-        screen.blit(wave_surf, (cx - wave_surf.get_width() // 2, cy))
+        cy = int(H * 0.35)
 
-        cy += 55
-        score_surf = self._font_info.render(
-            f"Puntuación final: {self.score}", True, _SCORE_COLOR)
-        screen.blit(score_surf, (cx - score_surf.get_width() // 2, cy))
+        kills_surf = self._font_info.render(
+            f"Enemigos eliminados: {self.kills}", True, _INFO_COLOR)
+        screen.blit(kills_surf, (cx - kills_surf.get_width() // 2, cy))
+
+        cy += 50
+        coins_surf = self._font_info.render(
+            f"Monedas acumuladas: {self.coins}", True, (255, 215, 0))
+        screen.blit(coins_surf, (cx - coins_surf.get_width() // 2, cy))
+
+        if self.wave_reached > 0:
+            cy += 50
+            wave_surf = self._font_info.render(
+                f"Oleada alcanzada: {self.wave_reached}", True, _INFO_COLOR)
+            screen.blit(wave_surf, (cx - wave_surf.get_width() // 2, cy))
 
         cy += 80
         for i, opt in enumerate(self.options):

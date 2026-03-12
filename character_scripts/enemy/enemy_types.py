@@ -103,7 +103,6 @@ class LabSubject(Enemy):
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ARENA — Nivel 1
-# Usan sprites genéricos de color hasta tener assets definitivos.
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TankEnemy(Enemy):
@@ -143,7 +142,9 @@ class ToxicPuddle:
     def __init__(self, position):
         self.position   = pygame.Vector2(position)
         self._lifetime  = self.LIFETIME
-        self._dmg_timer = 0.0
+        # FIX: start timer at full interval so the puddle doesn't deal
+        # instant damage the very first frame it is created.
+        self._dmg_timer = self.DAMAGE_INTERVAL
         self.is_alive   = True
 
     def update(self, delta_time, player):
@@ -152,12 +153,14 @@ class ToxicPuddle:
             self.is_alive = False
             return
         if self.position.distance_to(player.position) <= self.RADIUS:
-            self._dmg_timer += delta_time
-            if self._dmg_timer >= self.DAMAGE_INTERVAL:
-                self._dmg_timer = 0.0
+            self._dmg_timer -= delta_time
+            if self._dmg_timer <= 0:
+                self._dmg_timer = self.DAMAGE_INTERVAL
                 player.take_damage(self.DAMAGE)
         else:
-            self._dmg_timer = 0.0
+            # Reset timer when player steps out so there's no instant
+            # damage the moment they walk back in.
+            self._dmg_timer = self.DAMAGE_INTERVAL
 
     def draw(self, screen, camera):
         pos   = self.position - camera.position
@@ -266,10 +269,8 @@ class ShooterEnemy(Enemy):
             dist_origin = b["pos"].distance_to(self.position)
             if dist_player < 24:
                 player.take_damage(b["damage"])
-                # bala consumida — no se añade a alive
             elif dist_origin < 1200:
                 alive.append(b)
-            # si supera 1200px del origen, se descarta silenciosamente
         self._bullets = alive
         self.is_shooting = False
         self.zone_active = False

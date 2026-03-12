@@ -1,8 +1,13 @@
 """
 scenes/level1_scene.py
 -----------------------
-Primer nivel del juego. Autocontenido: construye su mapa,
-gestiona oleadas con WaveManager y transiciona a GameOverScene o LevelCompleteScene.
+CAMBIOS:
+  • _contact_dmg_cd arranca en 1.0 (grace period) — evita daño invisible al spawnear
+  • _check_enemy_contact: guard hasattr(h, "owner") para colisionadores sin owner
+  • Nuevo estado _pending_weapon_item: cuando el jugador clica un WeaponItem en el
+    inventario se muestra el overlay de selección de slot (Primario/Secundario/Cancelar)
+  • Al confirmar slot, el WeaponItem se consume, el arma se equipa y la anterior
+    se tira al suelo
 """
 import pygame
 
@@ -30,27 +35,24 @@ from weapons.melee.melee import Melee
 from weapons.melee.melee_types import TacticalKnife
 from weapons.weapon_controller import WeaponController
 
-# ── Colores ───────────────────────────────────────────────────────────────────
 
 def _destroy_enemy(enemy):
-    """Destruye los MonoliteBehaviour internos de un enemigo."""
     if hasattr(enemy, "audio_emitter") and enemy.audio_emitter:
         enemy.audio_emitter.destroy()
-    from core.collision.collision_manager import CollisionManager
     if hasattr(enemy, "collider") and enemy.collider:
         CollisionManager.dynamic_colliders.discard(enemy.collider)
         CollisionManager.static_colliders.discard(enemy.collider)
+
+
 _BG_COLOR    = (20, 20, 28)
 _FLOOR_COLOR = (45, 45, 55)
 _WALL_COLOR  = (110, 90, 70)
 
-# ── Arena ─────────────────────────────────────────────────────────────────────
 _ARENA_HALF = 1000
 _WALL_THICK = 80
 _ACX        = SCREEN_WIDTH  // 2
 _ACY        = SCREEN_HEIGHT // 2
 
-# ── Spawns de la cutscene inicial (enemigos sin WaveManager) ──────────────────
 _CUTSCENE_ENEMY_SPAWNS = [
     (_ACX - 500, _ACY - 350), (_ACX + 550, _ACY - 400),
     (_ACX - 450, _ACY + 500), (_ACX + 600, _ACY + 450),
@@ -70,9 +72,11 @@ class Level1Scene(Scene):
         self.weapon_controller: WeaponController | None = None
         self.enemies: list = []
         self._toxic_puddles: list = []
-        self._contact_dmg_cd = 0.0
 
-        # Cutscene intro
+        # FIX: 1-second grace period — ningún enemigo hace daño de contacto
+        #      en el primer segundo de vida (evita daño invisible al spawnear)
+        self._contact_dmg_cd = 1.0
+
         self._dialog_manager    = None
         self.audres             = None
         self._audres_intro_tree = None
@@ -80,23 +84,25 @@ class Level1Scene(Scene):
         self._cutscene_phase    = "idle"
         self._audres_walk_target = None
 
-        # Wave managers
         self._wave_manager: WaveManager | None       = None
         self._wave_manager_north: WaveManager | None = None
 
-        # Flags de flujo
         self._enemies_spawned        = False
         self._shop_hint_triggered    = False
+        self._shop_unlocked          = False
         self._wave_clear_timer       = -1.0
         self._wave2_clear_triggered  = False
         self._wave2_clear_timer      = -1.0
         self._going_level_complete   = False
         self._total_kills            = 0
         self._inventory_open         = False
-        self._inv_right_click        = False  # un solo frame
-        self._aim_was_pressed         = False  # para detectar flanco
+        self._inv_right_click        = False
+        self._aim_was_pressed        = False
 
-        # Mapa / puerta
+        # Estado del overlay de asignación de slot de arma
+        self._pending_weapon_item    = None   # WeaponItem esperando asignación
+        self._pending_weapon_index   = -1     # índice en inventory.items
+
         self._door             = None
         self._north_room_rect  = None
         self._corridor_rect    = None
@@ -118,7 +124,6 @@ class Level1Scene(Scene):
             ih = self.director._input_handler
             ih.actions["move_x"] = 0
             ih.actions["move_y"] = 0
-        # Solo construir si no hay partida activa (primera entrada o tras nueva partida)
         if self.player is None:
             self._build_level()
 
@@ -130,7 +135,6 @@ class Level1Scene(Scene):
         MonoliteBehaviour.time_scale = 0.0
 
     def on_resume(self):
-        # Volver de pausa o menu — partida intacta, no reconstruir
         MonoliteBehaviour.time_scale = 1.0
         pygame.mouse.set_visible(False)
 
@@ -148,41 +152,24 @@ class Level1Scene(Scene):
 
         if AudioManager._instance is None:
             AudioManager._instance = AudioManager()
-        # Cargar items siempre — ItemRegistry es idempotente si _items ya está lleno
         if not ItemRegistry._items:
             ItemRegistry()
         if not ItemRegistry._items:
             ItemRegistry.load("assets/items/item_data.json")
 
-        # Jugador
-        self.player = Player(
-            "assets/player/survivor-idle_rifle_0.png",
-            (_ACX, _ACY),
-        )
+        self.player = Player("assets/player/survivor-idle_rifle_0.png", (_ACX, _ACY))
         self.controller = CharacterController(250, self.player)
         AudioManager.instance().set_listener(self.player.audio_listener)
 
-        # Armas iniciales
-        weapon = Ranged(
-            "assets/weapons/AK47.png", "AK-47", 60, 1500,
-            "7.62", 45, 0.15, 0.6, muzzle_offset=(35, 15),
-        )
+        weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
+                        "7.62", 45, 0.15, 0.6, muzzle_offset=(35, 15))
         self.player.inventory.add_weapon(self.player, weapon, "primary")
         self.player.inventory.add_weapon(self.player, TacticalKnife(), "secondary")
 
-        # Inventario inicial — IDs válidos de item_data.json
         from item.item_instance import ItemInstance
-        _starting_items = [
-            "stim_patch",
-            "stim_patch",
-            "health_injector",
-            "adrenaline_shot",
-            "rad_suppressor",
-            "ammo_clip_762",    # 60 balas para AK-47
-            "ammo_clip_762",    # 60 balas para AK-47
-            "ammo_clip_12gauge", # 16 cartuchos para SPAS-12
-        ]
-        for item_id in _starting_items:
+        for item_id in ["stim_patch", "stim_patch", "health_injector",
+                        "adrenaline_shot", "rad_suppressor",
+                        "ammo_clip_762", "ammo_clip_762", "ammo_clip_12gauge"]:
             try:
                 self.player.inventory.add_item(ItemInstance(ItemRegistry.get(item_id)))
             except Exception as e:
@@ -191,42 +178,33 @@ class Level1Scene(Scene):
         self.camera = Camera()
         self._toxic_puddles = []
         self.enemies = []
+        # FIX: reset grace period every new level
+        self._contact_dmg_cd = 1.0
 
-        # ADS effect + WeaponController
-        ads_effect = StatusEffect(
-            "assets/effects/ads", "Aiming Down Sights", {"speed": -30}, -1
-        )
+        ads_effect = StatusEffect("assets/effects/ads", "Aiming Down Sights", {"speed": -30}, -1)
         self.weapon_controller = WeaponController(self.player, self.camera, ads_effect)
 
         self._build_walls()
         self._build_doors()
 
-        # Arma en el pasillo norte
         from item.item_drop_manager import DroppedWeapon
         from weapons.ranged.ranged_types import SPAS12
-        pickup = SPAS12()
-        # Sin munición infinita — el jugador necesita ammo_clip_12gauge
         self._corridor_weapon = DroppedWeapon(
-            pickup, (_ACX, _ACY - _ARENA_HALF - 400), slot="secondary"
-        )
+            SPAS12(), (_ACX, _ACY - _ARENA_HALF - 400), slot="secondary")
 
-        # NPC AUDReS intro
         from dialogs.audres_dialogs import create_audres_intro
         self._audres_intro_tree = create_audres_intro()
         self.audres = NPC(
-            name="AUDReS-01",
-            position=(_ACX, _ACY - _ARENA_HALF + 100),
-            dialog_tree=None,
-            sprite_path="assets/characters/audres/sprite_topdown.jpg",
-            scale=0.16,
-        )
+            name="AUDReS-01", position=(_ACX, _ACY - _ARENA_HALF + 100),
+            dialog_tree=None, sprite_path="assets/characters/audres/sprite_topdown.jpg",
+            scale=0.16)
         self._dialog_manager = DialogManager()
-        self._dialog_manager.active_dialog            = None
-        self._dialog_manager.is_dialog_active         = False
-        self._dialog_manager.selected_option          = 0
-        self._dialog_manager._cached_dialog_surface   = None
-        self._dialog_manager._cached_node_id          = None
-        self._dialog_manager._needs_redraw            = True
+        self._dialog_manager.active_dialog          = None
+        self._dialog_manager.is_dialog_active        = False
+        self._dialog_manager.selected_option         = 0
+        self._dialog_manager._cached_dialog_surface  = None
+        self._dialog_manager._cached_node_id         = None
+        self._dialog_manager._needs_redraw           = True
 
         self._cutscene_active    = True
         self._cutscene_phase     = "walking"
@@ -241,14 +219,11 @@ class Level1Scene(Scene):
 
         self._north_room_rect = pygame.Rect(
             cx - north_sq, cy - h - corridor_h - north_sq * 2,
-            north_sq * 2, north_sq * 2,
-        )
+            north_sq * 2, north_sq * 2)
         self._corridor_rect = pygame.Rect(
-            cx - corridor_w // 2, cy - h - corridor_h,
-            corridor_w, corridor_h,
-        )
+            cx - corridor_w // 2, cy - h - corridor_h, corridor_w, corridor_h)
 
-        wall_defs = [
+        for wx, wy, wh, ww in [
             (cx - (h + door_w // 2) / 2, cy - h - t // 2, t // 2, (h - door_w // 2) / 2),
             (cx + (h + door_w // 2) / 2, cy - h - t // 2, t // 2, (h - door_w // 2) / 2),
             (cx - corridor_w // 2 - t // 2, cy - h - corridor_h // 2, corridor_h // 2, t // 2),
@@ -261,8 +236,7 @@ class Level1Scene(Scene):
             (cx, cy + h + t // 2, t // 2, h + t),
             (cx - h - t // 2, cy, h, t // 2),
             (cx + h + t // 2, cy, h, t // 2),
-        ]
-        for wx, wy, wh, ww in wall_defs:
+        ]:
             Collider(object(), Rectangle(wx, wy, wh, ww), layer=LAYERS["terrain"], static=True)
 
     def _build_doors(self):
@@ -275,23 +249,19 @@ class Level1Scene(Scene):
         self._door_rect = pygame.Rect(dx - door_w // 2, dy - t // 2, door_w, t)
         self._door_collider = Collider(
             object(), Rectangle(dx, dy, t // 2, door_w // 2),
-            layer=LAYERS["terrain"], static=True,
-        )
+            layer=LAYERS["terrain"], static=True)
 
     def _teardown_level(self):
-        # ── Destruir MonoliteBehaviour de la partida para evitar fugas ────────
-        # Los weapons (Ranged/Melee) y sus emitters se registran en _instances
-        # al crearse y deben destruirse explícitamente al salir del nivel.
         if self.player:
             inv = self.player.inventory
             for slot in ("primary", "secondary"):
                 w = inv.get_weapon(slot)
                 if w is not None:
-                    # Destruir emitter de partículas interno
                     emitter = getattr(w, "emitter", None) or getattr(w, "impact_emitter", None)
                     if emitter is not None:
                         emitter.destroy()
-                    w.destroy() if hasattr(w, "destroy") else None
+                    if hasattr(w, "destroy"):
+                        w.destroy()
             if hasattr(inv, "drop_manager") and inv.drop_manager is not None:
                 inv.drop_manager.destroy()
             if hasattr(self.player, "audio_emitter") and self.player.audio_emitter:
@@ -299,12 +269,10 @@ class Level1Scene(Scene):
             if hasattr(self.player, "audio_listener") and self.player.audio_listener:
                 self.player.audio_listener.destroy()
 
-        if self._wave_manager is not None:
-            for e in list(self._wave_manager.enemies):
-                _destroy_enemy(e)
-        if self._wave_manager_north is not None:
-            for e in list(self._wave_manager_north.enemies):
-                _destroy_enemy(e)
+        for mgr in [self._wave_manager, self._wave_manager_north]:
+            if mgr is not None:
+                for e in list(mgr.enemies):
+                    _destroy_enemy(e)
         for e in list(self.enemies):
             _destroy_enemy(e)
 
@@ -314,30 +282,26 @@ class Level1Scene(Scene):
             CollisionManager._active.dynamic_qtree.clear()
             CollisionManager._active.static_qtree.clear()
 
-        self.player            = None
-        self.controller        = None
-        self.weapon_controller = None
-        self.audres            = None
-        self._cutscene_active    = False
-        self._cutscene_phase     = "idle"
+        self.player = self.controller = self.weapon_controller = self.audres = None
+        self._cutscene_active = False
+        self._cutscene_phase  = "idle"
         self._audres_walk_target = None
-        self._enemies_spawned    = False
-        self._shop_hint_triggered = False
-        self._wave_clear_timer   = -1.0
-        self._wave_manager       = None
-        self._wave_manager_north = None
-        self._toxic_puddles      = []
+        self._enemies_spawned = self._shop_hint_triggered = self._shop_unlocked = False
+        self._wave_clear_timer = -1.0
+        self._wave_manager = self._wave_manager_north = None
+        self._toxic_puddles = []
         self._wave2_clear_triggered = False
-        self._wave2_clear_timer  = -1.0
+        self._wave2_clear_timer = -1.0
         self._going_level_complete = False
-        self._total_kills          = 0
+        self._total_kills = 0
+        self._contact_dmg_cd = 1.0
+        self._pending_weapon_item  = None
+        self._pending_weapon_index = -1
         if self._door:
             from map.interactables.interaction_manager import InteractionManager
             InteractionManager().unregister(self._door)
-        self._door            = None
-        self._door_collider   = None
-        self._north_room_entered  = False
-        self._north_room_sealed   = False
+        self._door = self._door_collider = None
+        self._north_room_entered = self._north_room_sealed = False
         self._north_seal_collider = None
         if self._corridor_weapon:
             self._corridor_weapon._unregister()
@@ -349,10 +313,26 @@ class Level1Scene(Scene):
     # ── Input ─────────────────────────────────────────────────────────────────
 
     def handle_events(self, input_handler):
-        # Click derecho: detectar flanco (False→True) de aim para inventario
         aim_now = input_handler.actions.get("aim", False)
         self._inv_right_click = aim_now and not self._aim_was_pressed
         self._aim_was_pressed = aim_now
+
+        # ── Overlay de asignación de arma ──────────────────────────────────────
+        # Mientras está abierto, solo aceptamos clics del ratón
+        if self._pending_weapon_item is not None:
+            if input_handler.actions.get("click_drop"):
+                input_handler.actions["click_drop"] = False
+                input_handler.actions["attack"]     = False
+                mouse_pos = input_handler.mouse_position
+                self._handle_weapon_assign_click(mouse_pos)
+            # Cancelar con ESC / I
+            if (input_handler.actions.get("pause") or
+                    input_handler.actions.get("inventory")):
+                input_handler.actions["pause"]     = False
+                input_handler.actions["inventory"] = False
+                self._pending_weapon_item  = None
+                self._pending_weapon_index = -1
+            return
 
         if input_handler.actions.get("pause"):
             input_handler.actions["pause"] = False
@@ -363,8 +343,7 @@ class Level1Scene(Scene):
         if self._cutscene_active:
             if self._dialog_manager and self._dialog_manager.is_dialog_active:
                 self._dialog_manager.handle_input(
-                    pygame.key.get_pressed(), input_handler.keys_just_pressed
-                )
+                    pygame.key.get_pressed(), input_handler.keys_just_pressed)
             for key in input_handler.actions:
                 val = input_handler.actions[key]
                 input_handler.actions[key] = 0 if isinstance(val, (int, float)) else False
@@ -373,18 +352,21 @@ class Level1Scene(Scene):
         if self._dialog_manager and self._dialog_manager.is_dialog_active:
             if input_handler.actions.get("shop"):
                 input_handler.actions["shop"] = False
-                from scenes.shop_scene import ShopScene
-                self.director.push(ShopScene(self, self.player))
+                if self._shop_unlocked:
+                    from scenes.shop_scene import ShopScene
+                    self.director.push(ShopScene(self, self.player))
                 return
             self._dialog_manager.handle_input(
-                pygame.key.get_pressed(), input_handler.keys_just_pressed
-            )
+                pygame.key.get_pressed(), input_handler.keys_just_pressed)
             return
 
         if input_handler.actions.get("shop"):
             input_handler.actions["shop"] = False
-            from scenes.shop_scene import ShopScene
-            self.director.push(ShopScene(self, self.player))
+            if self._shop_unlocked:
+                from scenes.shop_scene import ShopScene
+                self.director.push(ShopScene(self, self.player))
+            else:
+                print("[SHOP] La tienda aún no está disponible.")
             return
 
         from map.interactables.interaction_manager import InteractionManager
@@ -399,19 +381,23 @@ class Level1Scene(Scene):
             from ui.inventory_menu import get_item_slot_rect
             mouse_pos = input_handler.mouse_position
 
-            # Click izquierdo → usar consumible (solo en el frame del click)
             if input_handler.actions.get("click_drop"):
                 input_handler.actions["click_drop"] = False
-                input_handler.actions["attack"] = False
+                input_handler.actions["attack"]     = False
+                # Detectar si se hizo clic en un WeaponItem
+                for i, item in enumerate(self.player.inventory.items):
+                    if (getattr(item, "type", None) == "weapon_item"
+                            and get_item_slot_rect(i).collidepoint(mouse_pos)):
+                        # Activar overlay de asignación
+                        self._pending_weapon_item  = item
+                        self._pending_weapon_index = i
+                        return
+                # Clic normal → usar consumible
                 for i in range(len(self.player.inventory.items)):
                     if get_item_slot_rect(i).collidepoint(mouse_pos):
                         self.player.inventory.use_consumable_hotkey(i, self.player)
                         break
 
-            # Click derecho → tirar item (solo en KEYDOWN, no continuo)
-            if input_handler.keys_just_pressed.get(pygame.K_RSHIFT, False):
-                # fallback — no usar aim porque es estado continuo
-                pass
             if self._inv_right_click:
                 self._inv_right_click = False
                 self.player.inventory.click_drop_item(mouse_pos)
@@ -421,6 +407,48 @@ class Level1Scene(Scene):
             self.player.inventory.select_item(input_handler.actions["hotkey_slot"])
         if input_handler.actions["use_item"]:
             self.player.inventory.use_selected_item(self.player)
+
+    def _handle_weapon_assign_click(self, mouse_pos):
+        """Procesa el clic sobre los botones del overlay de asignación."""
+        from ui.inventory_menu import get_overlay_rects
+        rects = get_overlay_rects()
+        if not rects:
+            return
+
+        weapon_item = self._pending_weapon_item
+        idx         = self._pending_weapon_index
+
+        for key, rect in rects.items():
+            if rect.collidepoint(mouse_pos):
+                if key == "cancel":
+                    self._pending_weapon_item  = None
+                    self._pending_weapon_index = -1
+                    return
+
+                # key es "primary" o "secondary"
+                slot   = key
+                weapon = weapon_item.weapon
+                weapon.parent        = self.player
+                weapon.audio_emitter = self.player.audio_emitter
+
+                # Tirar el arma actual al suelo antes de reemplazar
+                old = self.player.inventory.get_weapon(slot)
+                if old is not None:
+                    self.player.inventory.drop_weapon(slot)
+
+                # Equipar
+                if slot == "primary":
+                    self.player.inventory.primary_weapon = weapon
+                else:
+                    self.player.inventory.secondary_weapon = weapon
+
+                # Eliminar el WeaponItem del inventario
+                if 0 <= idx < len(self.player.inventory.items):
+                    self.player.inventory.items.pop(idx)
+
+                self._pending_weapon_item  = None
+                self._pending_weapon_index = -1
+                return
 
     # ── Update ────────────────────────────────────────────────────────────────
 
@@ -432,13 +460,11 @@ class Level1Scene(Scene):
             self._update_cutscene(delta_time)
             return
 
-        # Pausar lógica de juego mientras hay diálogo o inventario activo
         if self._dialog_manager and self._dialog_manager.is_dialog_active:
             return
         if self._inventory_open:
             return
 
-        # ── Wave managers ──────────────────────────────────────────────────
         kills = 0
         if self._wave_manager is not None:
             prev = len(self._wave_manager.enemies)
@@ -458,7 +484,6 @@ class Level1Scene(Scene):
             self.player.add_coins(kills * 10)
             self._total_kills += kills
 
-        # Charcos tóxicos
         for puddle in self._toxic_puddles:
             puddle.update(delta_time, self.player)
         self._toxic_puddles[:] = [p for p in self._toxic_puddles if p.is_alive]
@@ -468,7 +493,6 @@ class Level1Scene(Scene):
             self._check_enemy_contact(delta_time)
             self._check_player_death()
 
-        # ── Sala norte ─────────────────────────────────────────────────────
         if (not self._north_room_entered and self._north_room_rect and self.player
                 and self._north_room_rect.collidepoint(self.player.position)
                 and not (self._dialog_manager and self._dialog_manager.is_dialog_active)):
@@ -481,10 +505,9 @@ class Level1Scene(Scene):
                 and not (self._dialog_manager and self._dialog_manager.is_dialog_active)):
             self._create_north_wave_manager()
 
-        # ── Flujo de oleadas principales ───────────────────────────────────
         dialog_active = self._dialog_manager and self._dialog_manager.is_dialog_active
 
-        if (self._enemies_spawned and not self._shop_hint_triggered and not dialog_active):
+        if self._enemies_spawned and not self._shop_hint_triggered and not dialog_active:
             if not self.enemies:
                 if self._wave_clear_timer < 0:
                     self._wave_clear_timer = 1.5
@@ -492,6 +515,7 @@ class Level1Scene(Scene):
                     self._wave_clear_timer -= delta_time
                     if self._wave_clear_timer <= 0:
                         self._shop_hint_triggered = True
+                        self._shop_unlocked = True
                         self._wave_clear_timer = -1.0
                         from dialogs.audres_dialogs import create_audres_shop_hint
                         self._dialog_manager.start_dialog(create_audres_shop_hint())
@@ -499,8 +523,7 @@ class Level1Scene(Scene):
                 self._wave_clear_timer = -1.0
 
         if (self._shop_hint_triggered and self._wave_manager is None
-                and self._door is not None and not self._door.is_open
-                and not dialog_active):
+                and self._door is not None and not self._door.is_open and not dialog_active):
             self._create_wave_manager()
 
         if self._wave2_clear_timer >= 0 and not self._wave2_clear_triggered and not dialog_active:
@@ -511,14 +534,13 @@ class Level1Scene(Scene):
                 from dialogs.audres_dialogs import create_audres_wave2_clear
                 self._dialog_manager.start_dialog(create_audres_wave2_clear())
 
-        if (self._wave2_clear_triggered and not self._going_level_complete and not dialog_active):
+        if self._wave2_clear_triggered and not self._going_level_complete and not dialog_active:
             self._going_level_complete = True
             from scenes.level_complete_scene import LevelCompleteScene
             self.director.replace(LevelCompleteScene(
                 self._last_frame, "Nivel 1",
                 {"kills": self._total_kills, "coins": self.player.coins if self.player else 0},
-                next_scene_class=None,
-            ))
+                next_scene_class=None))
 
     def _all_enemies(self) -> list:
         out = list(self._wave_manager.enemies if self._wave_manager else self.enemies)
@@ -552,35 +574,22 @@ class Level1Scene(Scene):
             self.enemies.append(enemy)
         self._enemies_spawned = True
 
-    # ── Wave manager helpers ──────────────────────────────────────────────────
-
     def _create_wave_manager(self):
         self._wave_manager = WaveManager(
-            player=self.player,
-            total_waves=None,
-            arena_center=(_ACX, _ACY),
-            arena_half=_ARENA_HALF,
-            arena_mix=True,
-            rest_time=3.0,
-            puddle_list=self._toxic_puddles,
-        )
+            player=self.player, total_waves=None,
+            arena_center=(_ACX, _ACY), arena_half=_ARENA_HALF,
+            arena_mix=True, rest_time=3.0, puddle_list=self._toxic_puddles)
         self._wave_manager.set_on_complete(self._on_waves_complete)
 
     def _create_north_wave_manager(self):
-        corridor_h  = 800
-        north_sq    = int(_ARENA_HALF * 1.2)
-        north_cy    = _ACY - _ARENA_HALF - corridor_h - north_sq
+        corridor_h = 800
+        north_sq   = int(_ARENA_HALF * 1.2)
+        north_cy   = _ACY - _ARENA_HALF - corridor_h - north_sq
         self._wave_manager_north = WaveManager(
-            player=self.player,
-            total_waves=None,
-            arena_center=(_ACX, north_cy),
-            arena_half=north_sq,
-            arena_mix=True,
-            rest_time=3.0,
-            puddle_list=self._toxic_puddles,
-            start_wave=7,
-            hp_scale_per_wave=0.10,
-        )
+            player=self.player, total_waves=None,
+            arena_center=(_ACX, north_cy), arena_half=north_sq,
+            arena_mix=True, rest_time=3.0, puddle_list=self._toxic_puddles,
+            start_wave=7, hp_scale_per_wave=0.10)
 
     def _on_waves_complete(self):
         if not self._wave2_clear_triggered and not self._going_level_complete:
@@ -607,21 +616,24 @@ class Level1Scene(Scene):
     def _seal_north_door(self):
         self._north_room_sealed = True
         cx, cy = _ACX, _ACY
-        h, t   = _ARENA_HALF, _WALL_THICK
+        h, t = _ARENA_HALF, _WALL_THICK
         dw = 240
         self._north_seal_collider = Collider(
             object(), Rectangle(cx, cy - h - t // 2, t // 2, dw // 2),
-            layer=LAYERS["terrain"], static=True,
-        )
+            layer=LAYERS["terrain"], static=True)
 
     # ── Colisiones / muerte ───────────────────────────────────────────────────
 
     def _check_enemy_contact(self, delta_time):
+        # FIX: siempre decrementar; solo hacer daño cuando el cooldown llega a 0
         self._contact_dmg_cd -= delta_time
         if self._contact_dmg_cd > 0:
             return
-        hits = [h for h in self.player.collider.check_collision(layers=[LAYERS["enemy"]])
-                if h.owner.is_alive()]
+        # FIX: guard hasattr(h, "owner") — algunos colliders de terreno no tienen owner
+        hits = [
+            h for h in self.player.collider.check_collision(layers=[LAYERS["enemy"]])
+            if hasattr(h, "owner") and h.owner is not None and h.owner.is_alive()
+        ]
         if hits:
             self.player.take_damage(10)
             self._contact_dmg_cd = 0.75
@@ -630,9 +642,7 @@ class Level1Scene(Scene):
         if self.player and not self.player.is_alive():
             from scenes.game_over_scene import GameOverScene
             self.director.replace(GameOverScene(stats={
-                "kills": self._total_kills,
-                "coins": self.player.coins,
-            }))
+                "kills": self._total_kills, "coins": self.player.coins}))
 
     # ── Render ────────────────────────────────────────────────────────────────
 
@@ -643,35 +653,30 @@ class Level1Scene(Scene):
         screen.fill(_BG_COLOR)
         self._draw_map(screen)
 
-        mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
+        mouse_pos     = pygame.Vector2(pygame.mouse.get_pos())
         active_weapon = self.player.inventory.get_weapon(
-            self.player.inventory.active_weapon_slot
-        )
+            self.player.inventory.active_weapon_slot)
 
-        # Configurar emitter de partículas del arma ranged
         if self.weapon_controller:
             self.weapon_controller.setup_emitter(screen)
 
-        # Movimiento del jugador
-        if self._cutscene_active:
-            movement = pygame.Vector2(0, 0)
-        else:
-            movement = pygame.Vector2(im.actions["move_x"], im.actions["move_y"])
+        movement = (pygame.Vector2(0, 0) if self._cutscene_active
+                    else pygame.Vector2(im.actions["move_x"], im.actions["move_y"]))
 
         self.controller.speed = self.player.get_stat("speed")
-        self.controller.move(movement, delta_time)
-        if movement.length() > 0:
-            self.player._dash_direction = pygame.Vector2(movement)
+        if not self._inventory_open:
+            self.controller.move(movement, delta_time)
+            if movement.length() > 0:
+                self.player._dash_direction = pygame.Vector2(movement)
 
-        # WeaponController: apuntado + disparo (solo fuera de cutscene y diálogo)
         if (not self._cutscene_active
                 and not (self._dialog_manager and self._dialog_manager.is_dialog_active)
+                and not self._inventory_open
                 and self.weapon_controller):
             self.weapon_controller.update(im, delta_time, mouse_pos)
 
         self._camera_follow(self.player.position, delta_time)
 
-        # ── Dibujo de entidades ───────────────────────────────────────────
         all_enemies = self._all_enemies()
 
         from character_scripts.enemy.enemy_types import ShooterEnemy
@@ -698,7 +703,6 @@ class Level1Scene(Scene):
                 enemy.draw_bullets(screen, self.camera)
         screen.blit(entity_surf, (0, 0))
 
-        # Items dropeados en el suelo
         if self.player and self.player.inventory.drop_manager:
             self.player.inventory.drop_manager.draw(screen, self.camera)
 
@@ -706,26 +710,17 @@ class Level1Scene(Scene):
             self.audres.draw(screen, self.camera)
         self.player.draw(screen, self.camera)
 
-        # Barra de recarga
         if isinstance(active_weapon, Ranged) and active_weapon.is_reloading():
             self._draw_reload_bar(screen, active_weapon)
-
-        # Cono de melee
         if isinstance(active_weapon, Melee):
             active_weapon.draw_attack_cone(screen, self.camera)
 
-        # Trail visual del ranged (partículas de bala)
         if self.weapon_controller and not self._cutscene_active:
             player_screen_pos = self.player.position - self.camera.position
             self.weapon_controller.draw_trail(screen, player_screen_pos, active_weapon)
 
-        # Crosshair
-        screen.blit(
-            pygame.transform.scale(self.crosshair, (40, 40)),
-            (mouse_pos - (20, 20)),
-        )
+        screen.blit(pygame.transform.scale(self.crosshair, (40, 40)), (mouse_pos - (20, 20)))
 
-        # HUD
         hud_wm = self._wave_manager_north or self._wave_manager
         ui_manager.draw_overlay(screen, self.player, wave_manager=hud_wm, delta_time=delta_time)
 
@@ -734,7 +729,8 @@ class Level1Scene(Scene):
 
         if self._inventory_open:
             from ui.inventory_menu import draw_inventory_screen
-            draw_inventory_screen(screen, self.player, mouse_pos)
+            draw_inventory_screen(screen, self.player, mouse_pos,
+                                  pending_weapon_item=self._pending_weapon_item)
         else:
             if self.director._input_handler:
                 self.director._input_handler.actions["click_drop"] = False
@@ -742,10 +738,10 @@ class Level1Scene(Scene):
         self._last_frame = screen.copy()
 
     def _draw_map(self, screen):
-        cx   = int(self.camera.position.x) if self.camera else 0
-        cy   = int(self.camera.position.y) if self.camera else 0
-        ax   = _ACX - _ARENA_HALF - cx
-        ay   = _ACY - _ARENA_HALF - cy
+        cx = int(self.camera.position.x) if self.camera else 0
+        cy = int(self.camera.position.y) if self.camera else 0
+        ax = _ACX - _ARENA_HALF - cx
+        ay = _ACY - _ARENA_HALF - cy
         arena_rect = pygame.Rect(ax, ay, _ARENA_HALF * 2, _ARENA_HALF * 2)
         pygame.draw.rect(screen, _FLOOR_COLOR, arena_rect)
         pygame.draw.rect(screen, _WALL_COLOR,  arena_rect, _WALL_THICK)
@@ -789,16 +785,15 @@ class Level1Scene(Scene):
         progress = min(elapsed / weapon.reload_time, 1.0)
         sp = self.player.position - self.camera.position
         bw, bh = 80, 8
-        bx = int(sp.x) - bw // 2
-        by = int(sp.y) + 32
+        bx, by = int(sp.x) - bw // 2, int(sp.y) + 32
         pygame.draw.rect(screen, (20, 20, 20),   (bx - 1, by - 1, bw + 2, bh + 2), border_radius=4)
-        pygame.draw.rect(screen, (60, 60, 60),   (bx, by, bw, bh),                 border_radius=3)
+        pygame.draw.rect(screen, (60, 60, 60),   (bx, by, bw, bh), border_radius=3)
         pygame.draw.rect(screen, (255, 160, 20), (bx, by, int(bw * progress), bh), border_radius=3)
 
     def _camera_follow(self, target, delta_time, speed=10):
         target_relative = target - self.camera.position
-        center  = pygame.Vector2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
-        offset  = target_relative - center
+        center   = pygame.Vector2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+        offset   = target_relative - center
         distance = offset.length()
         if distance > _CAM_BORDER_RADIUS:
             self.camera.move(offset.normalize() * (distance - _CAM_BORDER_RADIUS) * speed * delta_time)
