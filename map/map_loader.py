@@ -22,7 +22,8 @@ class MapLoader:
         
         for tile_layer in tile_layers:
             chunks = tile_layer['chunks']
-            
+            layer_name = tile_layer.get('name', '')
+
             for chunk_data in chunks:
                 x = chunk_data['x']  
                 y = chunk_data['y']
@@ -36,6 +37,9 @@ class MapLoader:
                 cy = y // CHUNK_SIZE
                 
                 chunk = mapa.get_chunk((cx, cy))
+
+                # Keep track of the layer name so we can decide which layers are "buildings"
+                chunk.layer_names.append(layer_name)
 
                 layer_matrix = [[0] * CHUNK_SIZE for _ in range(CHUNK_SIZE)]
                 for ly in range(height):
@@ -97,14 +101,115 @@ class MapLoader:
     
     def draw_active_chunks(self, screen, camera_offset, tile_images, player=None, chunk_radius=2):
         if player:
-             self.active_chunks= self.get_active_chunks(player,screen, camera_offset, chunk_radius)
+            self.active_chunks = self.get_active_chunks(player, screen, camera_offset, chunk_radius)
+
+        # Precompute which tile layers should be treated as buildings (for transparency masking).
+        # This is based on layer names (e.g. "Tile Layer 2"), or can be extended to look for "building".
+        building_layer_indices = []
+        for chunk in self.active_chunks.values():
+            if chunk.layer_names:
+                for idx, name in enumerate(chunk.layer_names):
+                    lname = (name or "").lower()
+                    if "building" in lname or "edificio" in lname or "tile layer 2" in lname:
+                        building_layer_indices.append(idx)
+                break
+        if not building_layer_indices:
+            # Fallback to the second layer if available (common for Tiled setups).
+            if next(iter(self.active_chunks.values()), None) and len(next(iter(self.active_chunks.values())).tiles_layers) > 1:
+                building_layer_indices = [1]
+
+        # Surface that will contain all building layers so we can mask them in a circular area around the player.
+        # Reuse the surface across frames to avoid allocating a new one every tick.
+        if getattr(self, '_buildings_surface', None) is None or self._buildings_surface.get_size() != screen.get_size():
+            self._buildings_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        buildings_surface = self._buildings_surface
+        buildings_surface.fill((0, 0, 0, 0))
+
+        # If we have a player, compute their position on screen and create a masking surface.
+        player_screen_pos = None
+        if player:
+            player_screen_pos = (int(player.position[0] - camera_offset[0]),
+                                 int(player.position[1] - camera_offset[1]))
+
+            # Radius in pixels (tweak to taste): defines how much of the building layer gets transparent.
+            self.building_mask_radius = getattr(self, 'building_mask_radius', TILE_SIZE * 1.5)
+
+            # How transparent is the area under the player.
+            # 255 = no transparency (building stays fully opaque).
+            # 0   = fully transparent (building invisible).
+            self.building_mask_inner_alpha = getattr(self, 'building_mask_inner_alpha', 80)
+
+            # Build / cache a dotted radial mask for performance.
+            cache_key = (self.building_mask_radius, self.building_mask_inner_alpha)
+            if getattr(self, '_building_mask_cache', None) is None:
+                self._building_mask_cache = {}
+            if cache_key not in self._building_mask_cache:
+                # The mask surface is sized to the circle diameter and will be blitted centered on the player.
+                diameter = int(self.building_mask_radius * 2)
+                self._building_mask_cache[cache_key] = self._build_building_mask(
+                    (diameter, diameter),
+                    (int(self.building_mask_radius), int(self.building_mask_radius)),
+                    self.building_mask_radius,
+                    self.building_mask_inner_alpha,
+                )
+
+            self._building_mask = self._building_mask_cache[cache_key]
+
         for chunk_pos, chunk in self.active_chunks.items():
             if not chunk.render_cache:
-                chunk._bake_chunk(tile_images)
+                chunk._bake_chunk(tile_images, building_layer_indices=building_layer_indices)
             chunk_screen_pos = (chunk.pos[0] * (CHUNK_SIZE * TILE_SIZE) - camera_offset[0],
-                    chunk.pos[1] * (CHUNK_SIZE * TILE_SIZE) - camera_offset[1])
+                                chunk.pos[1] * (CHUNK_SIZE * TILE_SIZE) - camera_offset[1])
             screen.blit(chunk.render_cache, chunk_screen_pos)
+
+            if getattr(chunk, 'has_buildings', False) and getattr(chunk, 'building_cache', None):
+                buildings_surface.blit(chunk.building_cache, chunk_screen_pos)
+
+        # Apply circular transparency mask to building layer and composite it on screen.
+        if player_screen_pos is not None and getattr(self, '_building_mask', None) is not None:
+            mask_top_left = (int(player_screen_pos[0] - self.building_mask_radius),
+                             int(player_screen_pos[1] - self.building_mask_radius))
+            buildings_surface.blit(self._building_mask, mask_top_left, special_flags=pygame.BLEND_RGBA_MULT)
+
+        screen.blit(buildings_surface, (0, 0))
                 
+    def _build_building_mask(self, size, center, radius, inner_alpha):
+        """Build a circular alpha mask with a dotted edge.
+
+        This returns a surface where:
+        - Outside the radius: alpha = 255 (no change).
+        - Inside the radius: alpha = inner_alpha (more transparent).
+        - Around the radius edge: dotted pattern for a "halftone" look.
+        """
+        mask = pygame.Surface(size, pygame.SRCALPHA)
+        mask.fill((255, 255, 255, 255))
+
+        # Base circle (solid transparency inside)
+        pygame.draw.circle(mask, (255, 255, 255, inner_alpha), center, radius)
+
+        # Add a halftone/dotted ring at the edge to make it look like a "fade".
+        # Dots get smaller / more transparent toward the inside.
+        dot_spacing = max(8, radius // 16)
+        max_dot_radius = max(1, dot_spacing // 2)
+        ring_inner = radius * 0.7
+        ring_outer = radius
+
+        cx, cy = center
+        for y in range(int(cy - radius), int(cy + radius), dot_spacing):
+            for x in range(int(cx - radius), int(cx + radius), dot_spacing):
+                dx = x - cx
+                dy = y - cy
+                dist = (dx * dx + dy * dy) ** 0.5
+                if ring_inner < dist < ring_outer:
+                    # Dot alpha transitions from inner_alpha (near inner ring)
+                    # to 255 (near outer edge) for a gradient feel.
+                    t = (dist - ring_inner) / (ring_outer - ring_inner)
+                    dot_alpha = int(inner_alpha + (255 - inner_alpha) * t)
+                    dot_radius = int(max_dot_radius * (1 - t) * 0.75) + 1
+                    pygame.draw.circle(mask, (255, 255, 255, dot_alpha), (x, y), dot_radius)
+
+        return mask
+
     @staticmethod
     def load_tileset_to_dict(tileset_path, tile_size=(32,32)):
         sheet = pygame.image.load(tileset_path).convert_alpha()

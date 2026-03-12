@@ -25,7 +25,6 @@ from core.status_effects import StatusEffect
 from dialogs.dialog_manager import DialogManager
 from dialogs.test_dialogs import create_test_dialog_simple
 from character_scripts.npc.npc import NPC
-
 from settings import TILE_SIZE, CHUNK_SIZE
 from map.map_loader import MapLoader
 from map.map import Map
