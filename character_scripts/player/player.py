@@ -15,7 +15,7 @@ DEFAULT_STATS = {
 class Player(Character):
     def __init__(self, asset, position=(0,0), rotation=0, scale=0.3, name="Player", health=100):
         super().__init__(asset, position, rotation, scale, name, health)
-        self.score = 0
+        self.score = 1000
         self.inventory = Inventory()
         self.inventory.owner = self
         self.collider.layer = LAYERS["player"]

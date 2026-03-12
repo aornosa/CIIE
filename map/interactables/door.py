@@ -6,11 +6,12 @@ from map.interactables.interaction_manager import InteractionManager
 
 class Door(Interactable):
 
-    def __init__(self, name: str, position, cost: int, on_open=None):
+    def __init__(self, name: str, position, cost: int, on_open=None, orientation: str = "horizontal"):
         self.position = pygame.Vector2(position)
         self.cost = cost
         self.is_open = False
         self._on_open_callback = on_open
+        self.orientation = orientation
 
         interact_text = f"[E] Abrir {name} ({cost} pts)"
         super().__init__(
@@ -52,7 +53,10 @@ class Door(Interactable):
         if self.is_open:
             return
         screen_pos = self.position - camera.position
-        rect = pygame.Rect(screen_pos.x - 20, screen_pos.y - 40, 40, 80)
+        if self.orientation == "vertical":
+            rect = pygame.Rect(screen_pos.x - 40, screen_pos.y - 70, 80, 140)
+        else:
+            rect = pygame.Rect(screen_pos.x - 70, screen_pos.y - 40, 140, 80)
         pygame.draw.rect(screen, (80, 50, 20), rect)
         pygame.draw.rect(screen, (150, 100, 50), rect, 3)
 

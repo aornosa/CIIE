@@ -131,3 +131,22 @@ def create_audres_wave2_clear():
         ),
     }
     return DialogTree("w2_1", nodes)
+
+
+def create_audres_north_room_entry():
+    """Diálogo provisional al entrar en la sala norte — puerta se cierra tras esto."""
+    nodes = {
+        "n1": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_happy.jpg",
+            text="si no recuerdo mal el laboratorio debería estar por aquí",
+            next_node="n2",
+        ),
+        "n2": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_alert.jpg",
+            text="ALERTA, detecto mas infectados acercandose, encárgate de ellos",
+            next_node=None,
+        ),
+    }
+    return DialogTree("n1", nodes)

@@ -50,22 +50,24 @@ class Level1WaveManager:
         self,
         arena_center: tuple[int, int],
         arena_half: int,
-        wave_config: list | None = None,
         rest_time: float = DEFAULT_REST_TIME,
-        spawn_duration: float = DEFAULT_SPAWN_DURATION,
         enemy_speed: float = 110.0,
         puddle_list: list | None = None,
+        # ── Dificultad inicial: la primera oleada será start_wave ──────────────
+        start_wave: int = 1,
+        # ── Escalado de vida: +hp_scale_per_wave por oleada (0.0 = sin escalado)
+        hp_scale_per_wave: float = 0.0,
     ):
         self.arena_cx, self.arena_cy = arena_center
-        self.arena_half    = arena_half
-        self.wave_config   = wave_config or list(DEFAULT_WAVE_CONFIG)
-        self.rest_time     = rest_time
-        self.spawn_duration = spawn_duration
-        self.enemy_speed   = enemy_speed
-        self.puddle_list   = puddle_list if puddle_list is not None else []
+        self.arena_half       = arena_half
+        self.rest_time        = rest_time
+        self.enemy_speed      = enemy_speed
+        self.puddle_list      = puddle_list if puddle_list is not None else []
+        self.hp_scale_per_wave = hp_scale_per_wave
 
-        self.total_waves   = len(self.wave_config)
-        self.current_wave  = 0
+        self.total_waves   = "∞"
+        # current_wave empieza en start_wave-1; _start_next_wave() lo incrementa.
+        self.current_wave  = start_wave - 1
         self.enemies: list = []
 
         # ── Estado interno ────────────────────────────────────────────────────
@@ -100,10 +102,7 @@ class Level1WaveManager:
         elif self._state == "resting":
             self._rest_timer -= delta_time
             if self._rest_timer <= 0:
-                if self.current_wave >= self.total_waves:
-                    self._finish()
-                else:
-                    self._start_next_wave()
+                self._start_next_wave()
 
     def get_hud_info(self) -> dict:
         enemies_displayed = len(self.enemies) + len(self._spawn_queue)
@@ -118,24 +117,33 @@ class Level1WaveManager:
 
     # ── Lógica interna ──────────────────────────────────────────────────────────
 
-    def _build_spawn_queue(self, cfg) -> list[str]:
-        """Convierte la entrada de wave_config en una lista mezclada de tipos."""
-        if isinstance(cfg, int):
-            queue = ["normal"] * cfg
-        else:
-            queue = []
-            for kind, count in cfg.items():
-                queue.extend([kind] * count)
+    def _build_spawn_queue(self, total: int) -> list[str]:
+        """Construye una cola de oleada basándose en probabilidades requeridas por ronda."""
+        # 50% normal, 10% tank, 20% toxic, 30% shooter
+        # Como suman 110, se usarán como proporciones sobre el total.
+        num_tank    = max(0, int(total * (10 / 110)))
+        num_toxic   = max(0, int(total * (20 / 110)))
+        num_shooter = max(0, int(total * (30 / 110)))
+        num_normal  = total - (num_tank + num_toxic + num_shooter)
+        
+        queue = (
+            ["tank"] * num_tank +
+            ["toxic"] * num_toxic +
+            ["shooter"] * num_shooter +
+            ["normal"] * num_normal
+        )
         random.shuffle(queue)
         return queue
 
     def _start_next_wave(self):
         self.current_wave += 1
-        cfg = self.wave_config[self.current_wave - 1]
-        self._spawn_queue    = self._build_spawn_queue(cfg)
+
+        total = 20 + 5 * self.current_wave
+        spawn_duration = 8.0 + 0.5 * self.current_wave
+
+        self._spawn_queue    = self._build_spawn_queue(total)
         self._spawn_timer    = 0.0
-        total = len(self._spawn_queue)
-        self._spawn_interval = self.spawn_duration / total if total > 0 else 0.0
+        self._spawn_interval = spawn_duration / total if total > 0 else 0.0
         self._state = "spawning"
         print(f"[LEVEL1] Oleada {self.current_wave}/{self.total_waves} — {total} enemigos")
 
@@ -150,25 +158,35 @@ class Level1WaveManager:
             self._state = "fighting"
 
     def _spawn_one(self, kind: str = "normal"):
-        """Spawnea un enemigo del tipo indicado en un borde aleatorio de la arena."""
-        # Los enemigos grandes necesitan más margen para no quedar atrapados en muros
-        margin = 120 if kind == "tank" else 60
-        lo = -self.arena_half + margin
-        hi =  self.arena_half - margin
+        """Spawnea un enemigo en un punto válido dentro de la arena (lejos de paredes)."""
+        # margin_wall: separación mínima respecto a la pared visual.
+        # margin_center: zona mínima desde el centro que se evita para no
+        #   spawnear encima del jugador.
+        margin_wall   = 200 if kind == "tank" else 140
+        margin_center = 200   # radio de exclusión alrededor del centro
 
-        edge = random.randint(0, 3)
-        if edge == 0:
-            ex = self.arena_cx + random.uniform(lo, hi)
-            ey = self.arena_cy + lo
-        elif edge == 1:
-            ex = self.arena_cx + random.uniform(lo, hi)
-            ey = self.arena_cy + hi
-        elif edge == 2:
-            ex = self.arena_cx + lo
-            ey = self.arena_cy + random.uniform(lo, hi)
-        else:
-            ex = self.arena_cx + hi
-            ey = self.arena_cy + random.uniform(lo, hi)
+        lo = -self.arena_half + margin_wall
+        hi =  self.arena_half - margin_wall
+
+        for _ in range(20):   # máx intentos antes de aceptar la posición
+            edge = random.randint(0, 3)
+            if edge == 0:
+                ex = self.arena_cx + random.uniform(lo, hi)
+                ey = self.arena_cy + lo
+            elif edge == 1:
+                ex = self.arena_cx + random.uniform(lo, hi)
+                ey = self.arena_cy + hi
+            elif edge == 2:
+                ex = self.arena_cx + lo
+                ey = self.arena_cy + random.uniform(lo, hi)
+            else:
+                ex = self.arena_cx + hi
+                ey = self.arena_cy + random.uniform(lo, hi)
+
+            dx = ex - self.arena_cx
+            dy = ey - self.arena_cy
+            if (dx * dx + dy * dy) >= margin_center * margin_center:
+                break   # posición válida encontrada
 
         pos = (ex, ey)
 
@@ -186,6 +204,14 @@ class Level1WaveManager:
             enemy = Enemy("assets/icon.png", pos, 0, 0.05)
             enemy._controller = CharacterController(self.enemy_speed, enemy)
 
+        # ── Escalado de vida por ronda ──────────────────────────────────────
+        # Fórmula: HP_base × (1 + hp_scale_per_wave × (ronda_actual - 1))
+        # Ejemplo con hp_scale_per_wave=0.10: ronda 7 → ×1.6, ronda 8 → ×1.7
+        if self.hp_scale_per_wave > 0.0 and self.current_wave > 1:
+            factor = 1.0 + self.hp_scale_per_wave * (self.current_wave - 1)
+            enemy.health      = int(enemy.health      * factor)
+            enemy.base_health = int(enemy.base_health * factor)
+
         self.enemies.append(enemy)
 
     def _cleanup_dead(self):
@@ -193,11 +219,8 @@ class Level1WaveManager:
 
     def _on_wave_cleared(self):
         print(f"[LEVEL1] Oleada {self.current_wave} completada.")
-        if self.current_wave >= self.total_waves:
-            self._finish()
-        else:
-            self._state      = "resting"
-            self._rest_timer = self.rest_time
+        self._state      = "resting"
+        self._rest_timer = self.rest_time
 
     def _finish(self):
         self._state = "finished"

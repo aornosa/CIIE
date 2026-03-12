@@ -87,6 +87,8 @@ class Level1Scene(Scene):
         self._wave2_clear_timer      = -1.0
         self._going_level_complete   = False
         self._total_kills            = 0
+        self._idle_shot_timer        = -1.0
+        self._IDLE_SHOT_TIMEOUT      = 40.0
         self.crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
         self.ads_effect = StatusEffect(
             "assets/effects/ads", "Aiming Down Sights", {"speed": -70}, -1
@@ -94,9 +96,30 @@ class Level1Scene(Scene):
 
     # ── Scene lifecycle ───────────────────────────────────────
 
+        # ── Room dimensions ──
+        self._door = None
+        self._north_room_rect = None
+        self._corridor_rect = None
+        self._door_rect = None
+        self._door_collider = None
+        # ── Pasillo ──
+        self._corridor_weapon = None
+        # ── North room state ──
+        self._north_room_entered  = False
+        self._north_room_sealed   = False
+        self._north_seal_collider = None
+        self._wave_manager_north  = None
+
     def on_enter(self):
         MonoliteBehaviour.time_scale = 1.0
         pygame.mouse.set_visible(False)
+
+        # Avoid inheriting held movement state from previous scene (e.g., menu navigation).
+        if self.director and self.director._input_handler:
+            ih = self.director._input_handler
+            ih.actions["move_x"] = 0
+            ih.actions["move_y"] = 0
+
         self._build_level()
 
     def on_exit(self):
@@ -159,7 +182,20 @@ class Level1Scene(Scene):
         # Boundary walls
         self._build_walls()
 
-        # ── AUDReS-01 (Audrey) — spawns at the top of the arena, walks in ──
+        # Add interactive doors explicitly after walls
+        self._build_doors()
+
+        # Arma en el pasillo norte (SPAS-12) — va al slot secundario
+        from item.item_drop_manager import DroppedWeapon
+        from weapons.ranged.ranged_types import SPAS12
+        _pickup = SPAS12()
+        _pickup.infinite_reserve = True
+        self._corridor_weapon = DroppedWeapon(
+            _pickup,
+            (_ACX, _ACY - _ARENA_HALF - 400),   # centro del pasillo
+            slot="secondary",
+        )
+
         from dialogs.audres_dialogs import create_audres_intro
         self._audres_intro_tree = create_audres_intro()
         self.audres = NPC(
@@ -187,29 +223,101 @@ class Level1Scene(Scene):
         )
 
     def _build_walls(self):
-        """Create four static terrain colliders that form the square arena.
-
-        Rectangle(cx, cy, half_h, half_w)  — all values are center + half-extents.
-        CharacterController.move() already resolves terrain collisions on both
-        axes, so no extra logic is needed here.
-        """
+        """Builds arena walls with a gap at the top for the north room door."""
         cx, cy = _ACX, _ACY
         h, t   = _ARENA_HALF, _WALL_THICK
+        door_w = 240
+
+        # Define extra room (north)
+        # Corridor properties
+        corridor_w = 240
+        corridor_h = 800 # Pasillo aún más largo
+        # North square properties
+        north_sq_half = int(_ARENA_HALF * 1.2) # A bit larger than the main square
+        
+        self._north_room_rect = pygame.Rect(
+            cx - north_sq_half, cy - h - corridor_h - north_sq_half * 2,
+            north_sq_half * 2, north_sq_half * 2
+        )
+        self._corridor_rect = pygame.Rect(
+            cx - corridor_w // 2, cy - h - corridor_h,
+            corridor_w, corridor_h
+        )
 
         wall_defs = [
-            # (center_x,          center_y,          half_h, half_w )
-            (cx,                  cy - h - t // 2,   t // 2, h + t  ),  # top
-            (cx,                  cy + h + t // 2,   t // 2, h + t  ),  # bottom
-            (cx - h - t // 2,    cy,                 h,      t // 2 ),  # left
-            (cx + h + t // 2,    cy,                 h,      t // 2 ),  # right
+            # Main arena: Top wall (left of door)
+            (cx - (h + door_w // 2) / 2, cy - h - t // 2, t // 2, (h - door_w // 2) / 2),
+            # Main arena: Top wall (right of door)
+            (cx + (h + door_w // 2) / 2, cy - h - t // 2, t // 2, (h - door_w // 2) / 2),
+            
+            # Corridor walls (Left & Right)
+            (cx - corridor_w // 2 - t // 2, cy - h - corridor_h // 2, corridor_h // 2, t // 2),
+            (cx + corridor_w // 2 + t // 2, cy - h - corridor_h // 2, corridor_h // 2, t // 2),
+
+            # North Square walls:
+            # Bottom parts connecting to corridor
+            (cx - (north_sq_half + corridor_w // 2) / 2, cy - h - corridor_h - t // 2, t // 2, (north_sq_half - corridor_w // 2) / 2),
+            (cx + (north_sq_half + corridor_w // 2) / 2, cy - h - corridor_h - t // 2, t // 2, (north_sq_half - corridor_w // 2) / 2),
+            # Left & Right of North Square
+            (cx - north_sq_half - t // 2, cy - h - corridor_h - north_sq_half, north_sq_half, t // 2),
+            (cx + north_sq_half + t // 2, cy - h - corridor_h - north_sq_half, north_sq_half, t // 2),
+            # Top of North Square
+            (cx, cy - h - corridor_h - north_sq_half * 2 - t // 2, t // 2, north_sq_half + t),
+
+            # Standard walls: bottom, left, right of Main Arena
+            (cx, cy + h + t // 2, t // 2, h + t),
+            (cx - h - t // 2, cy, h, t // 2),
+            (cx + h + t // 2, cy, h, t // 2),
         ]
+
         for wx, wy, wh, ww in wall_defs:
             Collider(
-                object(),                        # static walls need no logic owner
+                object(), 
                 Rectangle(wx, wy, wh, ww),
                 layer=LAYERS["terrain"],
                 static=True,
             )
+
+    def _on_north_door_open(self):
+        # Remove collider from static set so opening is immediate and reliable.
+        if self._door_collider:
+            from core.collision.collision_manager import CollisionManager
+            if CollisionManager._active is not None:
+                CollisionManager._active.static_qtree.remove(self._door_collider)
+            CollisionManager.static_colliders.discard(self._door_collider)
+            CollisionManager.static_dirty = True
+            self._door_collider = None
+
+        # ── Terminar primera fase de oleadas ─────────────────────────────────
+        # Matar todos los enemigos vivos (dispara die() -> drop loot, quita collider)
+        if self._wave_manager is not None:
+            for e in list(self._wave_manager.enemies):
+                e.take_damage(e.health)
+            self._wave_manager.enemies.clear()
+        for e in list(self.enemies):
+            e.take_damage(e.health)
+        self.enemies.clear()
+        # Descartar el wave manager: el HUD desaparece y no spawnea más enemigos
+        self._wave_manager = None
+        self._toxic_puddles.clear()
+
+    def _build_doors(self):
+        from map.interactables.door import Door
+        cx, cy = _ACX, _ACY
+        h, t   = _ARENA_HALF, _WALL_THICK
+        door_width = 240
+        
+        # --- North Door ---
+        door_px = cx
+        door_py = cy - h - t // 2
+        self._door = Door("Puerta Norte", (door_px, door_py), 500, self._on_north_door_open)
+        self._door_rect = pygame.Rect(door_px - door_width//2, door_py - t//2, door_width, t)
+        self._door_collider = Collider(
+            object(),
+            Rectangle(door_px, door_py, t // 2, door_width // 2),
+            layer=LAYERS["terrain"],
+            static=True
+        )
 
     def _teardown_level(self):
         """Wipe all collision and MonoliteBehaviour state — total cleanup."""
@@ -239,6 +347,19 @@ class Level1Scene(Scene):
         self._wave2_clear_timer      = -1.0
         self._going_level_complete   = False
         self._total_kills            = 0
+        self._idle_shot_timer        = -1.0
+        if self._door:
+            from map.interactables.interaction_manager import InteractionManager
+            InteractionManager().unregister(self._door)
+        self._door = None
+        self._door_collider = None
+        if self._corridor_weapon is not None:
+            self._corridor_weapon._unregister()
+            self._corridor_weapon = None
+        self._north_room_entered  = False
+        self._north_room_sealed   = False
+        self._north_seal_collider = None
+        self._wave_manager_north  = None
         if self._dialog_manager:
             self._dialog_manager.end_dialog()
         self._dialog_manager = None
@@ -284,6 +405,10 @@ class Level1Scene(Scene):
             from scenes.shop_scene import ShopScene
             self.director.push(ShopScene(self, self.player))
             return
+            
+        # ── Toggle interaction (door) with E ──────────────────
+        from map.interactables.interaction_manager import InteractionManager
+        InteractionManager().check_interaction(self.player, input_handler)
 
         # ── Hotbar: select slot with 1-6 ─────────────────────
         if input_handler.actions["hotkey_slot"] >= 0:
@@ -312,14 +437,54 @@ class Level1Scene(Scene):
             alive_before = len(self.enemies)
             cleanup_dead_enemies(self.enemies)
             killed = alive_before - len(self.enemies)
+        if self._wave_manager_north is not None:
+            north_before = len(self._wave_manager_north.enemies)
+            self._wave_manager_north.update(delta_time)
+            killed += north_before - len(self._wave_manager_north.enemies)
         if killed > 0 and self.player:
             self.player.add_coins(killed * 10)
+            self.player.add_score(killed * 20)
             self._total_kills += killed
         if self.player:
             self.player.update(delta_time)
             self._update_enemies(delta_time)
             self._check_enemy_contact(delta_time)
             self._check_player_death()
+
+        # ── Timeout de inactividad (sin disparar) ─────────────────────────────
+        # Se activa en render() al disparar. Aquí solo lo decrementamos y, si
+        # llega a 0 con enemigos activos, matamos a los restantes.
+        all_enemies = (
+            list(self._wave_manager.enemies if self._wave_manager is not None else self.enemies)
+            + (list(self._wave_manager_north.enemies) if self._wave_manager_north is not None else [])
+        )
+        if self._idle_shot_timer >= 0:
+            if all_enemies:
+                self._idle_shot_timer -= delta_time
+                if self._idle_shot_timer <= 0:
+                    print(f"[TIMEOUT] {len(all_enemies)} enemigo(s) eliminado(s) por inactividad")
+                    for e in all_enemies:
+                        e.take_damage(e.health)
+                    self._idle_shot_timer = -1.0
+            else:
+                self._idle_shot_timer = -1.0  # sin enemigos, desactivar
+
+        # ── Detección de entrada a la sala norte ───────────────────────────────
+        if (not self._north_room_entered
+                and self._north_room_rect
+                and self.player
+                and self._north_room_rect.collidepoint(self.player.position)
+                and not (self._dialog_manager and self._dialog_manager.is_dialog_active)):
+            self._north_room_entered = True
+            self._seal_north_door()
+            from dialogs.audres_dialogs import create_audres_north_room_entry
+            self._dialog_manager.start_dialog(create_audres_north_room_entry())
+
+        # ── Iniciar oleadas de sala norte tras el diálogo ──────────────────────
+        if (self._north_room_entered
+                and self._wave_manager_north is None
+                and not (self._dialog_manager and self._dialog_manager.is_dialog_active)):
+            self._create_north_wave_manager()
 
         # ── Wave-clear shop hint (fires once, 1.5 s after all enemies die) ──
         if (self._enemies_spawned
@@ -339,8 +504,10 @@ class Level1Scene(Scene):
                 self._wave_clear_timer = -1.0             # reset if enemies respawn
 
         # ── Iniciar wave manager una vez que el diálogo del shop hint termine ────
+        # Solo si la puerta norte todavía no se abrió (fase 1 no terminada)
         if (self._shop_hint_triggered
                 and self._wave_manager is None
+                and self._door is not None and not self._door.is_open
                 and not (self._dialog_manager and self._dialog_manager.is_dialog_active)):
             self._create_wave_manager()
 
@@ -367,11 +534,14 @@ class Level1Scene(Scene):
                 "Nivel 1",
                 {"kills": self._total_kills,
                  "coins": self.player.coins if self.player else 0},
+                next_scene_class=None
             ))
 
     def _update_enemies(self, delta_time):
         """Chase the player + separation steering so enemies don't stack."""
-        enemies = self._wave_manager.enemies if self._wave_manager is not None else self.enemies
+        enemies = list(self._wave_manager.enemies if self._wave_manager is not None else self.enemies)
+        if self._wave_manager_north is not None:
+            enemies = enemies + list(self._wave_manager_north.enemies)
         for enemy in enemies:
             # ── Chase direction ─────────────────────────────────────────────
             to_player = self.player.position - enemy.position
@@ -427,6 +597,42 @@ class Level1Scene(Scene):
 
     _AUDRES_WALK_SPEED = 300   # px/s during the intro walk
 
+    def _seal_north_door(self):
+        """Coloca un collider de pared permanente donde estaba la puerta norte."""
+        self._north_room_sealed = True
+        cx, cy = _ACX, _ACY
+        h, t = _ARENA_HALF, _WALL_THICK
+        door_width = 240
+        door_px = cx
+        door_py = cy - h - t // 2
+        self._north_seal_collider = Collider(
+            object(),
+            Rectangle(door_px, door_py, t // 2, door_width // 2),
+            layer=LAYERS["terrain"],
+            static=True,
+        )
+
+    def _create_north_wave_manager(self):
+        """Instancia Level1WaveManager en la sala norte.
+
+        Empieza en la oleada 7 (dificultad media-alta) con escalado de vida
+        del 10 % acumulativo por ronda.
+        """
+        from runtime.level1_wave_manager import Level1WaveManager
+        corridor_h = 800
+        north_sq_half = int(_ARENA_HALF * 1.2)
+        north_cx = _ACX
+        north_cy = _ACY - _ARENA_HALF - corridor_h - north_sq_half
+        self._wave_manager_north = Level1WaveManager(
+            arena_center=(north_cx, north_cy),
+            arena_half=north_sq_half,
+            rest_time=3.0,
+            enemy_speed=_ENEMY_SPEED,
+            puddle_list=self._toxic_puddles,
+            start_wave=7,           # primera oleada sera la 7 (55 enemigos)
+            hp_scale_per_wave=0.10, # +10 % de vida acumulativo por ronda
+        )
+
     def _create_wave_manager(self):
         """Instancia Level1WaveManager con oleadas mixtas de enemigos.
 
@@ -439,15 +645,7 @@ class Level1Scene(Scene):
         self._wave_manager = Level1WaveManager(
             arena_center=(_ACX, _ACY),
             arena_half=_ARENA_HALF,
-            wave_config=[
-                {"normal": 15, "tank": 2,  "toxic": 0,  "shooter": 2},  # Oleada 1
-                {"normal": 15, "tank": 2,  "toxic": 4,  "shooter": 3},  # Oleada 2
-                {"normal": 18, "tank": 4,  "toxic": 4,  "shooter": 4},  # Oleada 3
-                {"normal": 22, "tank": 5,  "toxic": 5,  "shooter": 5},  # Oleada 4
-                {"normal": 28, "tank": 7,  "toxic": 6,  "shooter": 6},  # Oleada 5
-            ],
             rest_time=3.0,
-            spawn_duration=8.0,
             enemy_speed=_ENEMY_SPEED,
             puddle_list=self._toxic_puddles,
         )
@@ -511,6 +709,111 @@ class Level1Scene(Scene):
         # Mouse position (for crosshair & aiming)
         mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
 
+        # ── Active Rects mapped to screen positions ──
+        # ax y ay representan la esquina superior izquierda (top-left) de la arena original 
+        ax = _ACX - _ARENA_HALF - int(self.camera.position.x)
+        ay = _ACY - _ARENA_HALF - int(self.camera.position.y)
+        
+        # Rectángulo que representa el suelo de la arena jugable inicial de tamaño _ARENA_HALF
+        arena_rect = pygame.Rect(ax, ay, _ARENA_HALF * 2, _ARENA_HALF * 2)
+
+        # Draw main arena and room floors
+        # Pintamos la base de nuestro campo usando el color de suelo
+        pygame.draw.rect(screen, _FLOOR_COLOR, arena_rect)
+        if self._north_room_rect and self._corridor_rect:
+            # === DIBUJANDO LA HABITACIÓN SECRETA (Cuadrado norte) ===
+            n_rect = self._north_room_rect.copy()
+            # Desplazamos la posición por la que lleva la cámara para que encaje
+            n_rect.x -= int(self.camera.position.x)
+            n_rect.y -= int(self.camera.position.y)
+            # Dibujamos su suelo colorizado un poco más oscuro
+            pygame.draw.rect(screen, (35, 35, 45), n_rect)  
+            # Dibujamos su borde físico (pared) externa
+            pygame.draw.rect(screen, _WALL_COLOR, n_rect, _WALL_THICK)
+            
+            # === DIBUJANDO EL PASILLO ===
+            c_rect = self._corridor_rect.copy()
+            c_rect.x -= int(self.camera.position.x)
+            c_rect.y -= int(self.camera.position.y)
+            # Dibujamos su suelo
+            pygame.draw.rect(screen, (35, 35, 45), c_rect)
+            
+            # === CONSTRUYENDO Y PINTANDO LAS PAREDES DEL PASILLO ===
+            # Pared Izquierda del pasillo 
+            pygame.draw.rect(screen, _WALL_COLOR, (c_rect.x - _WALL_THICK, c_rect.y, _WALL_THICK, c_rect.height)) 
+            # Pared Derecha del pasillo
+            pygame.draw.rect(screen, _WALL_COLOR, (c_rect.right, c_rect.y, _WALL_THICK, c_rect.height)) 
+            
+            # == MÁSCARAS DE CONEXIÓN (BORRANDO PAREDES PARA FORMAR EL FLUJO DEL CUARTO) ==
+            # Ocultamos la pared de arriba que lo conecta con el cuadro superior norte pintándolo del color de ambas habitaciones (35, 35, 45)
+            # Esto siempre está abierto y visible si pasaste el marco final. Para asegurar que borra la línea marrón, 
+            # lo hacemos un poco más alto.
+            conn_rect2 = pygame.Rect(
+                c_rect.x - 2,
+                c_rect.top - _WALL_THICK - 2,
+                c_rect.width + 4,
+                _WALL_THICK + 4,
+            )
+            pygame.draw.rect(screen, (35, 35, 45), conn_rect2)
+
+            # Ocultamos / enmascaramos la pared de abajo del pasillo pintándola del color del suelo de la arena principal 
+            # (Así la puerta no parece una división estática), pero SOLO lo hacemos si la puerta YA se abrió o no existe
+            if not self._door or self._door.is_open:
+                conn_rect1 = pygame.Rect(
+                    c_rect.x - 2,
+                    c_rect.bottom - _WALL_THICK - 2,
+                    c_rect.width + 4,
+                    _WALL_THICK + 4,
+                )
+                pygame.draw.rect(screen, _FLOOR_COLOR, conn_rect1)
+                # Enmascara la franja interior de la pared superior de la arena
+                # (pintada por el border-rect genérico) que queda visible en el hueco
+                inner_top_mask = pygame.Rect(c_rect.x - 2, c_rect.bottom, c_rect.width + 4, _WALL_THICK + 2)
+                pygame.draw.rect(screen, _FLOOR_COLOR, inner_top_mask)
+
+        # === DIBUJANDO LAS PAREDES DE LA ARENA PRINCIPAL (Base square) === 
+        # (Draw manually line by line to support the gap, instead of a border)
+        
+        # Pared de abajo
+        pygame.draw.rect(screen, _WALL_COLOR, (ax, ay + _ARENA_HALF*2, _ARENA_HALF*2, _WALL_THICK)) # bottom
+        # Pared izquierda
+        pygame.draw.rect(screen, _WALL_COLOR, (ax - _WALL_THICK, ay, _WALL_THICK, _ARENA_HALF*2)) # left
+        # Pared derecha
+        pygame.draw.rect(screen, _WALL_COLOR, (ax + _ARENA_HALF*2, ay, _WALL_THICK, _ARENA_HALF*2)) # right
+
+        # HUECO DE LA PUERTA:
+        # La pared superior en dos partes, una a la izquierda y otra a la derecha, dejando el hueco de en medio (door_w) 
+        door_w = 240
+        top_left_w = (_ARENA_HALF * 2 - door_w) // 2
+        # Pedazo izquierdo superior
+        pygame.draw.rect(screen, _WALL_COLOR, (ax, ay - _WALL_THICK, top_left_w, _WALL_THICK))
+        # Pedazo derecho superior (dejando top_left_w + door_w de salto)
+        pygame.draw.rect(screen, _WALL_COLOR, (ax + top_left_w + door_w, ay - _WALL_THICK, top_left_w, _WALL_THICK))
+
+        # Dynamic Doors Drawing (overrides connections if closed)
+        if self._door:
+            # If door is closed, we should draw a solid line/wall representing the gate
+            if not self._door.is_open:
+                dr = self._door_rect.copy()
+                dr.x -= int(self.camera.position.x)
+                dr.y -= int(self.camera.position.y)
+                # Dibujamos detrás la parte estructural de la pared normal
+                pygame.draw.rect(screen, _WALL_COLOR, dr)
+
+                # Encima un marco / puerta reforzada visible
+                pygame.draw.rect(screen, (80, 50, 20), dr)
+                pygame.draw.rect(screen, (20, 15, 10), dr, 4)
+
+            # Dibujamos las interfaces visuales propias de la puerta (Precio, Letras)
+            self._door.draw(screen, self.camera)
+
+        # Sello permanente — pared sólida cuando la puerta norte se cerró definitivamente
+        if self._north_room_sealed and self._door_rect:
+            dr = self._door_rect.copy()
+            dr.x -= int(self.camera.position.x)
+            dr.y -= int(self.camera.position.y)
+            pygame.draw.rect(screen, _WALL_COLOR, dr)
+
         dialog_active = self._dialog_manager and self._dialog_manager.is_dialog_active
 
         # Movement (frozen during cutscene)
@@ -568,7 +871,8 @@ class Level1Scene(Scene):
                                 + direction.rotate(90) * active_weapon.muzzle_offset[1],
                                 direction,
                             )
-                        active_weapon.shoot()
+                        if active_weapon.shoot():
+                            self._idle_shot_timer = self._IDLE_SHOT_TIMEOUT  # reset al disparar
 
             elif movement.length() > 0:
                 # Rotate player towards movement when not aiming
@@ -590,7 +894,9 @@ class Level1Scene(Scene):
         self._camera_follow(self.player.position, delta_time)
 
         # Draw shooter danger zones (below puddles and enemies)
-        active_enemies = self._wave_manager.enemies if self._wave_manager is not None else self.enemies
+        active_enemies = list(self._wave_manager.enemies if self._wave_manager is not None else self.enemies)
+        if self._wave_manager_north is not None:
+            active_enemies += list(self._wave_manager_north.enemies)
         from character_scripts.enemy.shooter_enemy import ShooterEnemy as _ShooterEnemy
         for enemy in active_enemies:
             if isinstance(enemy, _ShooterEnemy) and enemy.zone_active:
@@ -599,6 +905,10 @@ class Level1Scene(Scene):
         # Draw toxic puddles (below enemies)
         for puddle in self._toxic_puddles:
             puddle.draw(screen, self.camera)
+
+        # Draw corridor weapon pickup
+        if self._corridor_weapon is not None:
+            self._corridor_weapon.draw(screen, self.camera)
 
         # Draw enemies
         entity_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
@@ -639,7 +949,8 @@ class Level1Scene(Scene):
         )
 
         # HUD
-        ui_manager.draw_overlay(screen, self.player, wave_manager=self._wave_manager, delta_time=delta_time)
+        _hud_wm = self._wave_manager_north if self._wave_manager_north is not None else self._wave_manager
+        ui_manager.draw_overlay(screen, self.player, wave_manager=_hud_wm, delta_time=delta_time)
 
         # Dialog UI (drawn last so it's always on top)
         if self._dialog_manager:

@@ -268,7 +268,7 @@ def _draw_wave_hud(screen, wave_manager, player, font_big, font_med, font_sml):
     screen.blit(font_med.render(f"Enemigos: {info['enemies_left']}", True, enemy_color),
                 (panel_x + 12, panel_y + 44))
 
-    screen.blit(font_sml.render(f"Pts: {player.score}", True, (180, 255, 180)),
+    screen.blit(font_sml.render(f"Puntuación: {player.score}", True, (180, 255, 180)),
                 (panel_x + 12, panel_y + 74))
 
     if info["state"] == "resting":
