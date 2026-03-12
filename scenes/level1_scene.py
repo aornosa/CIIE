@@ -109,6 +109,13 @@ class Level1Scene(Scene):
         self._north_room_sealed   = False
         self._north_seal_collider = None
         self._wave_manager_north  = None
+        # ── Exit room (above north room) ──
+        self._exit_door            = None
+        self._exit_room_rect       = None
+        self._exit_corridor_rect   = None
+        self._exit_door_rect       = None
+        self._exit_door_collider   = None
+        self._helicopter           = None
 
     def on_enter(self):
         MonoliteBehaviour.time_scale = 1.0
@@ -196,6 +203,15 @@ class Level1Scene(Scene):
             slot="secondary",
         )
 
+        # Helicóptero de evacuación en la sala de salida
+        from item.item_drop_manager import HelicopterInteractable
+        _corridor_h    = 800
+        _north_sq_half = int(_ARENA_HALF * 1.2)
+        _exit_crrdr_h  = 300
+        _exit_sq_half  = 400
+        heli_y = _ACY - _ARENA_HALF - _corridor_h - _north_sq_half * 2 - _exit_crrdr_h - _exit_sq_half
+        self._helicopter = HelicopterInteractable((_ACX, heli_y), self)
+
         from dialogs.audres_dialogs import create_audres_intro
         self._audres_intro_tree = create_audres_intro()
         self.audres = NPC(
@@ -234,6 +250,11 @@ class Level1Scene(Scene):
         corridor_h = 800 # Pasillo aún más largo
         # North square properties
         north_sq_half = int(_ARENA_HALF * 1.2) # A bit larger than the main square
+        # Exit room dimensions
+        exit_door_w     = 240
+        exit_corridor_h = 300
+        exit_corridor_w = 240
+        exit_sq_half    = 400
         
         self._north_room_rect = pygame.Rect(
             cx - north_sq_half, cy - h - corridor_h - north_sq_half * 2,
@@ -261,8 +282,20 @@ class Level1Scene(Scene):
             # Left & Right of North Square
             (cx - north_sq_half - t // 2, cy - h - corridor_h - north_sq_half, north_sq_half, t // 2),
             (cx + north_sq_half + t // 2, cy - h - corridor_h - north_sq_half, north_sq_half, t // 2),
-            # Top of North Square
-            (cx, cy - h - corridor_h - north_sq_half * 2 - t // 2, t // 2, north_sq_half + t),
+            # Top of North Square — two segments with exit-door gap in centre
+            (cx - (north_sq_half + t + exit_door_w // 2) // 2, cy - h - corridor_h - north_sq_half * 2 - t // 2, t // 2, (north_sq_half + t - exit_door_w // 2) // 2),
+            (cx + (north_sq_half + t + exit_door_w // 2) // 2, cy - h - corridor_h - north_sq_half * 2 - t // 2, t // 2, (north_sq_half + t - exit_door_w // 2) // 2),
+            # Exit corridor walls (left & right)
+            (cx - exit_corridor_w // 2 - t // 2, cy - h - corridor_h - north_sq_half * 2 - exit_corridor_h // 2, exit_corridor_h // 2, t // 2),
+            (cx + exit_corridor_w // 2 + t // 2, cy - h - corridor_h - north_sq_half * 2 - exit_corridor_h // 2, exit_corridor_h // 2, t // 2),
+            # Exit room bottom wall (left & right of corridor gap)
+            (cx - (exit_sq_half + exit_corridor_w // 2) // 2, cy - h - corridor_h - north_sq_half * 2 - exit_corridor_h - t // 2, t // 2, (exit_sq_half - exit_corridor_w // 2) // 2),
+            (cx + (exit_sq_half + exit_corridor_w // 2) // 2, cy - h - corridor_h - north_sq_half * 2 - exit_corridor_h - t // 2, t // 2, (exit_sq_half - exit_corridor_w // 2) // 2),
+            # Exit room left & right walls
+            (cx - exit_sq_half - t // 2, cy - h - corridor_h - north_sq_half * 2 - exit_corridor_h - exit_sq_half, exit_sq_half, t // 2),
+            (cx + exit_sq_half + t // 2, cy - h - corridor_h - north_sq_half * 2 - exit_corridor_h - exit_sq_half, exit_sq_half, t // 2),
+            # Exit room top wall
+            (cx, cy - h - corridor_h - north_sq_half * 2 - exit_corridor_h - exit_sq_half * 2 - t // 2, t // 2, exit_sq_half + t),
 
             # Standard walls: bottom, left, right of Main Arena
             (cx, cy + h + t // 2, t // 2, h + t),
@@ -277,6 +310,22 @@ class Level1Scene(Scene):
                 layer=LAYERS["terrain"],
                 static=True,
             )
+
+        # Exit room geometry refs (for render + interaction)
+        north_top_y = cy - h - corridor_h - north_sq_half * 2
+        exit_ctr_y  = north_top_y - exit_corridor_h - exit_sq_half
+        self._exit_corridor_rect = pygame.Rect(
+            cx - exit_corridor_w // 2,
+            north_top_y - exit_corridor_h,
+            exit_corridor_w,
+            exit_corridor_h,
+        )
+        self._exit_room_rect = pygame.Rect(
+            cx - exit_sq_half,
+            exit_ctr_y - exit_sq_half,
+            exit_sq_half * 2,
+            exit_sq_half * 2,
+        )
 
     def _on_north_door_open(self):
         # Remove collider from static set so opening is immediate and reliable.
@@ -301,6 +350,25 @@ class Level1Scene(Scene):
         self._wave_manager = None
         self._toxic_puddles.clear()
 
+    def _on_exit_door_open(self):
+        """Remove exit door collider and kill north room waves."""
+        if self._exit_door_collider:
+            from core.collision.collision_manager import CollisionManager
+            if CollisionManager._active is not None:
+                CollisionManager._active.static_qtree.remove(self._exit_door_collider)
+            CollisionManager.static_colliders.discard(self._exit_door_collider)
+            CollisionManager.static_dirty = True
+            self._exit_door_collider = None
+
+        if self._wave_manager_north is not None:
+            for e in list(self._wave_manager_north.enemies):
+                e.take_damage(e.health)
+            self._wave_manager_north.enemies.clear()
+        self._wave_manager_north = None
+
+        from dialogs.audres_dialogs import create_audres_exit_door
+        self._dialog_manager.start_dialog(create_audres_exit_door())
+
     def _build_doors(self):
         from map.interactables.door import Door
         cx, cy = _ACX, _ACY
@@ -317,6 +385,24 @@ class Level1Scene(Scene):
             Rectangle(door_px, door_py, t // 2, door_width // 2),
             layer=LAYERS["terrain"],
             static=True
+        )
+
+        # --- Exit Door (top of north room) ---
+        corridor_h    = 800
+        north_sq_half = int(_ARENA_HALF * 1.2)
+        exit_door_w   = 240
+        north_top_y   = cy - h - corridor_h - north_sq_half * 2
+        exit_door_px  = cx
+        exit_door_py  = north_top_y - t // 2
+        self._exit_door = Door("Puerta de Salida", (exit_door_px, exit_door_py), 1500, self._on_exit_door_open)
+        self._exit_door_rect = pygame.Rect(
+            exit_door_px - exit_door_w // 2, north_top_y - t, exit_door_w, t
+        )
+        self._exit_door_collider = Collider(
+            object(),
+            Rectangle(exit_door_px, exit_door_py, t // 2, exit_door_w // 2),
+            layer=LAYERS["terrain"],
+            static=True,
         )
 
     def _teardown_level(self):
@@ -360,6 +446,16 @@ class Level1Scene(Scene):
         self._north_room_sealed   = False
         self._north_seal_collider = None
         self._wave_manager_north  = None
+        if self._exit_door:
+            from map.interactables.interaction_manager import InteractionManager
+            InteractionManager().unregister(self._exit_door)
+        self._exit_door = None
+        self._exit_door_collider = None
+        self._exit_room_rect     = None
+        self._exit_corridor_rect = None
+        if self._helicopter is not None:
+            self._helicopter._unregister()
+            self._helicopter = None
         if self._dialog_manager:
             self._dialog_manager.end_dialog()
         self._dialog_manager = None
@@ -483,6 +579,7 @@ class Level1Scene(Scene):
         # ── Iniciar oleadas de sala norte tras el diálogo ──────────────────────
         if (self._north_room_entered
                 and self._wave_manager_north is None
+                and self._exit_door is not None and not self._exit_door.is_open
                 and not (self._dialog_manager and self._dialog_manager.is_dialog_active)):
             self._create_north_wave_manager()
 
@@ -649,7 +746,6 @@ class Level1Scene(Scene):
             enemy_speed=_ENEMY_SPEED,
             puddle_list=self._toxic_puddles,
         )
-        self._wave_manager.set_on_complete(self._on_waves_complete)
 
     def _on_waves_complete(self):
         """Callback del Level1WaveManager: arranca el timer de felicitación."""
@@ -730,6 +826,13 @@ class Level1Scene(Scene):
             pygame.draw.rect(screen, (35, 35, 45), n_rect)  
             # Dibujamos su borde físico (pared) externa
             pygame.draw.rect(screen, _WALL_COLOR, n_rect, _WALL_THICK)
+
+            # Mask the exit door gap in the north room's top wall
+            # (the physics wall has a gap here; mask the visual border too)
+            if self._exit_room_rect:
+                pygame.draw.rect(screen, (35, 35, 45), pygame.Rect(
+                    n_rect.centerx - 120, n_rect.y, 240, _WALL_THICK + 2
+                ))
             
             # === DIBUJANDO EL PASILLO ===
             c_rect = self._corridor_rect.copy()
@@ -770,6 +873,41 @@ class Level1Scene(Scene):
                 # (pintada por el border-rect genérico) que queda visible en el hueco
                 inner_top_mask = pygame.Rect(c_rect.x - 2, c_rect.bottom, c_rect.width + 4, _WALL_THICK + 2)
                 pygame.draw.rect(screen, _FLOOR_COLOR, inner_top_mask)
+
+        # === DIBUJANDO SALA DE SALIDA + PASILLO DE SALIDA ===
+        if self._exit_room_rect and self._exit_corridor_rect:
+            er = self._exit_room_rect.copy()
+            er.x -= int(self.camera.position.x)
+            er.y -= int(self.camera.position.y)
+            pygame.draw.rect(screen, (25, 45, 35), er)
+            pygame.draw.rect(screen, _WALL_COLOR, er, _WALL_THICK)
+
+            ecr = self._exit_corridor_rect.copy()
+            ecr.x -= int(self.camera.position.x)
+            ecr.y -= int(self.camera.position.y)
+            pygame.draw.rect(screen, (25, 45, 35), ecr)
+            # Corridor side walls
+            pygame.draw.rect(screen, _WALL_COLOR, (ecr.x - _WALL_THICK, ecr.y, _WALL_THICK, ecr.height))
+            pygame.draw.rect(screen, _WALL_COLOR, (ecr.right, ecr.y, _WALL_THICK, ecr.height))
+
+            # Mask connection: top of exit corridor into exit room (always open)
+            conn_exit_top = pygame.Rect(ecr.x - 2, ecr.top - _WALL_THICK - 2, ecr.width + 4, _WALL_THICK + 4)
+            pygame.draw.rect(screen, (25, 45, 35), conn_exit_top)
+
+            # Mask connection: bottom of exit corridor into north room (only when exit door open)
+            if not self._exit_door or self._exit_door.is_open:
+                conn_exit_bot = pygame.Rect(ecr.x - 2, ecr.bottom - _WALL_THICK - 2, ecr.width + 4, _WALL_THICK + 4)
+                pygame.draw.rect(screen, (35, 35, 45), conn_exit_bot)
+
+        # Draw exit door
+        if self._exit_door:
+            if not self._exit_door.is_open:
+                edr = self._exit_door_rect.copy()
+                edr.x -= int(self.camera.position.x)
+                edr.y -= int(self.camera.position.y)
+                pygame.draw.rect(screen, (80, 50, 20), edr)
+                pygame.draw.rect(screen, (20, 15, 10), edr, 4)
+            self._exit_door.draw(screen, self.camera)
 
         # === DIBUJANDO LAS PAREDES DE LA ARENA PRINCIPAL (Base square) === 
         # (Draw manually line by line to support the gap, instead of a border)
@@ -909,6 +1047,10 @@ class Level1Scene(Scene):
         # Draw corridor weapon pickup
         if self._corridor_weapon is not None:
             self._corridor_weapon.draw(screen, self.camera)
+
+        # Draw helicopter interactable
+        if self._helicopter is not None:
+            self._helicopter.draw(screen, self.camera)
 
         # Draw enemies
         entity_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)

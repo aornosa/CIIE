@@ -9,9 +9,11 @@ _SELECT_COLOR = (255, 220, 50)
 
 
 class VictoryScene(Scene):
-    def __init__(self, score: int):
+    def __init__(self, score: int = 0, kills: int = 0, coins: int = 0):
         super().__init__()
-        self.score    = score
+        self.score    = score or kills * 20 + coins
+        self.kills    = kills
+        self.coins    = coins
         self.options  = ["Nueva Partida", "Menú Principal", "Salir"]
         self.selected = 0
 
@@ -58,6 +60,12 @@ class VictoryScene(Scene):
         score_surf = self._font_info.render(
             f"Puntuación final: {self.score}", True, _SCORE_COLOR)
         screen.blit(score_surf, (cx - score_surf.get_width() // 2, cy))
+
+        cy += 42
+        kills_surf = self._font_info.render(
+            f"Enemigos eliminados: {self.kills}", True, _INFO_COLOR)
+        screen.blit(kills_surf, (cx - kills_surf.get_width() // 2, cy))
+
 
         cy += 80
         for i, opt in enumerate(self.options):

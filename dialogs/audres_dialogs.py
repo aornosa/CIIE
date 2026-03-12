@@ -109,24 +109,30 @@ def create_audres_shop_hint():
 
 
 def create_audres_wave2_clear():
-    """Diálogo post-oleada 2 — Audrey felicita al jugador y lo guía al laboratorio."""
+    """Diálogo post-oleada 2 — Audrey indica que hay un helicóptero hacia el laboratorio."""
     nodes = {
         "w2_1": DialogNode(
             speaker="AUDReS-01",
             portrait=_P + "portrait_happy.jpg",
-            text="¡Increíble, soldado! Has eliminado a todos los infectados de la zona. Eres mucho mejor de lo que esperaba.",
+            text="¡Increible, soldado! Has eliminado a todos los infectados de la zona.",
             next_node="w2_2",
         ),
         "w2_2": DialogNode(
             speaker="AUDReS-01",
-            portrait=_P + "portrait_happy.jpg",
-            text="El laboratorio al norte sigue en pie. Si el Doc sigue ahí dentro, podrá darnos respuestas.",
+            portrait=_P + "portrait_neutral.jpg",
+            text="Mis sensores localizan el laboratorio del Doc a varios kilómetros al norte. Demasiado lejos para ir a pie con infectados por todas partes.",
             next_node="w2_3",
         ),
         "w2_3": DialogNode(
             speaker="AUDReS-01",
-            portrait=_P + "portrait_neutral.jpg",
-            text="Vamos al laboratorio, sígueme.",
+            portrait=_P + "portrait_alert.jpg",
+            text="Pero he detectado un helicóptero militar abandonado en esta instalación. Si consigues llegar hasta él, podemos volar directamente al laboratorio.",
+            next_node="w2_4",
+        ),
+        "w2_4": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_happy.jpg",
+            text="Abre la puerta norte y sigue adelante. El helicóptero está al fondo. ¡Date prisa, no sé cuánto aguantarán las barricadas!",
             next_node=None,
         ),
     }
@@ -134,19 +140,38 @@ def create_audres_wave2_clear():
 
 
 def create_audres_north_room_entry():
-    """Diálogo provisional al entrar en la sala norte — puerta se cierra tras esto."""
+    """Diálogo al entrar en la sala norte — puerta se cierra tras esto."""
     nodes = {
         "n1": DialogNode(
             speaker="AUDReS-01",
-            portrait=_P + "portrait_happy.jpg",
-            text="si no recuerdo mal el laboratorio debería estar por aquí",
+            portrait=_P + "portrait_neutral.jpg",
+            text="Bien, el helicóptero está en alguno de estos hangares. Aquí hay más infectados, ten cuidado.",
             next_node="n2",
         ),
         "n2": DialogNode(
             speaker="AUDReS-01",
             portrait=_P + "portrait_alert.jpg",
-            text="ALERTA, detecto mas infectados acercandose, encárgate de ellos",
+            text="¡ALERTA! La manada nos ha bloqueado la retirada. Sige adelante, no hay vuelta atrás.",
             next_node=None,
         ),
     }
     return DialogTree("n1", nodes)
+
+
+def create_audres_exit_door():
+    """Diálogo al abrir la puerta de salida (ultimo acceso al helicóptero)."""
+    nodes = {
+        "e1": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_happy.jpg",
+            text="¡Ahí está! Ese es el helicóptero. Lo reconozco, es un UH-72 militar. Debería tener combustible suficiente.",
+            next_node="e2",
+        ),
+        "e2": DialogNode(
+            speaker="AUDReS-01",
+            portrait=_P + "portrait_alert.jpg",
+            text="Acerca y pulsa [E] para abordar. Yo me engancharé al tren de aterrizaje. ¡Nos vamos al laboratorio!",
+            next_node=None,
+        ),
+    }
+    return DialogTree("e1", nodes)
