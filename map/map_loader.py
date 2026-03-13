@@ -38,7 +38,6 @@ class MapLoader:
                 
                 chunk = mapa.get_chunk((cx, cy))
 
-                # Keep track of the layer name so we can decide which layers are "buildings"
                 chunk.layer_names.append(layer_name)
 
                 layer_matrix = [[0] * CHUNK_SIZE for _ in range(CHUNK_SIZE)]
@@ -47,13 +46,11 @@ class MapLoader:
                         layer_matrix[ly][lx] = tiles_2d[ly][lx]        
                 chunk.tiles_layers.append(layer_matrix)
                 print(f"Chunk ({cx},{cy}): layer_matrix non-zero GIDs: {sum(sum(1 for c in row if c!=0) for row in layer_matrix)}")
-                print(f"Ejemplo GIDs: {layer_matrix[0][:5]}...")  # Primeros 5
+                print(f"Ejemplo GIDs: {layer_matrix[0][:5]}...")
                 
     @staticmethod
     def load_colliders_from_json(map_data):
-        # Buscamos en todas las capas del mapa
         for layer in map_data.get('layers', []):
-            # Filtramos por tipo "objectgroup" y nombre "colliders" (como te dijo tu compañero)
             if layer.get('type') == 'objectgroup' and layer.get('name') == 'colliders':
                 
                 for obj in layer.get('objects', []):
@@ -62,25 +59,19 @@ class MapLoader:
                     width = obj['width']
                     height = obj['height']
                     
-                    # Convertimos de "Top-Left" (Tiled) a "Center + Half-Extents" (Tu sistema)
                     center_x = tiled_x + (width / 2)
                     center_y = tiled_y + (height / 2)
                     half_w = width / 2
                     half_h = height / 2
-                    
-                    # ¡OJO! Tu Rectangle recibe (x, y, h, w) - Nota que la 'h' va antes que la 'w'
+
                     rect = Rectangle(center_x, center_y, half_h, half_w)
                     
-                    # Instanciamos el collider estático.
-                    # El __init__ del Collider se encarga de meterlo en el CollisionManager automáticamente.
                     Collider(
                         owner=None, 
                         rect=rect, 
                         layer=get_layer_value("terrain"), 
                         static=True
                     )
-                
-                print(f"✅ Cargados {len(layer.get('objects', []))} colliders estáticos desde Tiled.")
 
     @staticmethod
     def save_map(map_object: Map, file_path):
@@ -103,8 +94,6 @@ class MapLoader:
         if player:
             self.active_chunks = self.get_active_chunks(player, screen, camera_offset, chunk_radius)
 
-        # Precompute which tile layers should be treated as buildings (for transparency masking).
-        # This is based on layer names (e.g. "Tile Layer 2"), or can be extended to look for "building".
         building_layer_indices = []
         for chunk in self.active_chunks.values():
             if chunk.layer_names:
@@ -114,99 +103,101 @@ class MapLoader:
                         building_layer_indices.append(idx)
                 break
         if not building_layer_indices:
-            # Fallback to the second layer if available (common for Tiled setups).
             if next(iter(self.active_chunks.values()), None) and len(next(iter(self.active_chunks.values())).tiles_layers) > 1:
                 building_layer_indices = [1]
 
-        # Surface that will contain all building layers so we can mask them in a circular area around the player.
-        # Reuse the surface across frames to avoid allocating a new one every tick.
-        if getattr(self, '_buildings_surface', None) is None or self._buildings_surface.get_size() != screen.get_size():
-            self._buildings_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
-        buildings_surface = self._buildings_surface
-        buildings_surface.fill((0, 0, 0, 0))
-
-        # If we have a player, compute their position on screen and create a masking surface.
         player_screen_pos = None
+        patch_rect = None
         if player:
             player_screen_pos = (int(player.position[0] - camera_offset[0]),
                                  int(player.position[1] - camera_offset[1]))
 
-            # Radius in pixels (tweak to taste): defines how much of the building layer gets transparent.
-            self.building_mask_radius = getattr(self, 'building_mask_radius', TILE_SIZE * 1.5)
+            self.patch_radius = getattr(self, 'patch_radius', TILE_SIZE * 1.5)  
 
-            # How transparent is the area under the player.
-            # 255 = no transparency (building stays fully opaque).
-            # 0   = fully transparent (building invisible).
-            self.building_mask_inner_alpha = getattr(self, 'building_mask_inner_alpha', 80)
+            patch_size = self.patch_radius * 2
+            patch_radius = self.patch_radius
+            patch_rect = pygame.Rect(player_screen_pos[0] - patch_radius, player_screen_pos[1] - patch_radius, patch_size, patch_size)
 
-            # Build / cache a dotted radial mask for performance.
-            cache_key = (self.building_mask_radius, self.building_mask_inner_alpha)
-            if getattr(self, '_building_mask_cache', None) is None:
-                self._building_mask_cache = {}
-            if cache_key not in self._building_mask_cache:
-                # The mask surface is sized to the circle diameter and will be blitted centered on the player.
-                diameter = int(self.building_mask_radius * 2)
-                self._building_mask_cache[cache_key] = self._build_building_mask(
-                    (diameter, diameter),
-                    (int(self.building_mask_radius), int(self.building_mask_radius)),
-                    self.building_mask_radius,
-                    self.building_mask_inner_alpha,
+            if getattr(self, '_patch_surface', None) is None or self._patch_surface.get_size() != (patch_size, patch_size):
+                self._patch_surface = pygame.Surface((patch_size, patch_size), pygame.SRCALPHA)
+            patch_surface = self._patch_surface
+            patch_surface.fill((0, 0, 0, 0))
+
+            cache_key = ('patch', patch_radius)
+            if getattr(self, '_patch_mask_cache', None) is None:
+                self._patch_mask_cache = {}
+            if cache_key not in self._patch_mask_cache:
+                self._patch_mask_cache[cache_key] = self._build_patch_mask(
+                    (patch_size, patch_size),
+                    (patch_radius, patch_radius),
+                    patch_radius,
                 )
 
-            self._building_mask = self._building_mask_cache[cache_key]
+            self._patch_mask = self._patch_mask_cache[cache_key]
 
         for chunk_pos, chunk in self.active_chunks.items():
-            if not chunk.render_cache:
+            if not chunk.full_cache:
                 chunk._bake_chunk(tile_images, building_layer_indices=building_layer_indices)
             chunk_screen_pos = (chunk.pos[0] * (CHUNK_SIZE * TILE_SIZE) - camera_offset[0],
                                 chunk.pos[1] * (CHUNK_SIZE * TILE_SIZE) - camera_offset[1])
-            screen.blit(chunk.render_cache, chunk_screen_pos)
+            screen.blit(chunk.full_cache, chunk_screen_pos)
 
-            if getattr(chunk, 'has_buildings', False) and getattr(chunk, 'building_cache', None):
-                buildings_surface.blit(chunk.building_cache, chunk_screen_pos)
+            if patch_rect and getattr(chunk, 'floor_only_cache', None):
+                chunk_rect = pygame.Rect(chunk_screen_pos[0], chunk_screen_pos[1], CHUNK_SIZE * TILE_SIZE, CHUNK_SIZE * TILE_SIZE)
+                if chunk_rect.colliderect(patch_rect):
+                    intersect = chunk_rect.clip(patch_rect)
+                    src_x = intersect.x - chunk_rect.x
+                    src_y = intersect.y - chunk_rect.y
+                    src_rect = pygame.Rect(src_x, src_y, intersect.w, intersect.h)
+                    dst_x = intersect.x - patch_rect.x
+                    dst_y = intersect.y - patch_rect.y
+                    patch_surface.blit(chunk.floor_only_cache, (dst_x, dst_y), src_rect)
 
-        # Apply circular transparency mask to building layer and composite it on screen.
-        if player_screen_pos is not None and getattr(self, '_building_mask', None) is not None:
-            mask_top_left = (int(player_screen_pos[0] - self.building_mask_radius),
-                             int(player_screen_pos[1] - self.building_mask_radius))
-            buildings_surface.blit(self._building_mask, mask_top_left, special_flags=pygame.BLEND_RGBA_MULT)
-
-        screen.blit(buildings_surface, (0, 0))
+        if patch_rect and getattr(self, '_patch_mask', None) is not None:
+            patch_surface.blit(self._patch_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            screen.blit(patch_surface, patch_rect.topleft)
                 
-    def _build_building_mask(self, size, center, radius, inner_alpha):
-        """Build a circular alpha mask with a dotted edge.
+    def _draw_buildings_to_surface(self, chunk, surface, offset, tilesets_multi, building_layer_indices):
+        """Draw building tiles directly to the surface for masking."""
+        H_FLIP = 0x80000000
+        V_FLIP = 0x40000000
+        D_FLIP = 0x20000000
+        MASK_FLAGS = H_FLIP | V_FLIP | D_FLIP
 
-        This returns a surface where:
-        - Outside the radius: alpha = 255 (no change).
-        - Inside the radius: alpha = inner_alpha (more transparent).
-        - Around the radius edge: dotted pattern for a "halftone" look.
-        """
+        for layer_idx, layer_matrix in enumerate(chunk.tiles_layers):
+            if layer_idx in building_layer_indices:
+                for y in range(CHUNK_SIZE):
+                    for x in range(CHUNK_SIZE):
+                        raw_gid = layer_matrix[y][x]
+                        if raw_gid != 0:
+                            h_flip = bool(raw_gid & H_FLIP)
+                            v_flip = bool(raw_gid & V_FLIP)
+                            d_flip = bool(raw_gid & D_FLIP)
+                            gid = raw_gid & ~MASK_FLAGS
+
+                            tile_surf = None
+                            for firstgid, tile_dict in sorted(tilesets_multi.items(), reverse=True):
+                                if gid >= firstgid:
+                                    local_id = gid - firstgid + 1
+                                    tile_surf = tile_dict.get(local_id)
+                                    break
+
+                            if tile_surf:
+                                if d_flip:
+                                    tile_surf = pygame.transform.rotate(tile_surf, 270)
+                                    tile_surf = pygame.transform.flip(tile_surf, True, False)
+                                if h_flip or v_flip:
+                                    tile_surf = pygame.transform.flip(tile_surf, h_flip, v_flip)
+
+                                surface.blit(tile_surf, (offset[0] + x * TILE_SIZE, offset[1] + y * TILE_SIZE))
+    
+    @staticmethod
+    def _build_patch_mask(size, center, radius):
         mask = pygame.Surface(size, pygame.SRCALPHA)
-        mask.fill((255, 255, 255, 255))
+        mask.fill((255, 255, 255, 0))
 
-        # Base circle (solid transparency inside)
-        pygame.draw.circle(mask, (255, 255, 255, inner_alpha), center, radius)
-
-        # Add a halftone/dotted ring at the edge to make it look like a "fade".
-        # Dots get smaller / more transparent toward the inside.
-        dot_spacing = max(8, radius // 16)
-        max_dot_radius = max(1, dot_spacing // 2)
-        ring_inner = radius * 0.7
-        ring_outer = radius
-
-        cx, cy = center
-        for y in range(int(cy - radius), int(cy + radius), dot_spacing):
-            for x in range(int(cx - radius), int(cx + radius), dot_spacing):
-                dx = x - cx
-                dy = y - cy
-                dist = (dx * dx + dy * dy) ** 0.5
-                if ring_inner < dist < ring_outer:
-                    # Dot alpha transitions from inner_alpha (near inner ring)
-                    # to 255 (near outer edge) for a gradient feel.
-                    t = (dist - ring_inner) / (ring_outer - ring_inner)
-                    dot_alpha = int(inner_alpha + (255 - inner_alpha) * t)
-                    dot_radius = int(max_dot_radius * (1 - t) * 0.75) + 1
-                    pygame.draw.circle(mask, (255, 255, 255, dot_alpha), (x, y), dot_radius)
+        # Solid circle (opaque inside)
+        pygame.draw.circle(mask, (255, 255, 255, 255), center, radius)
 
         return mask
 
