@@ -123,6 +123,9 @@ class TankEnemy(Enemy):
             speed=TankEnemy.DEFAULT_SPEED,
         )
         self._attack_timer = 0.0
+        # Collider explícito: el asset es 1024x1024 pero el sprite se ve ~30px
+        self.collider.rect.w = 25
+        self.collider.rect.h = 25
 
     def can_attack(self, delta_time):
         self._attack_timer += delta_time
@@ -220,7 +223,7 @@ class ToxicEnemy(Enemy):
     ATTACK_RANGE    = 35
     DETECTION_RANGE = 600
     ATTACK_COOLDOWN = 1.5
-    PUDDLE_INTERVAL = 2.5
+    PUDDLE_INTERVAL = 0.6   # igual que rama compañero
 
     def __init__(self, position=(0, 0)):
         super().__init__(
@@ -234,7 +237,10 @@ class ToxicEnemy(Enemy):
         )
         self._attack_timer = 0.0
         self._puddle_timer = 0.0
-        self._puddle_list: list = []
+        self._puddle_list  = None
+        # Collider explícito: el asset es 1024x1024 pero el sprite se ve ~25px
+        self.collider.rect.w = 20
+        self.collider.rect.h = 20
 
     def register_puddle_list(self, puddle_list: list):
         """La escena/WaveManager debe llamar esto para conectar la lista compartida."""
@@ -249,11 +255,11 @@ class ToxicEnemy(Enemy):
 
     def update(self, delta_time):
         """Genera charcos periódicamente. Llamar desde ToxicBrain cada frame."""
-        if not self._puddle_list:
+        if self._puddle_list is None:
             return
         self._puddle_timer += delta_time
         if self._puddle_timer >= self.PUDDLE_INTERVAL:
-            self._puddle_timer = 0.0
+            self._puddle_timer -= self.PUDDLE_INTERVAL
             self._puddle_list.append(ToxicPuddle(self.position))
 
 
@@ -285,8 +291,11 @@ class ShooterEnemy(Enemy):
             strength=ShooterEnemy.BULLET_DAMAGE,
             speed=ShooterEnemy.DEFAULT_SPEED,
         )
-        self._attack_timer = 0.0
+        self._attack_timer = ShooterEnemy.ATTACK_COOLDOWN * 0.5
         self._bullets: list = []
+        # Collider explícito: el asset es 1024x1024 pero el sprite se ve ~20px
+        self.collider.rect.w = 20
+        self.collider.rect.h = 20
 
     def can_attack(self, delta_time):
         self._attack_timer += delta_time
@@ -311,7 +320,9 @@ class ShooterEnemy(Enemy):
         alive = []
         for b in self._bullets:
             b["pos"] += b["dir"] * self.BULLET_SPEED * delta_time
-            if b["pos"].distance_to(player.position) < 24:
+            b["traveled"] = b.get("traveled", 0) + self.BULLET_SPEED * delta_time
+            # Solo puede impactar si recorrió al menos 40 px (evita daño al spawnear)
+            if b["traveled"] > 40 and b["pos"].distance_to(player.position) < 24:
                 player.take_damage(b["damage"])
             elif b["pos"].distance_to(self.position) < 1200:
                 alive.append(b)

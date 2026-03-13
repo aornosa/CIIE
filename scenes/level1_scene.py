@@ -123,6 +123,14 @@ class Level1Scene(Scene):
         self._helicopter            = None  # HelicopterInteractable
         self._helicopter_spawned    = False
 
+        # Sala de salida (encima de la sala norte) — de la rama del compañero
+        self._exit_room_rect        = None
+        self._exit_corridor_rect    = None
+
+        # Timeout de inactividad (sin disparar) — mata enemigos restantes
+        self._idle_shot_timer       = -1.0
+        self._IDLE_SHOT_TIMEOUT     = 40.0
+
         self.crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -173,8 +181,15 @@ class Level1Scene(Scene):
 
         weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
                         "7.62", 45, 0.15, 0.6, muzzle_offset=(35, 15))
+        weapon.infinite_reserve = True
         self.player.inventory.add_weapon(self.player, weapon, "primary")
         self.player.inventory.add_weapon(self.player, TacticalKnife(), "secondary")
+        # FIX balas invisibles: deshabilitar el emitter en MonoliteBehaviour.
+        # update_all() se llama en main.py DESPUÉS de display.flip(), lo que
+        # provoca que _draw_particle() dibuje en el buffer ya presentado.
+        # Lo actualizamos manualmente en render() ANTES del flip.
+        if hasattr(weapon, "emitter"):
+            weapon.emitter.enabled = False
 
         from item.item_instance import ItemInstance
         for item_id in ["stim_patch", "stim_patch", "health_injector",
@@ -191,6 +206,8 @@ class Level1Scene(Scene):
         # FIX: reset grace period every new level
         self._contact_dmg_cd = 1.0
 
+
+
         ads_effect = StatusEffect("assets/effects/ads", "Aiming Down Sights", {"speed": -30}, -1)
         self.weapon_controller = WeaponController(self.player, self.camera, ads_effect)
 
@@ -199,8 +216,21 @@ class Level1Scene(Scene):
 
         from item.item_drop_manager import DroppedWeapon
         from weapons.ranged.ranged_types import SPAS12
+        _pickup = SPAS12()
+        _pickup.infinite_reserve = True
         self._corridor_weapon = DroppedWeapon(
-            SPAS12(), (_ACX, _ACY - _ARENA_HALF - 400), slot="secondary")
+            _pickup, (_ACX, _ACY - _ARENA_HALF - 400), slot="secondary")
+
+        # Helicóptero de evacuación en la sala de salida (siempre presente desde el inicio)
+        from item.item_drop_manager import HelicopterInteractable
+        corridor_h    = 800
+        north_sq      = int(_ARENA_HALF * 1.2)
+        exit_corridor_h = 300
+        exit_sq_half    = 400
+        north_top_y   = _ACY - _ARENA_HALF - corridor_h - north_sq * 2
+        heli_y        = north_top_y - exit_corridor_h - exit_sq_half
+        self._helicopter = HelicopterInteractable((_ACX, heli_y), self)
+        self._helicopter_spawned = True
 
         from dialogs.audres_dialogs import create_audres_intro
         self._audres_intro_tree = create_audres_intro()
@@ -226,6 +256,10 @@ class Level1Scene(Scene):
         door_w = 240
         corridor_w, corridor_h = 240, 800
         north_sq = int(_ARENA_HALF * 1.2)
+        exit_door_w     = 240
+        exit_corridor_h = 300
+        exit_corridor_w = 240
+        exit_sq_half    = 400
 
         self._north_room_rect = pygame.Rect(
             cx - north_sq, cy - h - corridor_h - north_sq * 2,
@@ -233,16 +267,45 @@ class Level1Scene(Scene):
         self._corridor_rect = pygame.Rect(
             cx - corridor_w // 2, cy - h - corridor_h, corridor_w, corridor_h)
 
+        north_top_y = cy - h - corridor_h - north_sq * 2
+        exit_ctr_y  = north_top_y - exit_corridor_h - exit_sq_half
+        self._exit_corridor_rect = pygame.Rect(
+            cx - exit_corridor_w // 2,
+            north_top_y - exit_corridor_h,
+            exit_corridor_w, exit_corridor_h)
+        self._exit_room_rect = pygame.Rect(
+            cx - exit_sq_half,
+            exit_ctr_y - exit_sq_half,
+            exit_sq_half * 2, exit_sq_half * 2)
+
         for wx, wy, wh, ww in [
+            # Arena principal — pared superior (izq/der del hueco)
             (cx - (h + door_w // 2) / 2, cy - h - t // 2, t // 2, (h - door_w // 2) / 2),
             (cx + (h + door_w // 2) / 2, cy - h - t // 2, t // 2, (h - door_w // 2) / 2),
+            # Paredes del pasillo (izq/der)
             (cx - corridor_w // 2 - t // 2, cy - h - corridor_h // 2, corridor_h // 2, t // 2),
             (cx + corridor_w // 2 + t // 2, cy - h - corridor_h // 2, corridor_h // 2, t // 2),
+            # Sala norte — pared inferior conectada al pasillo (izq/der)
             (cx - (north_sq + corridor_w // 2) / 2, cy - h - corridor_h - t // 2, t // 2, (north_sq - corridor_w // 2) / 2),
             (cx + (north_sq + corridor_w // 2) / 2, cy - h - corridor_h - t // 2, t // 2, (north_sq - corridor_w // 2) / 2),
+            # Sala norte — paredes laterales
             (cx - north_sq - t // 2, cy - h - corridor_h - north_sq, north_sq, t // 2),
             (cx + north_sq + t // 2, cy - h - corridor_h - north_sq, north_sq, t // 2),
-            (cx, cy - h - corridor_h - north_sq * 2 - t // 2, t // 2, north_sq + t),
+            # Sala norte — pared superior con hueco para puerta de salida (izq/der)
+            (cx - (north_sq + t + exit_door_w // 2) // 2, north_top_y - t // 2, t // 2, (north_sq + t - exit_door_w // 2) // 2),
+            (cx + (north_sq + t + exit_door_w // 2) // 2, north_top_y - t // 2, t // 2, (north_sq + t - exit_door_w // 2) // 2),
+            # Pasillo de salida (izq/der)
+            (cx - exit_corridor_w // 2 - t // 2, north_top_y - exit_corridor_h // 2, exit_corridor_h // 2, t // 2),
+            (cx + exit_corridor_w // 2 + t // 2, north_top_y - exit_corridor_h // 2, exit_corridor_h // 2, t // 2),
+            # Sala salida — pared inferior con hueco para pasillo (izq/der)
+            (cx - (exit_sq_half + exit_corridor_w // 2) // 2, north_top_y - exit_corridor_h - t // 2, t // 2, (exit_sq_half - exit_corridor_w // 2) // 2),
+            (cx + (exit_sq_half + exit_corridor_w // 2) // 2, north_top_y - exit_corridor_h - t // 2, t // 2, (exit_sq_half - exit_corridor_w // 2) // 2),
+            # Sala salida — paredes laterales
+            (cx - exit_sq_half - t // 2, north_top_y - exit_corridor_h - exit_sq_half, exit_sq_half, t // 2),
+            (cx + exit_sq_half + t // 2, north_top_y - exit_corridor_h - exit_sq_half, exit_sq_half, t // 2),
+            # Sala salida — pared superior
+            (cx, north_top_y - exit_corridor_h - exit_sq_half * 2 - t // 2, t // 2, exit_sq_half + t),
+            # Arena principal — pared inferior, izq, der
             (cx, cy + h + t // 2, t // 2, h + t),
             (cx - h - t // 2, cy, h, t // 2),
             (cx + h + t // 2, cy, h, t // 2),
@@ -254,19 +317,20 @@ class Level1Scene(Scene):
         cx, cy = _ACX, _ACY
         h, t   = _ARENA_HALF, _WALL_THICK
         door_w = 240
-        # Puerta norte (acceso al pasillo)
+        # Puerta norte (acceso al pasillo) — umbral 500 score (compañero)
         dx, dy = cx, cy - h - t // 2
-        self._door = Door("Puerta Norte", (dx, dy), 1000, self._on_north_door_open)
+        self._door = Door("Puerta Norte", (dx, dy), 500, self._on_north_door_open)
         self._door_rect = pygame.Rect(dx - door_w // 2, dy - t // 2, door_w, t)
         self._door_collider = Collider(
             object(), Rectangle(dx, dy, t // 2, door_w // 2),
             layer=LAYERS["terrain"], static=True)
-        # Puerta de salida norte (hacia el helicóptero) — empieza cerrada
-        corridor_h = 800
-        north_sq   = int(_ARENA_HALF * 1.2)
-        ex, ey     = cx, cy - h - corridor_h - north_sq * 2 - t // 2
-        self._exit_door = Door("Salida Norte", (ex, ey), 5000, self._on_exit_door_open)
-        self._exit_door_rect = pygame.Rect(ex - door_w // 2, ey - t // 2, door_w, t)
+        # Puerta de salida (techo sala norte → pasillo salida) — umbral 1500 score
+        corridor_h    = 800
+        north_sq      = int(_ARENA_HALF * 1.2)
+        north_top_y   = cy - h - corridor_h - north_sq * 2
+        ex, ey        = cx, north_top_y - t // 2
+        self._exit_door = Door("Puerta de Salida", (ex, ey), 1500, self._on_exit_door_open)
+        self._exit_door_rect = pygame.Rect(ex - door_w // 2, north_top_y - t, door_w, t)
         self._exit_door_collider = Collider(
             object(), Rectangle(ex, ey, t // 2, door_w // 2),
             layer=LAYERS["terrain"], static=True)
@@ -325,10 +389,12 @@ class Level1Scene(Scene):
             from map.interactables.interaction_manager import InteractionManager
             InteractionManager().unregister(self._exit_door)
         self._exit_door = self._exit_door_collider = self._exit_door_rect = None
+        self._exit_room_rect = self._exit_corridor_rect = None
         if self._helicopter:
             self._helicopter._unregister()
         self._helicopter = None
         self._helicopter_spawned = False
+        self._idle_shot_timer = -1.0
         self._north_room_entered = self._north_room_sealed = False
         self._north_seal_collider = None
         if self._corridor_weapon:
@@ -491,7 +557,19 @@ class Level1Scene(Scene):
             prev = len(self._wave_manager.enemies)
             self._wave_manager.update(delta_time)
             kills += prev - len(self._wave_manager.enemies)
+
         else:
+            # Enemigos iniciales (pre-wave) — actualizar brain si tienen uno
+            for enemy in self.enemies:
+                if enemy.is_alive() and getattr(enemy, "brain", None):
+                    enemy.brain.update(delta_time)
+                elif enemy.is_alive() and getattr(enemy, "_controller", None):
+                    # Fallback: movimiento manual hacia el jugador
+                    to_player = self.player.position - enemy.position
+                    if to_player.length() > 0:
+                        enemy._controller.move(to_player.normalize(), delta_time)
+                        enemy.rotation = to_player.angle_to(pygame.Vector2(0, -1))
+                    enemy._hit_flash_timer = max(0.0, getattr(enemy, "_hit_flash_timer", 0) - delta_time)
             prev = len(self.enemies)
             cleanup_dead_enemies(self.enemies)
             kills += prev - len(self.enemies)
@@ -504,6 +582,19 @@ class Level1Scene(Scene):
         if kills > 0 and self.player:
             self.player.add_coins(kills * 10)
             self._total_kills += kills
+
+        # ── Timeout de inactividad (sin disparar) ─────────────────────────────
+        all_enemies = self._all_enemies()
+        if self._idle_shot_timer >= 0:
+            if all_enemies:
+                self._idle_shot_timer -= delta_time
+                if self._idle_shot_timer <= 0:
+                    print(f"[TIMEOUT] {len(all_enemies)} enemigo(s) eliminado(s) por inactividad")
+                    for e in all_enemies:
+                        e.take_damage(e.health)
+                    self._idle_shot_timer = -1.0
+            else:
+                self._idle_shot_timer = -1.0
 
         # Solo actualizar charcos manualmente si no hay WaveManager activo
         # (con WaveManager activo, él los actualiza internamente)
@@ -584,9 +675,15 @@ class Level1Scene(Scene):
         self.audres = None
         self._cutscene_active = False
         self._cutscene_phase  = "idle"
+        from character_scripts.enemy.enemy_types import InfectedCommon
+        from character_scripts.enemy.enemy_brain import InfectedCommonBrain
         for pos in _CUTSCENE_ENEMY_SPAWNS:
-            enemy = Enemy("assets/icon.png", pos, 0, 0.05)
-            enemy._controller = CharacterController(_ENEMY_SPEED, enemy)
+            enemy = InfectedCommon(position=pos)
+            controller = CharacterController(enemy.speed, enemy)
+            enemy._controller = controller
+            enemy.brain = InfectedCommonBrain(enemy, controller, self.player)
+            enemy._player_ref = self.player
+            enemy._contact_cd = 1.0  # grace period al spawnear
             self.enemies.append(enemy)
         self._enemies_spawned = True
 
@@ -639,9 +736,8 @@ class Level1Scene(Scene):
             layer=LAYERS["terrain"], static=True)
 
     def _on_exit_door_open(self):
-        """Callback invocado por Door al alcanzar 500k score — quita el collider,
-        lanza el diálogo de Audrey y spawna el helicóptero de extracción."""
-        # Quitar el collider de la puerta de salida
+        """Callback invocado por Door al alcanzar el umbral de score.
+        Quita el collider, mata oleadas de la sala norte y lanza diálogo."""
         if self._exit_door_collider:
             cm = CollisionManager._active
             if cm:
@@ -649,35 +745,37 @@ class Level1Scene(Scene):
             CollisionManager.static_colliders.discard(self._exit_door_collider)
             CollisionManager.static_dirty = True
             self._exit_door_collider = None
-        if not self._helicopter_spawned:
-            self._helicopter_spawned = True
-            # Diálogo de Audrey indicando que está el helicóptero
-            from dialogs.audres_dialogs import create_audres_exit_door
-            if self._dialog_manager:
-                self._dialog_manager.start_dialog(create_audres_exit_door())
-            # Spawnear helicóptero en el fondo de la sala norte
-            corridor_h = 800
-            north_sq   = int(_ARENA_HALF * 1.2)
-            heli_x     = _ACX
-            heli_y     = _ACY - _ARENA_HALF - corridor_h - north_sq * 2 + north_sq // 2
-            from item.item_drop_manager import HelicopterInteractable
-            self._helicopter = HelicopterInteractable((heli_x, heli_y), self)
+
+        # Matar oleadas de la sala norte
+        if self._wave_manager_north is not None:
+            for e in list(self._wave_manager_north.enemies):
+                e.take_damage(e.health)
+            self._wave_manager_north.enemies.clear()
+        self._wave_manager_north = None
+
+        # Diálogo de Audrey
+        from dialogs.audres_dialogs import create_audres_exit_door
+        if self._dialog_manager:
+            self._dialog_manager.start_dialog(create_audres_exit_door())
 
     # ── Colisiones / muerte ───────────────────────────────────────────────────
 
     def _check_enemy_contact(self, delta_time):
-        # FIX: siempre decrementar; solo hacer daño cuando el cooldown llega a 0
-        self._contact_dmg_cd -= delta_time
-        if self._contact_dmg_cd > 0:
-            return
-        # FIX: guard hasattr(h, "owner") — algunos colliders de terreno no tienen owner
+        # Cooldown por enemigo individual: cada uno tiene su propio _contact_cd
+        # así un spawn nunca hereda el cooldown gastado de otro enemigo
         hits = [
             h for h in self.player.collider.check_collision(layers=[LAYERS["enemy"]])
             if hasattr(h, "owner") and h.owner is not None and h.owner.is_alive()
         ]
-        if hits:
+        for h in hits:
+            enemy = h.owner
+            cd = getattr(enemy, "_contact_cd", 0.0)
+            if cd > 0:
+                enemy._contact_cd = cd - delta_time
+                continue
             self.player.take_damage(10)
-            self._contact_dmg_cd = 0.75
+            enemy._contact_cd = 0.75
+            break  # un solo golpe por frame
 
     def _check_player_death(self):
         if self.player and not self.player.is_alive():
@@ -701,6 +799,17 @@ class Level1Scene(Scene):
         if self.weapon_controller:
             self.weapon_controller.setup_emitter(screen)
 
+        # ── Actualizar y dibujar partículas del arma (ANTES del flip) ──────────
+        # MonoliteBehaviour.update_all() se llama después del flip en main.py,
+        # por lo que las partículas se dibujarían en el frame ya presentado.
+        # Solución: actualizar el emitter aquí explícitamente con surface correcta.
+        if active_weapon and isinstance(active_weapon, Ranged):
+            emitter = getattr(active_weapon, "emitter", None)
+            if emitter is not None:
+                emitter.surface = screen
+                emitter.camera  = self.camera
+                emitter.update()   # dibuja partículas activas en screen antes del flip
+
         movement = (pygame.Vector2(0, 0) if self._cutscene_active
                     else pygame.Vector2(im.actions["move_x"], im.actions["move_y"]))
 
@@ -714,15 +823,18 @@ class Level1Scene(Scene):
                 and not (self._dialog_manager and self._dialog_manager.is_dialog_active)
                 and not self._inventory_open
                 and self.weapon_controller):
-            self.weapon_controller.update(im, delta_time, mouse_pos)
+            shot_fired = self.weapon_controller.update(im, delta_time, mouse_pos)
+            if shot_fired:
+                self._idle_shot_timer = self._IDLE_SHOT_TIMEOUT
 
         self._camera_follow(self.player.position, delta_time)
 
         all_enemies = self._all_enemies()
 
         from character_scripts.enemy.enemy_types import ShooterEnemy
+        # Zona de peligro del shooter (siempre visible, independiente de zone_active)
         for enemy in all_enemies:
-            if isinstance(enemy, ShooterEnemy) and enemy.zone_active:
+            if isinstance(enemy, ShooterEnemy):
                 enemy.draw_zone(screen, self.camera)
 
         for puddle in self._toxic_puddles:
@@ -743,9 +855,12 @@ class Level1Scene(Scene):
                 fs = pygame.Surface(fr.size, pygame.SRCALPHA)
                 fs.fill((255, 30, 30, 180))
                 entity_surf.blit(fs, fr)
+        screen.blit(entity_surf, (0, 0))
+
+        # Balas ENCIMA de los sprites de enemigos
+        for enemy in all_enemies:
             if isinstance(enemy, ShooterEnemy):
                 enemy.draw_bullets(screen, self.camera)
-        screen.blit(entity_surf, (0, 0))
 
         if self.player and self.player.inventory.drop_manager:
             self.player.inventory.drop_manager.draw(screen, self.camera)
@@ -820,6 +935,32 @@ class Level1Scene(Scene):
                 pygame.draw.rect(screen, (80, 50, 20), dr)
                 pygame.draw.rect(screen, (20, 15, 10), dr, 4)
             self._door.draw(screen, self.camera)
+
+        # === Sala de salida + pasillo de salida (rama compañero) ===
+        if self._exit_room_rect and self._exit_corridor_rect:
+            er = self._exit_room_rect.move(-cx, -cy)
+            pygame.draw.rect(screen, (25, 45, 35), er)
+            pygame.draw.rect(screen, _WALL_COLOR, er, _WALL_THICK)
+
+            ecr = self._exit_corridor_rect.move(-cx, -cy)
+            pygame.draw.rect(screen, (25, 45, 35), ecr)
+            pygame.draw.rect(screen, _WALL_COLOR, (ecr.x - _WALL_THICK, ecr.y, _WALL_THICK, ecr.height))
+            pygame.draw.rect(screen, _WALL_COLOR, (ecr.right, ecr.y, _WALL_THICK, ecr.height))
+
+            # Conexión pasillo → sala salida (siempre abierta arriba)
+            pygame.draw.rect(screen, (25, 45, 35),
+                             (ecr.x - 2, ecr.top - _WALL_THICK - 2, ecr.width + 4, _WALL_THICK + 4))
+
+            # Conexión sala norte → pasillo salida (solo si puerta abierta)
+            if not self._exit_door or self._exit_door.is_open:
+                pygame.draw.rect(screen, (35, 35, 45),
+                                 (ecr.x - 2, ecr.bottom - _WALL_THICK - 2, ecr.width + 4, _WALL_THICK + 4))
+
+            # Enmascarar hueco en pared superior sala norte para la puerta de salida
+            if self._north_room_rect:
+                nr = self._north_room_rect.move(-cx, -cy)
+                pygame.draw.rect(screen, (35, 35, 45),
+                                 (nr.centerx - 120, nr.y, 240, _WALL_THICK + 2))
 
         if self._exit_door and self._exit_door_rect:
             if not getattr(self._exit_door, 'is_open', True):

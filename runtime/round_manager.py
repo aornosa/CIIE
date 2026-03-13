@@ -32,18 +32,25 @@ MAX_ENEMIES_ON_SCREEN    = 25
 
 
 def _composition(wave: int) -> dict:
-    """Mezcla máxima desde la oleada 1. Todos los tipos presentes siempre,
-    con peso creciente para los más difíciles."""
+    """Composición aleatoria con mínimos garantizados que escalan por oleada.
+
+    Cada tipo tiene un mínimo fijo (dificultad garantizada) más un bonus
+    aleatorio de ±1-2 unidades para que ninguna oleada se sienta igual.
+    """
     base = max(6, wave + 5)
 
+    def rvar(n: int) -> int:
+        """Añade variación aleatoria de ±1 respetando mínimo 0."""
+        return max(0, n + random.randint(-1, 2))
+
     comp = {
-        "InfectedCommon":  max(2, base - wave // 2),
-        "InfectedSoldier": max(2, 1 + wave // 2),
+        "InfectedCommon":  max(2, rvar(base - wave // 2)),
+        "InfectedSoldier": max(2, rvar(1 + wave // 2)),
     }
-    comp["LabSubject"]   = max(1, wave // 2)
-    comp["ToxicEnemy"]   = max(1, wave // 3)
-    comp["ShooterEnemy"] = max(1, wave // 3)
-    comp["TankEnemy"]    = max(1, wave // 4)
+    comp["LabSubject"]   = max(1, rvar(wave // 2))
+    comp["ToxicEnemy"]   = max(1, rvar(wave // 3))
+    comp["ShooterEnemy"] = max(1, rvar(wave // 3))
+    comp["TankEnemy"]    = max(1, rvar(wave // 4))
 
     return comp
 
@@ -99,7 +106,7 @@ class WaveManager:
         self.arena_center  = arena_center
         self.arena_half    = arena_half
         self.arena_mix     = arena_mix
-        self.puddle_list   = puddle_list or []
+        self.puddle_list   = puddle_list if puddle_list is not None else []
         self.hp_scale      = hp_scale_per_wave if hp_scale_per_wave is not None else HP_SCALE_PER_WAVE
 
         self.current_wave  = start_wave - 1
@@ -117,17 +124,22 @@ class WaveManager:
 
     def update(self, delta_time: float):
         for e in self.enemies:
-            if e.is_alive() and e.brain is not None:
+            if not e.is_alive():
+                continue
+
+            # ── Brain (movimiento + IA) ─────────────────────────────────────
+            if e.brain is not None:
                 e.brain.update(delta_time)
 
+            # ── Hit-flash timer (decremento independiente del brain) ─────────
+            if getattr(e, "_hit_flash_timer", 0) > 0:
+                e._hit_flash_timer = max(0.0, e._hit_flash_timer - delta_time)
+
+        # ── Charcos tóxicos ─────────────────────────────────────────────────
         for tp in list(self.puddle_list):
             tp.update(delta_time, self.player)
             if not tp.is_alive:
                 self.puddle_list.remove(tp)
-
-        for e in self.enemies:
-            if e.is_alive() and hasattr(e, '_puddle_list'):
-                e.update(delta_time)
 
         cleanup_dead_enemies(self.enemies)
 
@@ -194,6 +206,12 @@ class WaveManager:
 
         ctrl        = CharacterController(enemy.speed, enemy)
         enemy.brain = BClass(enemy, ctrl, self.player)
+        # Grace period de ataque (brain)
+        attack_cd = getattr(enemy, "ATTACK_COOLDOWN", None)
+        if attack_cd and hasattr(enemy, "_attack_timer"):
+            enemy._attack_timer = attack_cd * 0.5
+        # Grace period de contacto: 1s sin daño de contacto al spawnear
+        enemy._contact_cd = 1.0
         self.enemies.append(enemy)
 
     def _on_wave_cleared(self):
