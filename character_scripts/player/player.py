@@ -13,7 +13,7 @@ DEFAULT_STATS = {
 }
 
 class Player(Character):
-    def __init__(self, asset, position=(0,0), rotation=0, scale=0.3, name="Player", health=100):
+    def __init__(self, asset, sprite_frames, position=(0,0), rotation=0, scale=0.3, name="Player", health=100):
         super().__init__(asset, position, rotation, scale, name, health)
         self.score = 0
         self.inventory = Inventory()
