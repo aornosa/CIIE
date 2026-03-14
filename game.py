@@ -51,7 +51,7 @@ ItemRegistry.load("assets/items/item_data.json")
 AudioManager()
 
 
-player = Player("assets/player/survivor-idle_rifle_0.png", (0.0,0.0))
+player = Player("assets/player/sprite-sheet.png", (0.0,0.0))
 controller = CharacterController( 250, player)
 
 enemies = spawn_enemies(5)
@@ -142,6 +142,8 @@ def game_loop(screen, clock, im):
         movement = pygame.Vector2(0, 0)
     else:
         movement = pygame.Vector2(im.actions["move_x"], im.actions["move_y"])
+
+    player.set_movement_input(movement)
 
     # Crosshair follows mouse
     mouse_pos = pygame.Vector2(pygame.mouse.get_pos())

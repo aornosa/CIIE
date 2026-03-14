@@ -14,6 +14,7 @@ class Chunk:
         self.floor_only_cache = None 
         self.collision_cache = None
         self.has_buildings = False 
+        self._baked_building_indices = None
 
     def _bake_collision(self):
         collision_cache = None
@@ -23,6 +24,7 @@ class Chunk:
     def _bake_chunk(self, tilesets_multi, building_layer_indices=None):
         if building_layer_indices is None:
             building_layer_indices = []
+        self._baked_building_indices = tuple(building_layer_indices)
 
         size = (CHUNK_SIZE * TILE_SIZE, CHUNK_SIZE * TILE_SIZE)
         self.floor_only_cache = pygame.Surface(size, pygame.SRCALPHA)

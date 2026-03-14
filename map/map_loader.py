@@ -138,15 +138,18 @@ class MapLoader:
             self.active_chunks = self.get_active_chunks(player, screen, camera_offset, chunk_radius)
 
         building_layer_indices = []
+        reference_chunk = None
         for chunk in self.active_chunks.values():
+            if chunk and chunk.tiles_layers:
+                reference_chunk = chunk
             if chunk.layer_names:
                 for idx, name in enumerate(chunk.layer_names):
                     lname = (name or "").lower()
-                    if "building" in lname or "edificio" in lname or "tile layer 2" in lname:
+                    if "building" in lname or "edificio" in lname or "tile layer 2" in lname or "build" in lname:
                         building_layer_indices.append(idx)
                 break
         if not building_layer_indices:
-            if next(iter(self.active_chunks.values()), None) and len(next(iter(self.active_chunks.values())).tiles_layers) > 1:
+            if reference_chunk and len(reference_chunk.tiles_layers) > 1:
                 building_layer_indices = [1]
 
         player_screen_pos = None
@@ -178,8 +181,10 @@ class MapLoader:
 
             self._patch_mask = self._patch_mask_cache[cache_key]
 
+        expected_building_signature = tuple(building_layer_indices)
+
         for chunk_pos, chunk in self.active_chunks.items():
-            if not chunk.full_cache:
+            if (not chunk.full_cache) or getattr(chunk, "_baked_building_indices", None) != expected_building_signature:
                 chunk._bake_chunk(tile_images, building_layer_indices=building_layer_indices)
             chunk_screen_pos = (chunk.pos[0] * (CHUNK_SIZE * TILE_SIZE) - camera_offset[0],
                                 chunk.pos[1] * (CHUNK_SIZE * TILE_SIZE) - camera_offset[1])
