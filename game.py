@@ -51,7 +51,7 @@ ItemRegistry.load("assets/items/item_data.json")
 AudioManager()
 
 
-player = Player("assets/player/sprite-sheet.png", (0.0,0.0))
+player = Player("assets/player/sprite-sheet.png", (1600.0,1000.0))
 controller = CharacterController( 250, player)
 
 enemies = spawn_enemies(5)
