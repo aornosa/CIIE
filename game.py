@@ -30,7 +30,9 @@ from map.map_loader import MapLoader
 from map.map import Map
 map_loader = MapLoader()
 
+
 map_data = map_loader.load_map('assets/map/prueba.json')
+real_offset_x, real_offset_y, real_width, real_height = map_loader.calculate_map_bounds(map_data)
 mapa = Map(0, 0)
 map_loader.map = mapa   
 
@@ -298,10 +300,18 @@ def camera_follow(target, cam, delta_time, speed=10, position_relative=True):
 
     distance_from_center = center_offset.length()
     if distance_from_center > _CAM_BORDER_RADIUS:
-        # Calculate how much to move camera
+
         excess_distance = distance_from_center - _CAM_BORDER_RADIUS
         move_direction = center_offset.normalize()
 
-        # Move camera towards player smoothly
-        camera_move = move_direction * excess_distance * speed * delta_time  # Bigger = snappier
+        camera_move = move_direction * excess_distance * speed * delta_time 
         camera.move(camera_move)
+        cam.clamp_to_bounds(
+            real_offset_x,
+            real_offset_y,
+            real_width,
+            real_height,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT,
+            padding=TILE_SIZE,
+        )

@@ -15,6 +15,49 @@ class MapLoader:
     def load_map(file_path: str) -> dict:
         with open(file_path, 'r') as f:
             return json.load(f)
+
+    @staticmethod
+    def calculate_map_bounds(map_data: dict) -> tuple[float, float, float, float]:
+        tile_size = map_data['tilewidth']
+        min_tile_x, min_tile_y = float('inf'), float('inf')
+        max_tile_x, max_tile_y = float('-inf'), float('-inf')
+
+        for layer in map_data.get('layers', []):
+            if 'chunks' not in layer:
+                continue
+
+            for chunk in layer['chunks']:
+                c_x = chunk['x']
+                c_y = chunk['y']
+                c_w = chunk['width']
+                chunk_data = chunk['data']
+
+                for i, gid in enumerate(chunk_data):
+                    if gid == 0:
+                        continue
+
+                    local_x = i % c_w
+                    local_y = i // c_w
+                    global_x = c_x + local_x
+                    global_y = c_y + local_y
+
+                    if global_x < min_tile_x:
+                        min_tile_x = global_x
+                    if global_x > max_tile_x:
+                        max_tile_x = global_x
+                    if global_y < min_tile_y:
+                        min_tile_y = global_y
+                    if global_y > max_tile_y:
+                        max_tile_y = global_y
+
+        if min_tile_x == float('inf'):
+            return 0.0, 0.0, 0.0, 0.0
+
+        real_offset_x = min_tile_x * tile_size
+        real_offset_y = min_tile_y * tile_size
+        real_width = (max_tile_x - min_tile_x + 1) * tile_size
+        real_height = (max_tile_y - min_tile_y + 1) * tile_size
+        return real_offset_x, real_offset_y, real_width, real_height
         
     @staticmethod
     def load_chunks_from_json(map_data, mapa):
