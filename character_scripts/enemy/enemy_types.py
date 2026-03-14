@@ -12,17 +12,13 @@ class InfectedCommon(Enemy):
     def __init__(self, position=(0, 0)):
         super().__init__(
             asset="assets/enemies/infected_common/infected_common.png",
-            position=position,
-            scale=0.20,
-            name="Infectado",
-            health=160,
-            strength=12,
-            speed=150,
+            position=position, scale=0.20,
+            name="Infectado", health=120, strength=12, speed=150,
         )
 
 
 class InfectedSoldier(Enemy):
-    """Exsoldado infectado. HP medio-alto, daño alto, velocidad media-baja."""
+    """Exsoldado infectado. Rápido, corre en zigzag hacia el jugador."""
     ATTACK_RANGE    = 38
     DETECTION_RANGE = 600
     ATTACK_COOLDOWN = 1.8
@@ -30,50 +26,39 @@ class InfectedSoldier(Enemy):
     def __init__(self, position=(0, 0)):
         super().__init__(
             asset="assets/enemies/infected_soldier/infected_soldier.png",
-            position=position,
-            scale=0.22,
-            name="Soldado Infectado",
-            health=420,
-            strength=28,
-            speed=125,
+            position=position, scale=0.22,
+            name="Soldado Infectado", health=260, strength=28, speed=165,
         )
 
 
 class LabSubject(Enemy):
-    """Sujeto de laboratorio. Muy alto HP, daño devastador, muy lento."""
+    """Sujeto de laboratorio. Lento a distancia, carga a máxima velocidad al llegar al rango."""
     ATTACK_RANGE    = 42
     DETECTION_RANGE = 400
     ATTACK_COOLDOWN = 2.5
+    CHARGE_RANGE    = 400
 
     def __init__(self, position=(0, 0)):
         super().__init__(
             asset="assets/enemies/lab_subject/lab_subject.png",
-            position=position,
-            scale=0.28,
-            name="Sujeto de Laboratorio",
-            health=800,
-            strength=55,
-            speed=90,
+            position=position, scale=0.28,
+            name="Sujeto de Laboratorio", health=450, strength=70, speed=85,
         )
 
 
 class TankEnemy(Enemy):
-    """Tanque: muy resistente, lento, golpea fuerte al contacto."""
+    """Tanque: muy resistente. Carga en línea recta cuando el jugador está lejos."""
     ATTACK_RANGE    = 40
     DETECTION_RANGE = 800
     ATTACK_COOLDOWN = 2.0
+    CHARGE_RANGE    = 500
 
     def __init__(self, position=(0, 0)):
         super().__init__(
             asset="assets/enemies/red.png",
-            position=position,
-            scale=0.15,
-            name="Tanque",
-            health=600,
-            strength=35,
-            speed=115,
+            position=position, scale=0.15,
+            name="Tanque", health=600, strength=35, speed=80,
         )
-        # Collider manual hasta que llegue el sprite definitivo
         self.collider.rect.w = 25
         self.collider.rect.h = 25
 
@@ -156,25 +141,21 @@ class ToxicPuddle:
 
 
 class ToxicEnemy(Enemy):
-    """Tóxico: deja charcos periódicamente al moverse. Ataca al contacto."""
+    """Tóxico: deja charcos. Huye si el jugador se acerca demasiado."""
     ATTACK_RANGE    = 35
     DETECTION_RANGE = 600
     ATTACK_COOLDOWN = 1.5
     PUDDLE_INTERVAL = 0.6
+    FLEE_RANGE      = 150
 
     def __init__(self, position=(0, 0)):
         super().__init__(
             asset="assets/enemies/green.png",
-            position=position,
-            scale=0.12,
-            name="Tóxico",
-            health=220,
-            strength=15,
-            speed=140,
+            position=position, scale=0.12,
+            name="Tóxico", health=170, strength=15, speed=140,
         )
         self._puddle_timer = 0.0
         self._puddle_list  = None
-        # Collider manual hasta que llegue el sprite definitivo
         self.collider.rect.w = 20
         self.collider.rect.h = 20
 
@@ -204,17 +185,11 @@ class ShooterEnemy(Enemy):
     def __init__(self, position=(0, 0)):
         super().__init__(
             asset="assets/enemies/yellow.png",
-            position=position,
-            scale=0.10,
-            name="Tirador",
-            health=180,
-            strength=self.BULLET_DAMAGE,
-            speed=160,
+            position=position, scale=0.10,
+            name="Tirador", health=140, strength=self.BULLET_DAMAGE, speed=155,
         )
-        # Adelanta medio cooldown para que no dispare nada más spawnear
         self._attack_timer   = self.ATTACK_COOLDOWN * 0.5
         self._bullets: list  = []
-        # Collider manual hasta que llegue el sprite definitivo
         self.collider.rect.w = 20
         self.collider.rect.h = 20
 

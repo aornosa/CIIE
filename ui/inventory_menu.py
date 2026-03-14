@@ -1,9 +1,18 @@
 import pygame
 
-ITEM_SLOT_ORIGIN = (100, 510)
+# Layout consumibles
+ITEM_SLOT_ORIGIN = (100, 680)
 ITEM_SLOT_SIZE   = 96
 ITEM_SLOT_GAP    = 110
 ITEM_COLS        = 8
+
+# Layout armas del inventario
+WEAPON_INV_ORIGIN = (100, 530)
+WEAPON_INV_SIZE   = 96
+WEAPON_INV_GAP    = 130
+WEAPON_INV_MAX    = 3
+
+# Colores
 COLOR_SLOT_BG          = (50,  50,  50)
 COLOR_SLOT_HOVER_BG    = (80,  75,  40)
 COLOR_SLOT_SELECTED_BG = (80,  70,  20)
@@ -16,6 +25,7 @@ COLOR_WEAPON_BADGE     = (80,  140, 255)
 COLOR_WEAPON_BORDER    = (80,  140, 255)
 COLOR_TOOLTIP_BG       = (15,  15,  25, 210)
 COLOR_TOOLTIP_TEXT     = (255, 255, 200)
+
 _FONTS: dict = {}
 
 
@@ -26,8 +36,8 @@ def _font(size: int, bold: bool = False) -> pygame.font.Font:
     return _FONTS[key]
 
 
-# Geometría
 def get_item_slot_rect(index: int) -> pygame.Rect:
+    # Solo cuenta consumibles — index es posición en la lista filtrada
     col = index % ITEM_COLS
     row = index // ITEM_COLS
     x   = ITEM_SLOT_ORIGIN[0] + col * ITEM_SLOT_GAP
@@ -35,56 +45,91 @@ def get_item_slot_rect(index: int) -> pygame.Rect:
     return pygame.Rect(x, y, ITEM_SLOT_SIZE, ITEM_SLOT_SIZE)
 
 
+def get_weapon_inv_slot_rect(index: int) -> pygame.Rect:
+    x = WEAPON_INV_ORIGIN[0] + index * WEAPON_INV_GAP
+    y = WEAPON_INV_ORIGIN[1]
+    return pygame.Rect(x, y, WEAPON_INV_SIZE, WEAPON_INV_SIZE)
+
+
+def _consumables(inventory) -> list:
+    return [item for item in inventory.items
+            if getattr(item, "type", None) != "weapon_item"]
+
+
+def _weapons_in_inv(inventory) -> list:
+    return [item for item in inventory.items
+            if getattr(item, "type", None) == "weapon_item"]
+
+
 def get_clicked_item_index(mouse_pos, inventory) -> int:
-    for i in range(len(inventory.items)):
+    consumable_items = _consumables(inventory)
+    for i, item in enumerate(consumable_items):
+        if get_item_slot_rect(i).collidepoint(mouse_pos):
+            return inventory.items.index(item)
+    return -1
+
+
+def _get_hovered_consumable_index(mouse_pos, inventory) -> int:
+    consumable_items = _consumables(inventory)
+    for i in range(len(consumable_items)):
         if get_item_slot_rect(i).collidepoint(mouse_pos):
             return i
     return -1
 
 
-def _get_hovered_index(mouse_pos, inventory) -> int:
-    for i in range(inventory.max_size):
-        if get_item_slot_rect(i).collidepoint(mouse_pos):
+def _get_hovered_weapon_inv_index(mouse_pos, inventory) -> int:
+    weapons = _weapons_in_inv(inventory)
+    for i in range(len(weapons)):
+        if get_weapon_inv_slot_rect(i).collidepoint(mouse_pos):
             return i
     return -1
 
 
 def draw_item_box(screen, item, position, selected=False, hovered=False):
-    rect     = pygame.Rect(position[0], position[1], ITEM_SLOT_SIZE, ITEM_SLOT_SIZE)
-    is_wpn   = getattr(item, "type", None) == "weapon_item"
+    rect   = pygame.Rect(position[0], position[1], ITEM_SLOT_SIZE, ITEM_SLOT_SIZE)
+    is_wpn = getattr(item, "type", None) == "weapon_item"
 
-    if hovered and item:
-        bg = COLOR_SLOT_HOVER_BG
-    elif selected:
-        bg = COLOR_SLOT_SELECTED_BG
-    elif item:
-        bg = COLOR_SLOT_BG
-    else:
-        bg = COLOR_EMPTY_SLOT
+    if hovered and item:    bg = COLOR_SLOT_HOVER_BG
+    elif selected:          bg = COLOR_SLOT_SELECTED_BG
+    elif item:              bg = COLOR_SLOT_BG
+    else:                   bg = COLOR_EMPTY_SLOT
 
     pygame.draw.rect(screen, bg, rect, border_radius=5)
 
-    if is_wpn:
-        border_color, border_w = COLOR_WEAPON_BORDER, 3
-    elif hovered and item:
-        border_color, border_w = COLOR_HOVER_BORDER, 3
-    elif selected:
-        border_color, border_w = COLOR_SELECTED_BORDER, 3
-    else:
-        border_color, border_w = COLOR_SLOT_BORDER, 1
+    if is_wpn:              border_color, border_w = COLOR_WEAPON_BORDER, 3
+    elif hovered and item:  border_color, border_w = COLOR_HOVER_BORDER, 3
+    elif selected:          border_color, border_w = COLOR_SELECTED_BORDER, 3
+    else:                   border_color, border_w = COLOR_SLOT_BORDER, 1
 
     pygame.draw.rect(screen, border_color, rect, border_w, border_radius=5)
 
     if item:
         icon = pygame.transform.scale(item.asset, (ITEM_SLOT_SIZE - 16, ITEM_SLOT_SIZE - 16))
         screen.blit(icon, (position[0] + 8, position[1] + 8))
-
         if is_wpn:
             screen.blit(_font(11, bold=True).render("ARMA", True, COLOR_WEAPON_BADGE),
                         (position[0] + 4, position[1] + ITEM_SLOT_SIZE - 16))
         elif item.type == "consumable":
             screen.blit(_font(11).render("USAR", True, COLOR_CONSUMABLE_HINT),
                         (position[0] + 4, position[1] + ITEM_SLOT_SIZE - 16))
+
+
+def _draw_weapon_inv_section(screen, inventory, mouse_pos, pending_weapon_item):
+    weapons = _weapons_in_inv(inventory)
+    hovered_idx = _get_hovered_weapon_inv_index(mouse_pos, inventory)
+
+    label = _font(18, bold=True).render("ARMAS EN MOCHILA", True, (140, 160, 200))
+    screen.blit(label, (WEAPON_INV_ORIGIN[0], WEAPON_INV_ORIGIN[1] - 24))
+
+    for i in range(WEAPON_INV_MAX):
+        item    = weapons[i] if i < len(weapons) else None
+        rect    = get_weapon_inv_slot_rect(i)
+        hovered = (i == hovered_idx) and item is not None
+        draw_item_box(screen, item, rect.topleft, hovered=hovered)
+        if item:
+            name = _font(13).render(item.name, True, (200, 200, 200))
+            screen.blit(name, (rect.x + rect.w // 2 - name.get_width() // 2,
+                                rect.y + rect.h + 4))
 
 
 def _draw_tooltip(screen, item, slot_rect: pygame.Rect):
@@ -150,7 +195,6 @@ def draw_player_status(screen, player, position):
                     (position[0] + 20, position[1] + 90))
 
 
-
 def draw_slot_assign_overlay(screen, weapon_item) -> None:
     sw, sh = screen.get_size()
     bw, bh = 500, 220
@@ -178,7 +222,7 @@ def draw_slot_assign_overlay(screen, weapon_item) -> None:
     btn_x        = bx + bw // 2 - btn_w // 2
     btn_y_start  = by + 82
 
-    for i, (label, base_col, _hov_col) in enumerate(options):
+    for i, (label, base_col, _) in enumerate(options):
         ry = btn_y_start + i * (btn_h + gap)
         r  = pygame.Rect(btn_x, ry, btn_w, btn_h)
         pygame.draw.rect(screen, base_col, r, border_radius=6)
@@ -192,7 +236,7 @@ def draw_slot_assign_overlay(screen, weapon_item) -> None:
 
 
 def get_overlay_rects() -> dict:
-    return {}  
+    return {}
 
 
 def _draw_controls_hint(screen: pygame.Surface):
@@ -208,10 +252,7 @@ def _draw_controls_hint(screen: pygame.Surface):
     screen.blit(box, (box_x, box_y))
     pygame.draw.rect(screen, (70, 70, 90), (box_x, box_y, box_w, box_h), 1, border_radius=4)
 
-    lines = [
-        ("LMB", "  usar objeto"),
-        ("RMB", "  soltar al suelo"),
-    ]
+    lines = [("LMB", "  usar objeto"), ("RMB", "  soltar al suelo")]
     for i, (key, desc) in enumerate(lines):
         y         = box_y + pad + i * 26
         key_surf  = _font(17, bold=True).render(key, True, (255, 220, 50))
@@ -234,24 +275,31 @@ def draw_inventory_screen(screen: pygame.Surface, player, mouse_pos,
     draw_weapon_box(screen, player.inventory.secondary_weapon, (700, 100))
     draw_player_status(screen, player, (1300, 100))
 
-    hovered_idx  = _get_hovered_index(mouse_pos, player.inventory)
-    tooltip_item = None
-    tooltip_rect = None
+    # Sección de armas en mochila
+    _draw_weapon_inv_section(screen, player.inventory, mouse_pos, pending_weapon_item)
 
-    for i in range(player.inventory.max_size):
-        item     = player.inventory.items[i] if i < len(player.inventory.items) else None
-        selected = (i == player.inventory.selected_item_index)
-        hovered  = (i == hovered_idx) and item is not None
+    # Sección de consumibles
+    consumable_items = _consumables(player.inventory)
+    hovered_c_idx    = _get_hovered_consumable_index(mouse_pos, player.inventory)
+    tooltip_item     = None
+    tooltip_rect     = None
+
+    label = _font(18, bold=True).render("CONSUMIBLES", True, (140, 200, 140))
+    screen.blit(label, (ITEM_SLOT_ORIGIN[0], ITEM_SLOT_ORIGIN[1] - 24))
+
+    for i, item in enumerate(consumable_items):
+        selected = (player.inventory.items.index(item) == player.inventory.selected_item_index)
+        hovered  = (i == hovered_c_idx)
         rect     = get_item_slot_rect(i)
-
         draw_item_box(screen, item, rect.topleft, selected=selected, hovered=hovered)
-
-        screen.blit(_font(14).render(str(i + 1), True, (160, 160, 160)),
-                    (rect.x + 4, rect.y + 2))
-
+        screen.blit(_font(14).render(str(i + 1), True, (160, 160, 160)), (rect.x + 4, rect.y + 2))
         if hovered:
             tooltip_item = item
             tooltip_rect = rect
+
+    # Slots vacíos restantes
+    for i in range(len(consumable_items), 16):
+        draw_item_box(screen, None, get_item_slot_rect(i).topleft)
 
     if tooltip_item and tooltip_rect and pending_weapon_item is None:
         _draw_tooltip(screen, tooltip_item, tooltip_rect)

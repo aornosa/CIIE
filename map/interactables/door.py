@@ -3,20 +3,23 @@ import pygame
 from map.interactables.interactable import Interactable
 from map.interactables.interaction_manager import InteractionManager
 
+
 class Door(Interactable):
     _IMAGE_PATH = "assets/interactables/door.png"
 
-    def __init__(self, name: str, position, cost: int, on_open=None, orientation: str = "horizontal"):
+    def __init__(self, name: str, position, on_open=None,
+                 orientation: str = "horizontal", unlock_condition=None):
         self.position          = pygame.Vector2(position)
-        self.cost              = cost
         self.is_open           = False
         self._on_open_callback = on_open
         self.orientation       = orientation
         self._image            = None
+        # Condición que debe cumplirse para poder abrir la puerta
+        self._unlock_condition = unlock_condition
         super().__init__(
             name=name,
-            description=f"Cuesta {cost} puntos abrir esta puerta.",
-            interact_text=f"[E] Abrir {name} ({cost} pts)",
+            description="",
+            interact_text=f"[E] Abrir {name}",
             interact_radius=100,
         )
         InteractionManager().register(self)
@@ -28,10 +31,11 @@ class Door(Interactable):
         return not self.is_open and self.position.distance_to(player_position) <= self.interact_radius
 
     def interact(self, player):
-        if self.is_open or player.score < self.cost:
+        if self.is_open:
             return
-        player.score -= self.cost
-        self.is_open  = True
+        if self._unlock_condition and not self._unlock_condition():
+            return
+        self.is_open = True
         InteractionManager().unregister(self)
         if self._on_open_callback:
             self._on_open_callback()
@@ -53,12 +57,9 @@ class Door(Interactable):
             img = self._image if self.orientation == "horizontal" else pygame.transform.rotate(self._image, 90)
             screen.blit(img, (sp.x - img.get_width() // 2, sp.y - img.get_height() // 2))
         else:
-            # Fallback si no hay asset
             if self.orientation == "vertical":
                 rect = pygame.Rect(sp.x - 40, sp.y - 70, 80, 140)
             else:
                 rect = pygame.Rect(sp.x - 70, sp.y - 40, 140, 80)
             pygame.draw.rect(screen, (80,  50,  20), rect)
             pygame.draw.rect(screen, (150, 100, 50), rect, 3)
-        label = pygame.font.SysFont("consolas", 16).render(f"{self.cost}pts", True, (255, 220, 50))
-        screen.blit(label, (sp.x - label.get_width() // 2, sp.y - 60))

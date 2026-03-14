@@ -5,9 +5,9 @@ class TacticalKnife(Melee):
         super().__init__(
             asset="assets/weapons/knife/knife.png",
             name="Cuchillo Táctico",
-            damage=90,
-            reach=150,
-            attack_speed=2.5,
+            damage=70,
+            reach=180,
+            attack_speed=3.5,
             reach_radius=120,
         )
         self.attack_sound_key = "knife_slash"
@@ -17,15 +17,15 @@ class Baton(Melee):
         super().__init__(
             asset="assets/weapons/baton/baton.png",
             name="Porra Antidisturbios",
-            damage=110,
-            reach=280,
-            attack_speed=1.8,
-            reach_radius=220,
+            damage=130,
+            reach=340,
+            attack_speed=1.4,
+            reach_radius=260,
         )
-        self.attack_sound_key  = "baton_hit"
-        self.particle_color    = (100, 200, 255)
+        self.attack_sound_key = "baton_hit"
+        self.particle_color   = (100, 200, 255)
 
         from core.particles.particle_emitter import ParticleEmitter
         from core.particles.particle import Particle
-        particle_factory       = lambda: Particle(self._create_impact_particle())
-        self.impact_emitter    = ParticleEmitter(particle_factory, speed=300, lifespan=0.6)
+        particle_factory    = lambda: Particle(self._create_impact_particle())
+        self.impact_emitter = ParticleEmitter(particle_factory, speed=300, lifespan=0.6)

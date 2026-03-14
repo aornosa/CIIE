@@ -1,4 +1,6 @@
+"""Lógica del flujo del nivel 1: cutscene, oleadas, puertas, contacto y muerte."""
 import pygame
+
 from core.collision.collider import Collider
 from core.collision.collision_manager import CollisionManager
 from core.collision.layers import LAYERS
@@ -13,13 +15,18 @@ _CUTSCENE_ENEMY_SPAWNS = [
     (ACX + 50,  ACY - 750),
 ]
 
+
 def update_enemies(scene, delta_time):
+    """Actualiza enemigos iniciales (pre-wave) o los wave managers activos."""
     kills = 0
 
     if scene._wave_manager is not None:
-        prev = len(scene._wave_manager.enemies)
-        scene._wave_manager.update(delta_time)
-        kills += prev - len(scene._wave_manager.enemies)
+        wm   = scene._wave_manager
+        prev = len(wm.enemies)
+        wm.update(delta_time)
+        # wm puede haberse destruido en on_waves_complete durante el update
+        if scene._wave_manager is not None:
+            kills += prev - len(scene._wave_manager.enemies)
     else:
         for enemy in scene.enemies:
             if enemy.is_alive() and getattr(enemy, "brain", None):
@@ -40,7 +47,18 @@ def update_enemies(scene, delta_time):
         kills += prev - len(scene._wave_manager_north.enemies)
 
     if kills > 0 and scene.player:
-        scene.player.add_coins(kills * 10)
+        wave = 0
+        if scene._wave_manager:
+            wave = scene._wave_manager.current_wave
+        elif scene._wave_manager_north:
+            wave = scene._wave_manager_north.current_wave
+        # Monedas por kill escalan con la oleada para que la tienda siga siendo relevante
+        if wave <= 5:   coins_per_kill = 15
+        elif wave <= 10: coins_per_kill = 25
+        elif wave <= 15: coins_per_kill = 40
+        elif wave <= 20: coins_per_kill = 60
+        else:            coins_per_kill = 80
+        scene.player.add_coins(kills * coins_per_kill)
         scene._total_kills += kills
 
 
@@ -59,7 +77,7 @@ def update_idle_timeout(scene, delta_time):
 
 
 def update_puddles(scene, delta_time):
-    """Actualiza charcos tóxicos"""
+    """Actualiza charcos tóxicos cuando no hay wave manager activo."""
     if scene._wave_manager is None and scene._wave_manager_north is None:
         for puddle in list(scene._toxic_puddles):
             puddle.update(delta_time, scene.player)
@@ -107,6 +125,14 @@ def update_flow(scene, delta_time):
             and not dialog_active):
         create_wave_manager(scene)
 
+    # Desbloquea la puerta de salida cuando el jugador completa la oleada 25
+    if (scene._wave_manager_north is not None
+            and scene._wave_manager_north.current_wave >= 25
+            and not scene._wave_manager_north.enemies
+            and not scene._wave_manager_north._spawn_queue
+            and not getattr(scene, "_zone2_complete", False)):
+        scene._zone2_complete = True
+
     if (scene._wave2_clear_timer >= 0
             and not scene._wave2_clear_triggered
             and not dialog_active):
@@ -139,7 +165,9 @@ def finish_cutscene(scene):
     scene.audres           = None
     scene._cutscene_active = False
     scene._cutscene_phase  = "idle"
-    # Resincroniza el movimiento con el estado real del teclado para evitar que teclas sueltas durante la cutscene dejen el personaje moviéndose
+
+    # Resincroniza el movimiento con el estado real del teclado para evitar
+    # que teclas soltadas durante la cutscene dejen el personaje moviéndose
     if scene.director and scene.director._input_handler:
         keys = pygame.key.get_pressed()
         ih   = scene.director._input_handler
@@ -161,24 +189,29 @@ def finish_cutscene(scene):
 
 
 def create_wave_manager(scene):
+    # Zona 1: exactamente 10 oleadas. Al terminar la oleada 10 deja de spawnear
+    # pero la puerta norte no se abre sola — requiere 100k puntos
     scene._wave_manager = WaveManager(
-        player=scene.player, total_waves=None,
+        player=scene.player, total_waves=10,
         arena_center=(ACX, ACY), arena_half=ARENA_HALF,
         arena_mix=True, puddle_list=scene._toxic_puddles)
     scene._wave_manager.set_on_complete(lambda: on_waves_complete(scene))
 
 
 def create_north_wave_manager(scene):
-    north_cy   = ACY - ARENA_HALF - CORRIDOR_H - NORTH_SQ
-    start_wave = scene._last_wave + 1
+    # Zona 2: siempre arranca en oleada 11 independientemente de cuánto
+    # se haya farmeado en zona 1, y escala infinito desde ahí
+    north_cy = ACY - ARENA_HALF - CORRIDOR_H - NORTH_SQ
     scene._wave_manager_north = WaveManager(
         player=scene.player, total_waves=None,
         arena_center=(ACX, north_cy), arena_half=NORTH_SQ,
         arena_mix=True, puddle_list=scene._toxic_puddles,
-        start_wave=start_wave, hp_scale_per_wave=0.10)
+        start_wave=11, hp_scale_per_wave=0.15)
 
 
 def on_waves_complete(scene):
+    # Oleada 10 completada — desbloquea la puerta norte para que el jugador pueda abrirla
+    scene._zone1_complete = True
     if not scene._wave2_clear_triggered and not scene._going_level_complete:
         scene._wave2_clear_timer = 1.5
 
@@ -193,7 +226,6 @@ def on_north_door_open(scene):
         scene._door_collider = None
 
     if scene._wave_manager:
-        scene._last_wave = scene._wave_manager.current_wave
         for e in list(scene._wave_manager.enemies):
             e._player_ref = None
             e.take_damage(e.health)

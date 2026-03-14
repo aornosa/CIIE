@@ -5,20 +5,28 @@ from settings import SCREEN_WIDTH, SCREEN_HEIGHT
 _FONT_28 = None
 _FONT_22 = None
 _FONT_18 = None
+
 _last_hp     = None
 _flash_alpha = 0.0
 _FLASH_PEAK  = 90
 _FLASH_DECAY = 70
+
 SLOT_COUNT  = 6
 SLOT_SIZE   = 64
 SLOT_GAP    = 8
 TOTAL_WIDTH = SLOT_COUNT * SLOT_SIZE + (SLOT_COUNT - 1) * SLOT_GAP
 BAR_X       = (SCREEN_WIDTH - TOTAL_WIDTH) // 2
 BAR_Y       = SCREEN_HEIGHT - SLOT_SIZE - 20
+
 PANEL_W = 260
 PANEL_H = 70
 PANEL_Y = BAR_Y
 
+
+
+def _fmt(n: int) -> str:
+    # Formatea números con punto como separador de miles (estilo español)
+    return f"{n:,}".replace(",", ".")
 
 def _fonts():
     global _FONT_28, _FONT_22, _FONT_18
@@ -41,6 +49,8 @@ def draw_overlay(screen, player, wave_manager=None, delta_time=0.016):
     _draw_health(screen, player, _FONT_22)
     _draw_weapon(screen, player, _FONT_28, _FONT_22, _FONT_18)
     _draw_interaction_tooltip(screen, player)
+    if player.has_dash:
+        _draw_dash_indicator(screen, player, _FONT_18)
 
     if wave_manager is not None:
         _draw_wave_hud(screen, wave_manager, player, _FONT_28, _FONT_22, _FONT_18)
@@ -137,6 +147,53 @@ def _draw_hotkey_bar(screen, player, font_sml):
     screen.blit(bar_surf, (BAR_X, BAR_Y))
 
 
+def _draw_dash_indicator(screen, player, font_sml):
+    # Dibujado a la derecha de la barra de hotkeys
+    x   = BAR_X + TOTAL_WIDTH + SLOT_GAP + 8
+    y   = BAR_Y
+    w, h = 70, SLOT_SIZE
+
+    panel = pygame.Surface((w, h), pygame.SRCALPHA)
+    ready = player._dash_cooldown <= 0
+
+    bg_color     = (40, 120, 200, 220) if ready else (30, 30, 35, 200)
+    border_color = (80, 180, 255)      if ready else (60, 60, 70)
+    panel.fill(bg_color)
+    pygame.draw.rect(panel, border_color, (0, 0, w, h), 2, border_radius=6)
+
+    # Barra de progreso del cooldown
+    if not ready:
+        ratio    = 1.0 - player._dash_cooldown / 3.0
+        bar_h    = int((h - 8) * ratio)
+        bar_rect = pygame.Rect(4, h - 4 - bar_h, w - 8, bar_h)
+        pygame.draw.rect(panel, (50, 100, 180, 180), bar_rect, border_radius=3)
+
+    label = font_sml.render("DASH", True, (255, 255, 255) if ready else (120, 120, 120))
+    panel.blit(label, (w // 2 - label.get_width() // 2, 4))
+
+    key = font_sml.render("SHIFT", True, (200, 200, 200) if ready else (80, 80, 80))
+    panel.blit(key, (w // 2 - key.get_width() // 2, h - key.get_height() - 4))
+
+    screen.blit(panel, (x, y))
+    from map.interactables.interaction_manager import InteractionManager
+    tooltip = InteractionManager().get_tooltip_in_range(player)
+    if not tooltip:
+        return
+    font    = pygame.font.SysFont("consolas", 28)
+    padding = 12
+    surface = font.render(tooltip, True, (255, 255, 180))
+    bg_rect = pygame.Rect(
+        screen.get_width() // 2 - surface.get_width() // 2 - padding,
+        screen.get_height() - 120,
+        surface.get_width() + padding * 2,
+        surface.get_height() + padding,
+    )
+    bg = pygame.Surface((bg_rect.width, bg_rect.height), pygame.SRCALPHA)
+    bg.fill((0, 0, 0, 180))
+    screen.blit(bg, bg_rect.topleft)
+    screen.blit(surface, (bg_rect.x + padding, bg_rect.y + padding // 2))
+
+
 def _draw_interaction_tooltip(screen, player):
     from map.interactables.interaction_manager import InteractionManager
     tooltip = InteractionManager().get_tooltip_in_range(player)
@@ -159,8 +216,8 @@ def _draw_interaction_tooltip(screen, player):
 
 def _draw_wave_hud(screen, wave_manager, player, font_big, font_med, font_sml):
     info    = wave_manager.get_hud_info()
-    panel_w = 260
-    panel_h = 100
+    panel_w = 280
+    panel_h = 120
     panel_x = SCREEN_WIDTH - panel_w - 20
     panel_y = 20
 
@@ -176,7 +233,15 @@ def _draw_wave_hud(screen, wave_manager, player, font_big, font_med, font_sml):
     screen.blit(font_med.render(f"Enemigos: {info['enemies_left']}", True, enemy_color),
                 (panel_x + 12, panel_y + 44))
 
-    screen.blit(font_sml.render(f"Pts: {player.score}", True, (180, 255, 180)),
-                (panel_x + 12, panel_y + 74))
-    screen.blit(font_sml.render(f"$ {getattr(player, 'coins', 0)}", True, (255, 220, 80)),
-                (panel_x + 120, panel_y + 74))
+    # Puntos y monedas en líneas separadas, con texto recortado si es muy largo
+    score_text = f"PUNTOS: {_fmt(player.score)}"
+    coins_text = f"$   {_fmt(getattr(player, 'coins', 0))}"
+    score_surf = font_sml.render(score_text, True, (180, 255, 180))
+    coins_surf = font_sml.render(coins_text, True, (255, 220, 80))
+    max_w = panel_w - 24
+    if score_surf.get_width() > max_w:
+        score_surf = pygame.transform.scale(score_surf, (max_w, score_surf.get_height()))
+    if coins_surf.get_width() > max_w:
+        coins_surf = pygame.transform.scale(coins_surf, (max_w, coins_surf.get_height()))
+    screen.blit(score_surf, (panel_x + 12, panel_y + 74))
+    screen.blit(coins_surf, (panel_x + 12, panel_y + 96))

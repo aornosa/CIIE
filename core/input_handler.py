@@ -5,6 +5,7 @@ HOTKEY_KEYS = [
     pygame.K_4, pygame.K_5, pygame.K_6,
 ]
 
+
 class InputHandler:
     def __init__(self):
         self.actions = {
@@ -21,6 +22,7 @@ class InputHandler:
             "look_around": False,
             "use_item": False,
             "hotkey_slot": -1,
+            "dash": False,
             "look_x": 0,
             "look_y": 0,
         }
@@ -32,6 +34,7 @@ class InputHandler:
         self.actions["use_item"]    = False
         self.actions["pause"]       = False
         self.actions["hotkey_slot"] = -1
+        self.actions["dash"]        = False
         # attack y aim se sincronizan con el estado real del ratón cada frame
         mouse = pygame.mouse.get_pressed()
         self.actions["attack"] = mouse[0]
@@ -62,6 +65,8 @@ class InputHandler:
                 self.actions["inventory"] = True
             elif event.key == pygame.K_f:
                 self.actions["use_item"] = True
+            elif event.key == pygame.K_LSHIFT:
+                self.actions["dash"] = True
 
             elif event.key == pygame.K_UP:
                 self.actions["look_y"] += -1
@@ -120,7 +125,9 @@ class InputHandler:
             self.mouse_position = pygame.Vector2(event.pos)
 
     def get_keys_pressed(self):
+        """Get current state of all keys"""
         return pygame.key.get_pressed()
 
     def get_keys_just_pressed(self):
+        """Get dictionary of keys pressed this frame"""
         return self.keys_just_pressed

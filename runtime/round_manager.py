@@ -1,6 +1,7 @@
 from __future__ import annotations
 import random
 import pygame
+
 from character_scripts.enemy.enemy_types import (
     InfectedCommon, InfectedSoldier, LabSubject,
     TankEnemy, ToxicEnemy, ShooterEnemy,
@@ -18,10 +19,12 @@ _SPAWN_OFFSETS = [
     (-600, -800), ( 600, -800), (-600,  800), ( 600,  800),
     (-700, -400), ( 700, -400), (-700,  400), ( 700,  400),
 ]
+
 MIN_SPAWN_DIST_TO_PLAYER = 350
 MIN_SPAWN_SEPARATION     = 120
 HP_SCALE_PER_WAVE        = 0.08
-MAX_ENEMIES_ON_SCREEN    = 25
+MAX_ENEMIES_ON_SCREEN    = 35
+
 _ENEMY_FACTORIES = {
     "InfectedCommon":  (InfectedCommon,  InfectedCommonBrain),
     "InfectedSoldier": (InfectedSoldier, InfectedSoldierBrain),
@@ -31,21 +34,97 @@ _ENEMY_FACTORIES = {
     "ShooterEnemy":    (ShooterEnemy,    ShooterBrain),
 }
 
+
 def _composition(wave: int) -> dict:
-    """Composición aleatoria con mínimos garantizados que escalan por oleada."""
-    base = max(6, wave + 5)
+    """
+    Composición temática por rangos de oleada.
+    Cada rango tiene una identidad distinta; más allá de la 25 escala sin techo.
+    """
+    def rvar(n: int, spread: int = 2) -> int:
+        return max(0, round(n * 1.5) + random.randint(-1, spread))
 
-    def rvar(n: int) -> int:
-        return max(0, n + random.randint(-1, 2))
-
-    return {
-        "InfectedCommon":  max(2, rvar(base - wave // 2)),
-        "InfectedSoldier": max(2, rvar(1 + wave // 2)),
-        "LabSubject":      max(1, rvar(wave // 2)),
-        "ToxicEnemy":      max(1, rvar(wave // 3)),
-        "ShooterEnemy":    max(1, rvar(wave // 3)),
-        "TankEnemy":       max(1, rvar(wave // 4)),
-    }
+    if wave <= 3:
+        return {
+            "InfectedCommon":  rvar(6),
+            "InfectedSoldier": rvar(1),
+            "LabSubject":      0,
+            "ToxicEnemy":      0,
+            "ShooterEnemy":    0,
+            "TankEnemy":       0,
+        }
+    elif wave <= 6:
+        return {
+            "InfectedCommon":  rvar(4),
+            "InfectedSoldier": rvar(3),
+            "LabSubject":      0,
+            "ToxicEnemy":      rvar(2),
+            "ShooterEnemy":    rvar(1),
+            "TankEnemy":       0,
+        }
+    elif wave <= 9:
+        return {
+            "InfectedCommon":  rvar(2),
+            "InfectedSoldier": rvar(3),
+            "LabSubject":      rvar(1),
+            "ToxicEnemy":      rvar(2),
+            "ShooterEnemy":    rvar(3),
+            "TankEnemy":       rvar(2),
+        }
+    elif wave == 10:
+        return {
+            "InfectedCommon":  rvar(8),
+            "InfectedSoldier": rvar(5),
+            "LabSubject":      rvar(2),
+            "ToxicEnemy":      rvar(4),
+            "ShooterEnemy":    rvar(4),
+            "TankEnemy":       rvar(3),
+        }
+    elif wave <= 13:
+        return {
+            "InfectedCommon":  rvar(2),
+            "InfectedSoldier": rvar(5),
+            "LabSubject":      rvar(3),
+            "ToxicEnemy":      rvar(2),
+            "ShooterEnemy":    rvar(2),
+            "TankEnemy":       rvar(2),
+        }
+    elif wave <= 18:
+        return {
+            "InfectedCommon":  rvar(1),
+            "InfectedSoldier": rvar(3),
+            "LabSubject":      rvar(4),
+            "ToxicEnemy":      rvar(3),
+            "ShooterEnemy":    rvar(4),
+            "TankEnemy":       rvar(4),
+        }
+    elif wave <= 24:
+        return {
+            "InfectedCommon":  rvar(1),
+            "InfectedSoldier": rvar(4),
+            "LabSubject":      rvar(5),
+            "ToxicEnemy":      rvar(3),
+            "ShooterEnemy":    rvar(5),
+            "TankEnemy":       rvar(5),
+        }
+    elif wave == 25:
+        return {
+            "InfectedCommon":  rvar(6),
+            "InfectedSoldier": rvar(6),
+            "LabSubject":      rvar(5),
+            "ToxicEnemy":      rvar(5),
+            "ShooterEnemy":    rvar(6),
+            "TankEnemy":       rvar(5),
+        }
+    else:
+        extra = wave - 25
+        return {
+            "InfectedCommon":  rvar(2 + extra // 5),
+            "InfectedSoldier": rvar(5 + extra // 3),
+            "LabSubject":      rvar(4 + extra // 3),
+            "ToxicEnemy":      rvar(3 + extra // 4),
+            "ShooterEnemy":    rvar(5 + extra // 3),
+            "TankEnemy":       rvar(4 + extra // 3),
+        }
 
 
 def _pick_spawn(player, arena_center, arena_half, used: list) -> pygame.Vector2:
@@ -66,6 +145,7 @@ def _pick_spawn(player, arena_center, arena_half, used: list) -> pygame.Vector2:
         return pos
     # Sin candidato válido: usa el punto más lejano al jugador
     return max(candidates, key=lambda p: p.distance_to(player_pos))
+
 
 def cleanup_dead_enemies(pool: list):
     pool[:] = [e for e in pool if e.is_alive()]
@@ -146,7 +226,9 @@ class WaveManager:
         comp  = _composition(self.current_wave) if self.arena_mix else \
                 {"InfectedCommon": max(5, self.current_wave + 4)}
         scale    = 1.0 + (self.current_wave - 1) * self.hp_scale
-        to_spawn = min(sum(comp.values()), MAX_ENEMIES_ON_SCREEN - len(self.enemies))
+        # Cap crece con la oleada a partir de la 25 para mantener el desafío
+        cap      = MAX_ENEMIES_ON_SCREEN + max(0, (self.current_wave - 25) * 2)
+        to_spawn = min(sum(comp.values()), cap - len(self.enemies))
 
         self._spawn_queue = self._build_spawn_list(comp, scale, to_spawn)
         self._spawn_timer = 0.0
@@ -179,6 +261,7 @@ class WaveManager:
 
         ctrl        = CharacterController(enemy.speed, enemy)
         enemy.brain = BClass(enemy, ctrl, self.player)
+
         # Adelanta medio cooldown para que no ataque nada más spawnear
         if hasattr(enemy, "_attack_timer"):
             enemy._attack_timer = getattr(enemy, "ATTACK_COOLDOWN", 0) * 0.5

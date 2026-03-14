@@ -9,15 +9,16 @@ DESC_FONT    = pygame.font.SysFont("consolas", 22)
 MSG_FONT     = pygame.font.SysFont("consolas", 28)
 VENDOR_FONT  = pygame.font.SysFont("consolas", 22)
 STAT_FONT    = pygame.font.SysFont("consolas", 20)
+
 _PORTRAIT_PATH = "assets/characters/audres/portrait_shop.jpg"
 _PORTRAIT_SIZE = 220
+
 
 def _draw_vendor_portrait(screen):
     surf = _get_portrait(_PORTRAIT_PATH)
 
     panel_w = _PORTRAIT_SIZE
     panel_h = _PORTRAIT_SIZE + 54
-
     panel_x = SCREEN_WIDTH // 2 - 360 - panel_w - 20
     panel_y = 80
 
@@ -36,9 +37,9 @@ def _draw_vendor_portrait(screen):
     VENDOR_FONT.bold = True
     name_surf = VENDOR_FONT.render("AUDReS-01", True, (200, 185, 255))
     VENDOR_FONT.bold = False
-    nx = panel_x + panel_w // 2 - name_surf.get_width() // 2
-    ny = panel_y + _PORTRAIT_SIZE + 6
-    screen.blit(name_surf, (nx, ny))
+    screen.blit(name_surf, (panel_x + panel_w // 2 - name_surf.get_width() // 2,
+                             panel_y + _PORTRAIT_SIZE + 6))
+
 
 def _get_current_value_label(item, player):
     if player is None:
@@ -46,10 +47,8 @@ def _get_current_value_label(item, player):
     t = item["type"]
     if t == "stat":
         val = player.get_stat(item["stat"])
-        try:
-            return f"Actual: {int(val)}"
-        except (ValueError, TypeError):
-            return f"Actual: {val}"
+        try:    return f"Actual: {int(val)}"
+        except: return f"Actual: {val}"
     if t == "weapon":
         weapon = player.inventory.get_weapon(player.inventory.active_weapon_slot)
         if weapon is not None:
@@ -57,18 +56,17 @@ def _get_current_value_label(item, player):
             if val is None:
                 return "Sin atributo"
             try:
-                if isinstance(val, float):
-                    return f"Actual: {val:.2f}"
-                return f"Actual: {int(val)}"
-            except (ValueError, TypeError):
-                return f"Actual: {val}"
+                return f"Actual: {val:.2f}" if isinstance(val, float) else f"Actual: {int(val)}"
+            except: return f"Actual: {val}"
         return "Sin arma"
     if t == "heal":
         return f"HP: {int(player.health)} / {int(player.get_stat('max_health'))}"
     return ""
 
 
-def draw_shop_menu(screen, catalog, selected_index, player_coins, message="", player=None):
+def draw_shop_menu(screen, catalog, selected_index, player_coins, message="", player=None, owned_items=None):
+    owned_items = owned_items or set()
+
     overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 180))
     screen.blit(overlay, (0, 0))
@@ -88,14 +86,23 @@ def draw_shop_menu(screen, catalog, selected_index, player_coins, message="", pl
 
     for i, item in enumerate(catalog):
         is_selected = (i == selected_index)
-        can_afford  = player_coins >= item["cost"]
         row_y       = start_y + i * spacing
+
+        # Arma única ya poseída — mostrar en gris con badge "Comprada"
+        weapon_name = item["name"].split(" (")[0]
+        is_owned    = item.get("unique") and weapon_name in owned_items and \
+                      item.get("type") in ("buy_weapon", "dash")
+        can_afford  = player_coins >= item["cost"]
 
         if is_selected:
             bar = pygame.Rect(SCREEN_WIDTH // 2 - 360, row_y - 6, 720, 66)
             pygame.draw.rect(screen, (255, 220, 50), bar, 2, border_radius=6)
 
-        if is_selected:
+        if is_owned:
+            name_color = (90, 90, 90)
+            OPTION_FONT.bold = False
+            prefix = "  "
+        elif is_selected:
             name_color = (255, 220, 50)
             prefix = "> "
             OPTION_FONT.bold = True
@@ -111,34 +118,33 @@ def draw_shop_menu(screen, catalog, selected_index, player_coins, message="", pl
         name_surface = OPTION_FONT.render(f"{prefix}{item['name']}", True, name_color)
         screen.blit(name_surface, (SCREEN_WIDTH // 2 - 340, row_y))
 
-        desc_color = (170, 170, 170) if can_afford else (80, 80, 80)
+        desc_color   = (90, 90, 90) if is_owned else ((170, 170, 170) if can_afford else (80, 80, 80))
         DESC_FONT.bold = False
         desc_surface = DESC_FONT.render(item["desc"], True, desc_color)
         screen.blit(desc_surface, (SCREEN_WIDTH // 2 - 340, row_y + 30))
 
-        cur_label = _get_current_value_label(item, player)
-        if cur_label:
-            badge_color = (100, 220, 255) if can_afford else (60, 100, 110)
-            cur_surf = STAT_FONT.render(cur_label, True, badge_color)
-            screen.blit(cur_surf, (SCREEN_WIDTH // 2 + 320 - cur_surf.get_width(), row_y + 32))
+        # Badge "Comprada" para armas únicas ya poseídas
+        if is_owned:
+            badge = STAT_FONT.render("Comprada", True, (90, 90, 90))
+            screen.blit(badge, (SCREEN_WIDTH // 2 + 320 - badge.get_width(), row_y + 32))
+        else:
+            cur_label = _get_current_value_label(item, player)
+            if cur_label:
+                badge_color = (100, 220, 255) if can_afford else (60, 100, 110)
+                cur_surf = STAT_FONT.render(cur_label, True, badge_color)
+                screen.blit(cur_surf, (SCREEN_WIDTH // 2 + 320 - cur_surf.get_width(), row_y + 32))
 
-        cost_color = (255, 215, 0) if can_afford else (150, 70, 70)
-        OPTION_FONT.bold = is_selected
-        cost_surface = OPTION_FONT.render(f"${item['cost']}", True, cost_color)
-        screen.blit(cost_surface, (SCREEN_WIDTH // 2 + 320 - cost_surface.get_width(), row_y))
+            cost_color   = (255, 215, 0) if can_afford else (150, 70, 70)
+            OPTION_FONT.bold = is_selected
+            cost_surface = OPTION_FONT.render(f"${item['cost']}", True, cost_color)
+            screen.blit(cost_surface, (SCREEN_WIDTH // 2 + 320 - cost_surface.get_width(), row_y))
 
     close_y  = start_y + len(catalog) * spacing + 20
     is_close = selected_index >= len(catalog)
 
-    if is_close:
-        color  = (255, 220, 50)
-        prefix = "> "
-        OPTION_FONT.bold = True
-    else:
-        color  = (200, 200, 200)
-        prefix = "  "
-        OPTION_FONT.bold = False
-
+    OPTION_FONT.bold = is_close
+    color  = (255, 220, 50) if is_close else (200, 200, 200)
+    prefix = "> " if is_close else "  "
     close_surface = OPTION_FONT.render(f"{prefix}Cerrar [P]", True, color)
     screen.blit(close_surface, (SCREEN_WIDTH // 2 - close_surface.get_width() // 2, close_y))
 

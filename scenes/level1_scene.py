@@ -1,4 +1,6 @@
+"""Escena principal del juego."""
 import pygame
+
 from core.audio.audio_manager import AudioManager
 from core.camera import Camera
 from core.collision.collision_manager import CollisionManager
@@ -17,8 +19,10 @@ from weapons.ranged.ranged import Ranged
 from weapons.melee.melee import Melee
 from weapons.melee.melee_types import TacticalKnife
 from weapons.weapon_controller import WeaponController
+
 import scenes.level1_map   as lmap
 import scenes.level1_logic as logic
+
 
 def _destroy_enemy(enemy):
     if hasattr(enemy, "audio_emitter") and enemy.audio_emitter:
@@ -51,7 +55,8 @@ class Level1Scene(Scene):
 
         self._wave_manager       = None
         self._wave_manager_north = None
-        self._last_wave          = 0
+        self._zone1_complete     = False
+        self._zone2_complete     = False
 
         self._enemies_spawned       = False
         self._shop_hint_triggered   = False
@@ -90,6 +95,8 @@ class Level1Scene(Scene):
 
         self.crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
 
+    # Ciclo de vida
+
     def on_enter(self):
         MonoliteBehaviour.time_scale = 1.0
         pygame.mouse.set_visible(False)
@@ -110,6 +117,8 @@ class Level1Scene(Scene):
     def on_resume(self):
         MonoliteBehaviour.time_scale = 1.0
         pygame.mouse.set_visible(False)
+
+    # Construccion
 
     def _build_level(self):
         CollisionManager.dynamic_colliders.clear()
@@ -133,8 +142,8 @@ class Level1Scene(Scene):
         self.controller = CharacterController(250, self.player)
         AudioManager.instance().set_listener(self.player.audio_listener)
 
-        weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
-                        "7.62", 45, 0.15, 0.6, muzzle_offset=(35, 15))
+        from weapons.ranged.ranged_types import AK47
+        weapon = AK47()
         self.player.inventory.add_weapon(self.player, weapon, "primary")
         self.player.inventory.add_weapon(self.player, TacticalKnife(), "secondary")
         if hasattr(weapon, "emitter"):
@@ -162,27 +171,10 @@ class Level1Scene(Scene):
          self._exit_room_rect) = lmap.build_room_rects()
 
         self._door_collider, self._exit_door_collider = lmap.build_walls()
+        lmap.build_interactables(self)
 
-        from map.interactables.door import Door
         cx, cy = lmap.ACX, lmap.ACY
-        h, t   = lmap.ARENA_HALF, lmap.WALL_THICK
-        door_w = 240
-
-        dx, dy      = cx, cy - h - t // 2
-        self._door      = Door("Puerta Norte", (dx, dy), 500,
-                               lambda: logic.on_north_door_open(self))
-        self._door_rect = pygame.Rect(dx - door_w // 2, dy - t // 2, door_w, t)
-
-        north_top_y = cy - h - lmap.CORRIDOR_H - lmap.NORTH_SQ * 2
-        ex, ey = cx, north_top_y - t // 2
-        self._exit_door      = Door("Puerta de Salida", (ex, ey), 1500,
-                                    lambda: logic.on_exit_door_open(self))
-        self._exit_door_rect = pygame.Rect(ex - door_w // 2, north_top_y - t, door_w, t)
-
-        from item.item_drop_manager import HelicopterInteractable
-        heli_y = north_top_y - lmap.EXIT_CORRIDOR_H - lmap.EXIT_SQ_HALF * 2
-        self._helicopter         = HelicopterInteractable((cx, heli_y), self)
-        self._helicopter_spawned = True
+        h      = lmap.ARENA_HALF
 
         from dialogs.audres_dialogs import create_audres_intro
         self._audres_intro_tree = create_audres_intro()
@@ -269,6 +261,8 @@ class Level1Scene(Scene):
             self._dialog_manager.end_dialog()
         self._dialog_manager = None
 
+    # Input
+
     def handle_events(self, input_handler):
         aim_now = input_handler.actions.get("aim", False)
         self._inv_right_click = aim_now and not self._aim_was_pressed
@@ -329,20 +323,25 @@ class Level1Scene(Scene):
             return
 
         if self._inventory_open:
-            from ui.inventory_menu import get_item_slot_rect
+            from ui.inventory_menu import (get_item_slot_rect, get_weapon_inv_slot_rect,
+                                           _weapons_in_inv, _consumables)
             mouse_pos = input_handler.mouse_position
             if input_handler.actions.get("click_drop"):
                 input_handler.actions["click_drop"] = False
                 input_handler.actions["attack"]     = False
-                for i, item in enumerate(self.player.inventory.items):
-                    if (getattr(item, "type", None) == "weapon_item"
-                            and get_item_slot_rect(i).collidepoint(mouse_pos)):
+                # Click en sección de armas del inventario
+                weapons = _weapons_in_inv(self.player.inventory)
+                for i, item in enumerate(weapons):
+                    if get_weapon_inv_slot_rect(i).collidepoint(mouse_pos):
                         self._pending_weapon_item  = item
-                        self._pending_weapon_index = i
+                        self._pending_weapon_index = self.player.inventory.items.index(item)
                         return
-                for i in range(len(self.player.inventory.items)):
+                # Click en sección de consumibles
+                consumables = _consumables(self.player.inventory)
+                for i, item in enumerate(consumables):
                     if get_item_slot_rect(i).collidepoint(mouse_pos):
-                        self.player.inventory.use_consumable_hotkey(i, self.player)
+                        real_idx = self.player.inventory.items.index(item)
+                        self.player.inventory.use_consumable_hotkey(real_idx, self.player)
                         break
             if self._inv_right_click:
                 self._inv_right_click = False
@@ -355,36 +354,16 @@ class Level1Scene(Scene):
             self.player.inventory.use_consumable_hotkey(slot, self.player)
         if input_handler.actions["use_item"]:
             self.player.inventory.use_selected_item(self.player)
+        if input_handler.actions["dash"]:
+            self.player.try_dash(self.weapon_controller)
 
     def _handle_weapon_assign(self, slot: str):
-        weapon_item = self._pending_weapon_item
-        idx         = self._pending_weapon_index
-        weapon      = weapon_item.weapon
-        weapon.parent        = self.player
-        weapon.audio_emitter = self.player.audio_emitter
-
-        old = self.player.inventory.get_weapon(slot)
-        if old is not None:
-            from item.weapon_item import WeaponItem as WI
-            old_wi = WI(old)
-            if not self.player.inventory.add_item(old_wi):
-                self.player.inventory.drop_weapon(slot)
-            else:
-                if slot == "primary":
-                    self.player.inventory.primary_weapon = None
-                else:
-                    self.player.inventory.secondary_weapon = None
-
-        if slot == "primary":
-            self.player.inventory.primary_weapon = weapon
-        else:
-            self.player.inventory.secondary_weapon = weapon
-
-        if 0 <= idx < len(self.player.inventory.items):
-            self.player.inventory.items.pop(idx)
-
+        self.player.inventory.equip_weapon_from_item(
+            self.player, self._pending_weapon_item, self._pending_weapon_index, slot)
         self._pending_weapon_item  = None
         self._pending_weapon_index = -1
+
+    # Update
 
     def update(self, delta_time):
         from core.audio.music_manager import MusicManager
@@ -412,6 +391,8 @@ class Level1Scene(Scene):
             logic.check_player_death(self)
 
         logic.update_flow(self, delta_time)
+
+    # Render
 
     def render(self, screen):
         im         = self.director._input_handler

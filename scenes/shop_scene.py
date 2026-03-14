@@ -5,30 +5,39 @@ from item.item_instance import ItemInstance
 from item.item_loader import ItemRegistry
 
 SHOP_CATALOG = [
-    {"name": "Vida Reforzada",    "desc": "+25 Vida máxima",                        "cost": 200, "type": "stat",       "stat": "max_health", "value": 25},
-    {"name": "Botas de Acero",    "desc": "+30 Velocidad",                           "cost": 100, "type": "stat",       "stat": "speed",      "value": 30},
-    {"name": "Botiquín de Campo", "desc": "Cura 50 HP al instante",                  "cost": 75,  "type": "heal",       "value": 50},
-    {"name": "Cargador Ampliado", "desc": "+5 balas al cargador (arma activa)",      "cost": 150, "type": "weapon",     "attr": "clip_size",  "value": 5},
-    {"name": "Gatillo Mejorado",  "desc": "-0.03s entre disparos (arma activa)",     "cost": 175, "type": "weapon",     "attr": "fire_rate",  "value": -0.03},
-    {"name": "Munición Perforante","desc": "+15 daño por bala (arma activa)",        "cost": 200, "type": "weapon",     "attr": "damage",     "value": 15},
-    {"name": "MP5",               "desc": "Subfusil 9mm · 30 balas · Va al inventario",  "cost": 350, "type": "buy_weapon", "weapon_class": "MP5",   "unique": True},
-    {"name": "SPAS-12",           "desc": "Escopeta 12ga · 8 balas · Va al inventario",  "cost": 500, "type": "buy_weapon", "weapon_class": "SPAS12","unique": True},
-    {"name": "AK-47 (extra)",     "desc": "Rifle 7.62mm · 60 balas · Va al inventario",  "cost": 600, "type": "buy_weapon", "weapon_class": "AK47",  "unique": True},
-    {"name": "Habilidad: Dash",   "desc": "Impulso rápido (CD: 3s)",                "cost": 150, "type": "item",       "item_id": "dash_ability", "unique": True},
+    # Mejoras de personaje
+    {"name": "Vida Reforzada",    "desc": "+25 Vida máxima",               "cost": 200, "type": "stat",       "stat": "max_health", "value": 25},
+    {"name": "Botas de Acero",    "desc": "+30 Velocidad",                  "cost": 100, "type": "stat",       "stat": "speed",      "value": 30},
+    # Mejoras ranged (todas las armas de fuego equipadas)
+    {"name": "Cargador Ampliado", "desc": "+10 balas (todas las ranged)",   "cost": 600, "type": "weapon_all_ranged", "attr": "clip_size",  "value": 10},
+    {"name": "Gatillo Mejorado",  "desc": "-0.03s disparo (todas ranged)",  "cost": 600, "type": "weapon_all_ranged", "attr": "fire_rate",  "value": -0.03},
+    {"name": "Munición Perforante","desc": "+10 daño (todas las ranged)",   "cost": 600, "type": "weapon_all_ranged", "attr": "damage",      "value": 10},
+    {"name": "Recarga Rápida",    "desc": "-0.1s recarga (todas ranged)",   "cost": 800, "type": "weapon_all_ranged", "attr": "reload_time", "value": -0.1},
+    # Mejoras melee (todas las armas cuerpo a cuerpo equipadas)
+    {"name": "Filo Afilado",      "desc": "+15 daño (todas las melee)",     "cost": 600, "type": "weapon_all_melee",  "attr": "damage",       "value": 15},
+    {"name": "Ataque Rápido",     "desc": "+0.2 velocidad ataque (melee)",  "cost": 600, "type": "weapon_all_melee",  "attr": "attack_speed", "value": 0.2},
+    # Armas
+    {"name": "Bastón",            "desc": "Porra antidisturbios · melee",   "cost": 200, "type": "buy_weapon", "weapon_class": "Baton",  "unique": True},
+    {"name": "MP5",               "desc": "Subfusil 9mm · 60 balas",        "cost": 350, "type": "buy_weapon", "weapon_class": "MP5",    "unique": True},
+    {"name": "SPAS-12",           "desc": "Escopeta 12ga · 15 balas",       "cost": 500, "type": "buy_weapon", "weapon_class": "SPAS12", "unique": True},
+    # Habilidad
+    {"name": "Habilidad: Dash",   "desc": "Impulso rápido · Shift · CD: 3s",  "cost": 900, "type": "dash",        "unique": True},
 ]
+
 
 def _build_weapon(weapon_class: str):
     if weapon_class == "MP5":
-        from weapons.ranged.ranged_types import MP5;       return MP5()
+        from weapons.ranged.ranged_types import MP5;         return MP5()
     if weapon_class == "SPAS12":
-        from weapons.ranged.ranged_types import SPAS12;    return SPAS12()
+        from weapons.ranged.ranged_types import SPAS12;      return SPAS12()
     if weapon_class == "AK47":
-        from weapons.ranged.ranged_types import AK47;      return AK47()
+        from weapons.ranged.ranged_types import AK47;        return AK47()
     if weapon_class == "TacticalKnife":
         from weapons.melee.melee_types import TacticalKnife; return TacticalKnife()
     if weapon_class == "Baton":
-        from weapons.melee.melee_types import Baton;       return Baton()
+        from weapons.melee.melee_types import Baton;         return Baton()
     return None
+
 
 class ShopScene(Scene):
     def __init__(self, game_scene, player):
@@ -75,10 +84,24 @@ class ShopScene(Scene):
         if last_frame is not None:
             screen.blit(last_frame, (0, 0))
         draw_shop_menu(screen, self.catalog, self.selected,
-                       self.player.coins, self.message, self.player)
+                       self.player.coins, self.message, self.player,
+                       owned_items=self._get_owned_weapon_names())
+
+    def _get_owned_weapon_names(self) -> set:
+        # Devuelve los nombres de armas únicas y habilidades que el jugador ya posee
+        owned = set()
+        for slot in ("primary", "secondary"):
+            w = self.player.inventory.get_weapon(slot)
+            if w is not None:
+                owned.add(w.name.split(" (")[0])
+        for item in self.player.inventory.items:
+            if getattr(item, "type", None) == "weapon_item":
+                owned.add(getattr(item, "name", "").split(" (")[0])
+        if self.player.has_dash:
+            owned.add("Habilidad: Dash")
+        return owned
 
     def _fail(self, entry, msg: str) -> bool:
-        """Reembolsa el coste y muestra un mensaje de error."""
         self.player.coins += entry["cost"]
         self.message       = msg
         self.message_timer = 2.0
@@ -88,9 +111,9 @@ class ShopScene(Scene):
         if self.selected >= len(self.catalog):
             self.director.pop()
             return
-        entry   = self.catalog[self.selected]
+        entry        = self.catalog[self.selected]
         self.message = ""
-        success = self._purchase(entry)
+        success      = self._purchase(entry)
         if success:
             self.message       = f"¡{entry['name']} comprado!"
             self.message_timer = 2.0
@@ -112,24 +135,30 @@ class ShopScene(Scene):
                 self.player.health = min(self.player.health + entry["value"],
                                          self.player.get_stat("max_health"))
 
-        elif t == "weapon":
-            # Busca el arma ranged equipada — activa primero, luego el otro slot
+        elif t == "weapon_all_ranged":
+            # Acumula la mejora en el jugador — todas las ranged la reciben automáticamente
             from weapons.ranged.ranged import Ranged
-            inv    = self.player.inventory
-            weapon = inv.get_weapon(inv.active_weapon_slot)
-            if not isinstance(weapon, Ranged):
-                other = "secondary" if inv.active_weapon_slot == "primary" else "primary"
-                weapon = inv.get_weapon(other)
-            if not isinstance(weapon, Ranged):
+            weapons = [self.player.inventory.get_weapon(s) for s in ("primary", "secondary")]
+            if not any(isinstance(w, Ranged) for w in weapons):
                 return self._fail(entry, "¡Necesitas un arma de fuego equipada!")
-            setattr(weapon, entry["attr"], getattr(weapon, entry["attr"], 0) + entry["value"])
+            key_map = {"clip_size": "ranged_clip", "fire_rate": "ranged_fire_rate", "damage": "ranged_damage", "reload_time": "ranged_reload_time"}
+            self.player.weapon_upgrades[key_map[entry["attr"]]] += entry["value"]
+
+        elif t == "weapon_all_melee":
+            # Acumula la mejora en el jugador — todas las melee la reciben automáticamente
+            from weapons.melee.melee import Melee
+            weapons = [self.player.inventory.get_weapon(s) for s in ("primary", "secondary")]
+            if not any(isinstance(w, Melee) for w in weapons):
+                return self._fail(entry, "¡Necesitas un arma melee equipada!")
+            key_map = {"damage": "melee_damage", "attack_speed": "melee_attack_speed"}
+            self.player.weapon_upgrades[key_map[entry["attr"]]] += entry["value"]
 
         elif t == "buy_weapon":
             if entry.get("unique"):
-                weapon_name  = entry["name"].split(" (")[0]
-                already_inv  = any(getattr(i, "name", None) == weapon_name
-                                   for i in self.player.inventory.items
-                                   if getattr(i, "type", None) == "weapon_item")
+                weapon_name   = entry["name"].split(" (")[0]
+                already_inv   = any(getattr(i, "name", None) == weapon_name
+                                    for i in self.player.inventory.items
+                                    if getattr(i, "type", None) == "weapon_item")
                 already_equip = any(w is not None and w.name == weapon_name
                                     for w in [self.player.inventory.get_weapon("primary"),
                                               self.player.inventory.get_weapon("secondary")])
@@ -148,6 +177,11 @@ class ShopScene(Scene):
             self.message_timer = 2.5
             return True
 
+        elif t == "dash":
+            if self.player.has_dash:
+                return self._fail(entry, "¡Ya tienes el Dash!")
+            self.player.has_dash = True
+
         elif t == "item":
             if entry.get("unique"):
                 if any(getattr(i, "id", None) == entry.get("item_id")
@@ -157,10 +191,5 @@ class ShopScene(Scene):
                 return self._fail(entry, "¡Inventario lleno!")
             self.player.inventory.add_item(
                 ItemInstance(ItemRegistry.get(entry["item_id"])))
-
-        elif t == "heal":
-            if self.player.health >= self.player.get_stat("max_health"):
-                return self._fail(entry, "¡Ya tienes la vida al máximo!")
-            self.player.heal(entry["value"])
 
         return True

@@ -1,4 +1,5 @@
 import pygame
+
 from core.camera import Camera
 from core.collision.collider import Collider
 from core.collision.collision_manager import CollisionManager
@@ -9,10 +10,12 @@ from settings import SCREEN_WIDTH, SCREEN_HEIGHT, _CAM_BORDER_RADIUS
 _BG_COLOR    = (20, 20, 28)
 _FLOOR_COLOR = (45, 45, 55)
 _WALL_COLOR  = (110, 90, 70)
+
 ARENA_HALF = 1000
 WALL_THICK = 80
 ACX        = SCREEN_WIDTH  // 2
 ACY        = SCREEN_HEIGHT // 2
+
 CORRIDOR_W      = 240
 CORRIDOR_H      = 800
 NORTH_SQ        = int(ARENA_HALF * 1.2)
@@ -193,3 +196,33 @@ def camera_follow(camera, target, delta_time, speed=10):
     distance        = offset.length()
     if distance > _CAM_BORDER_RADIUS:
         camera.move(offset.normalize() * (distance - _CAM_BORDER_RADIUS) * speed * delta_time)
+
+
+def build_interactables(scene):
+    # Crea puertas y helicóptero con las posiciones calculadas desde las constantes del mapa
+    from map.interactables.door import Door
+    from item.item_drop_manager import HelicopterInteractable
+    import scenes.level1_logic as logic
+
+    cx, cy = ACX, ACY
+    t      = WALL_THICK
+    door_w = 240
+
+    dx, dy           = cx, cy - ARENA_HALF - t // 2
+    # Puerta norte: gratuita pero solo abre al completar oleada 10
+    scene._door      = Door("Puerta Norte", (dx, dy), 0,
+                            lambda: logic.on_north_door_open(scene),
+                            unlock_condition=lambda: getattr(scene, "_zone1_complete", False))
+    scene._door_rect = pygame.Rect(dx - door_w // 2, dy - t // 2, door_w, t)
+
+    north_top_y           = cy - ARENA_HALF - CORRIDOR_H - NORTH_SQ * 2
+    ex, ey                = cx, north_top_y - t // 2
+    # Puerta salida: gratuita pero solo abre al completar oleada 25
+    scene._exit_door      = Door("Puerta de Salida", (ex, ey), 0,
+                                 lambda: logic.on_exit_door_open(scene),
+                                 unlock_condition=lambda: getattr(scene, "_zone2_complete", False))
+    scene._exit_door_rect = pygame.Rect(ex - door_w // 2, north_top_y - t, door_w, t)
+
+    heli_y                    = north_top_y - EXIT_CORRIDOR_H - EXIT_SQ_HALF * 2
+    scene._helicopter         = HelicopterInteractable((cx, heli_y), scene)
+    scene._helicopter_spawned = True

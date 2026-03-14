@@ -23,10 +23,12 @@ class Melee(Weapon, MonoliteBehaviour):
         super().__init__(asset, name, damage)
         MonoliteBehaviour.__init__(self)
 
-        self.reach           = reach
-        self.attack_speed    = attack_speed
-        self.attack_cooldown = 1.0 / attack_speed
-        self.reach_radius    = reach_radius
+        self.reach        = reach
+        self.reach_radius = reach_radius
+
+        # Stats base — las propiedades suman los upgrades del jugador encima
+        self._base_damage       = damage
+        self._base_attack_speed = attack_speed
 
         self.cone_half_angle = max(15.0, min(60.0, math.degrees(math.atan2(reach_radius, reach))))
 
@@ -39,6 +41,27 @@ class Melee(Weapon, MonoliteBehaviour):
         self.particle_color = (255, 150, 50)
         impact_asset        = self._create_impact_particle()
         self.impact_emitter = ParticleEmitter(lambda: Particle(impact_asset), speed=300, lifespan=0.6)
+
+    def _upgrades(self):
+        if self.parent and hasattr(self.parent, "weapon_upgrades"):
+            return self.parent.weapon_upgrades
+        return {"melee_damage": 0, "melee_attack_speed": 0.0}
+
+    @property
+    def damage(self):
+        return self._base_damage + self._upgrades().get("melee_damage", 0)
+
+    @damage.setter
+    def damage(self, value):
+        self._base_damage = value
+
+    @property
+    def attack_speed(self):
+        return max(0.5, self._base_attack_speed + self._upgrades().get("melee_attack_speed", 0.0))
+
+    @attack_speed.setter
+    def attack_speed(self, value):
+        self._base_attack_speed = value
 
     def _create_impact_particle(self):
         surface = pygame.Surface((12, 12))
@@ -58,7 +81,8 @@ class Melee(Weapon, MonoliteBehaviour):
                 self._hit_targets.clear()
 
     def can_attack(self) -> bool:
-        return pygame.time.get_ticks() - self._last_attack_time >= self.attack_cooldown * 1000
+        # Cooldown calculado directamente desde attack_speed, sin atributo intermedio
+        return pygame.time.get_ticks() - self._last_attack_time >= (1.0 / self.attack_speed) * 1000
 
     def attack(self):
         if self.parent is None or not self.can_attack():
@@ -133,10 +157,10 @@ class Melee(Weapon, MonoliteBehaviour):
         ox, oy   = int(origin_screen.x), int(origin_screen.y)
         poly     = [(ox, oy)] + arc_ints
 
-        base         = self.particle_color
-        fill_color   = (*base, alpha // 2)
-        edge_color   = (*base, alpha)
-        ray_color    = (*base, alpha // 3)
+        base       = self.particle_color
+        fill_color = (*base, alpha // 2)
+        edge_color = (*base, alpha)
+        ray_color  = (*base, alpha // 3)
 
         surf = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
         if len(poly) >= 3:

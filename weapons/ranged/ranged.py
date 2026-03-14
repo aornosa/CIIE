@@ -1,5 +1,6 @@
 import json
 import pygame.draw
+
 from core.audio.sound_cache import SOUNDS
 from core.collision.layers import LAYERS
 from core.collision.raycast import raycast_segment
@@ -8,27 +9,72 @@ from core.particles.particle_emitter import ParticleEmitter
 from core.particles.particle import Particle
 from weapons.weapon_module import Weapon, AMMO_TYPES
 
+
 class Ranged(Weapon, MonoliteBehaviour):
     def __init__(self, asset, name, damage, max_range, ammo_type, clip_size,
                  fire_rate, reload_time, muzzle_speed=3000, muzzle_offset=(0, 0), lock_time=0):
         super().__init__(asset, name, damage)
         MonoliteBehaviour.__init__(self)
 
-        self.max_range    = max_range
-        self.ammo_type    = ammo_type
-        self.clip_size    = clip_size
-        self.fire_rate    = fire_rate
-        self.reload_time  = reload_time
-        self.muzzle_speed = muzzle_speed
+        self.max_range     = max_range
+        self.ammo_type     = ammo_type
+        self.reload_time   = reload_time
+        self.muzzle_speed  = muzzle_speed
         self.muzzle_offset = muzzle_offset
-        self.lock_time    = lock_time
-        self.current_clip       = self.clip_size
+        self.lock_time     = lock_time
+
+        # Stats base — las propiedades suman los upgrades del jugador encima
+        self._base_damage    = damage
+        self._base_clip_size = clip_size
+        self._base_fire_rate = fire_rate
+        self._base_reload_time = reload_time
+
+        self.current_clip       = clip_size
         self._last_shot_time    = 0
         self._is_reloading      = False
         self._reload_start_time = 0
+
         particle_asset   = self._load_ammo_particle()
         particle_factory = lambda: Particle(particle_asset)
         self.emitter     = ParticleEmitter(particle_factory, speed=muzzle_speed, lifespan=0.5)
+
+    def _upgrades(self):
+        # Devuelve los upgrades del jugador o ceros si no hay parent
+        if self.parent and hasattr(self.parent, "weapon_upgrades"):
+            return self.parent.weapon_upgrades
+        return {"ranged_damage": 0, "ranged_clip": 0, "ranged_fire_rate": 0.0, "ranged_reload_time": 0.0}
+
+    @property
+    def damage(self):
+        return self._base_damage + self._upgrades().get("ranged_damage", 0)
+
+    @damage.setter
+    def damage(self, value):
+        self._base_damage = value
+
+    @property
+    def clip_size(self):
+        return self._base_clip_size + self._upgrades().get("ranged_clip", 0)
+
+    @clip_size.setter
+    def clip_size(self, value):
+        self._base_clip_size = value
+
+    @property
+    def fire_rate(self):
+        return max(0.05, self._base_fire_rate + self._upgrades().get("ranged_fire_rate", 0.0))
+
+    @fire_rate.setter
+    def fire_rate(self, value):
+        self._base_fire_rate = value
+
+    @property
+    def reload_time(self):
+        return max(0.3, self._base_reload_time + self._upgrades().get("ranged_reload_time", 0.0))
+
+    @reload_time.setter
+    def reload_time(self, value):
+        self._base_reload_time = value
 
     def _load_ammo_particle(self):
         try:

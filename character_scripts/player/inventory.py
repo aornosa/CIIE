@@ -2,12 +2,13 @@ import ui.inventory_menu as menu
 from item.consumable import use_consumable
 from item.item_drop_manager import DropManager
 
+
 class Inventory:
     def __init__(self):
         self.active_weapon_slot  = "primary"
         self.primary_weapon      = None
         self.secondary_weapon    = None
-        self.max_size            = 24
+        self.max_size            = 19
         self.items: list         = []
         self.selected_item_index = -1
         self.owner               = None
@@ -101,6 +102,31 @@ class Inventory:
                 self.drop_item(item)
                 return True
         return False
+
+    def equip_weapon_from_item(self, player, weapon_item, item_index: int, slot: str):
+        # Equipa un WeaponItem del inventario en el slot indicado, devolviendo el arma anterior al inventario
+        weapon               = weapon_item.weapon
+        weapon.parent        = player
+        weapon.audio_emitter = player.audio_emitter
+
+        old = self.get_weapon(slot)
+        if old is not None:
+            from item.weapon_item import WeaponItem as WI
+            if not self.add_item(WI(old)):
+                self.drop_weapon(slot)
+            else:
+                if slot == "primary":
+                    self.primary_weapon = None
+                else:
+                    self.secondary_weapon = None
+
+        if slot == "primary":
+            self.primary_weapon = weapon
+        else:
+            self.secondary_weapon = weapon
+
+        if 0 <= item_index < len(self.items):
+            self.items.pop(item_index)
 
     def update(self, delta_time: float):
         pass
