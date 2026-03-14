@@ -1,3 +1,4 @@
+import pygame
 from core.audio.audio_emitter import AudioEmitter
 from core.object import Object
 from core.collision.collider import Collider
@@ -51,6 +52,7 @@ class Character(Object):
                 self.current_stats[stat] = self.current_stats.get(stat, 0) + value
         self.current_stats["speed"]      = max(50, self.current_stats.get("speed", 50))
         self.current_stats["max_health"] = max(1,  self.current_stats.get("max_health", 1))
+        self.health = min(self.health, self.current_stats["max_health"])
 
     def get_stat(self, key):
         return self.current_stats.get(key, 0)

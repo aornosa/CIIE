@@ -14,7 +14,6 @@ _CUTSCENE_ENEMY_SPAWNS = [
 ]
 
 def update_enemies(scene, delta_time):
-    """Actualiza enemigos iniciales (pre-wave) o los wave managers activos."""
     kills = 0
 
     if scene._wave_manager is not None:
@@ -60,7 +59,7 @@ def update_idle_timeout(scene, delta_time):
 
 
 def update_puddles(scene, delta_time):
-    """Actualiza charcos tóxicos cuando no hay wave manager activo."""
+    """Actualiza charcos tóxicos"""
     if scene._wave_manager is None and scene._wave_manager_north is None:
         for puddle in list(scene._toxic_puddles):
             puddle.update(delta_time, scene.player)
@@ -137,9 +136,15 @@ def update_cutscene(scene, delta_time):
 def finish_cutscene(scene):
     if scene.audres:
         scene.audres.destroy()
-    scene.audres          = None
+    scene.audres           = None
     scene._cutscene_active = False
     scene._cutscene_phase  = "idle"
+    # Resincroniza el movimiento con el estado real del teclado para evitar que teclas sueltas durante la cutscene dejen el personaje moviéndose
+    if scene.director and scene.director._input_handler:
+        keys = pygame.key.get_pressed()
+        ih   = scene.director._input_handler
+        ih.actions["move_x"] = int(keys[pygame.K_d]) - int(keys[pygame.K_a])
+        ih.actions["move_y"] = int(keys[pygame.K_s]) - int(keys[pygame.K_w])
 
     from character_scripts.enemy.enemy_types import InfectedCommon
     from character_scripts.enemy.enemy_brain import InfectedCommonBrain

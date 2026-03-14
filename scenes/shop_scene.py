@@ -17,9 +17,7 @@ SHOP_CATALOG = [
     {"name": "Habilidad: Dash",   "desc": "Impulso rápido (CD: 3s)",                "cost": 150, "type": "item",       "item_id": "dash_ability", "unique": True},
 ]
 
-
 def _build_weapon(weapon_class: str):
-    """Instancia un arma por nombre de clase."""
     if weapon_class == "MP5":
         from weapons.ranged.ranged_types import MP5;       return MP5()
     if weapon_class == "SPAS12":
@@ -31,7 +29,6 @@ def _build_weapon(weapon_class: str):
     if weapon_class == "Baton":
         from weapons.melee.melee_types import Baton;       return Baton()
     return None
-
 
 class ShopScene(Scene):
     def __init__(self, game_scene, player):
@@ -112,13 +109,19 @@ class ShopScene(Scene):
             self.player._recalculate_stats()
             if entry["stat"] == "max_health":
                 self.player.base_health += entry["value"]
-                self.player.heal(entry["value"])
+                self.player.health = min(self.player.health + entry["value"],
+                                         self.player.get_stat("max_health"))
 
         elif t == "weapon":
-            weapon = self.player.inventory.get_weapon(
-                self.player.inventory.active_weapon_slot)
-            if weapon is None:
-                return self._fail(entry, "¡No tienes arma equipada!")
+            # Busca el arma ranged equipada — activa primero, luego el otro slot
+            from weapons.ranged.ranged import Ranged
+            inv    = self.player.inventory
+            weapon = inv.get_weapon(inv.active_weapon_slot)
+            if not isinstance(weapon, Ranged):
+                other = "secondary" if inv.active_weapon_slot == "primary" else "primary"
+                weapon = inv.get_weapon(other)
+            if not isinstance(weapon, Ranged):
+                return self._fail(entry, "¡Necesitas un arma de fuego equipada!")
             setattr(weapon, entry["attr"], getattr(weapon, entry["attr"], 0) + entry["value"])
 
         elif t == "buy_weapon":

@@ -4,17 +4,16 @@ from weapons.melee.melee import Melee
 from core.status_effects import StatusEffect
 
 _MELEE_SPEED_EFFECT_NAME = "Melee Agility"
-_MELEE_SPEED_BONUS       = 80    
-
+_MELEE_SPEED_BONUS       = 80
 
 class WeaponController:
 
     def __init__(self, player, camera=None, ads_effect=None):
-        self.player     = player
-        self.camera     = camera
-        self.ads_effect = ads_effect
-        self._last_attack_time  = 0
-        self._attack_hold_time  = 0
+        self.player          = player
+        self.camera          = camera
+        self.ads_effect      = ads_effect
+        self._last_attack_time   = 0
+        self._attack_hold_time   = 0
         self._melee_bonus_active = False
 
     def update(self, input_handler, delta_time, mouse_pos=None):
@@ -22,8 +21,7 @@ class WeaponController:
             return
 
         active_weapon = self.player.inventory.get_weapon(
-            self.player.inventory.active_weapon_slot
-        )
+            self.player.inventory.active_weapon_slot)
         if not active_weapon:
             self._remove_melee_bonus()
             return
@@ -31,26 +29,22 @@ class WeaponController:
         if hasattr(active_weapon, 'update'):
             active_weapon.update()
 
-        # Rotar jugador hacia el ratón
         if mouse_pos is not None and self.camera is not None:
             from game_math import utils as math
             direction = mouse_pos - (self.player.position - self.camera.position)
             if direction.length() > 5:
                 target_angle = direction.angle_to(pygame.Vector2(0, -1))
-                aiming = input_handler.actions.get("attack") or input_handler.actions.get("aim")
+                aiming     = input_handler.actions.get("attack") or input_handler.actions.get("aim")
                 lerp_speed = 20 * delta_time if aiming else 12 * delta_time
                 self.player.set_rotation(
-                    math.lerp_angle(self.player.rotation, target_angle, lerp_speed) + 0.164
-                )
+                    math.lerp_angle(self.player.rotation, target_angle, lerp_speed) + 0.164)
 
-        # ADS effect
         if self.ads_effect:
             if input_handler.actions.get("attack") or input_handler.actions.get("aim"):
                 self.player.add_effect(self.ads_effect)
             else:
                 self.player.remove_effect(self.ads_effect.name)
 
-        # Bonus de velocidad con melee
         if isinstance(active_weapon, Melee):
             self._apply_melee_bonus()
         else:
@@ -78,7 +72,6 @@ class WeaponController:
             self._melee_bonus_active = False
 
     def setup_emitter(self, screen):
-        """Configura el emitter de partículas del arma ranged activa."""
         weapon = self.player.inventory.get_weapon(self.player.inventory.active_weapon_slot)
         if isinstance(weapon, Ranged) and hasattr(weapon, 'emitter'):
             weapon.emitter.surface = screen
@@ -102,13 +95,18 @@ class WeaponController:
     def _handle_reload(self, input_handler, weapon):
         if not input_handler.actions.get("reload", False):
             return
+        input_handler.actions["reload"] = False
         if isinstance(weapon, Ranged):
             weapon.reload()
-            input_handler.actions["reload"] = False
 
     def _handle_weapon_swap(self, input_handler):
         if not input_handler.actions.get("swap_weapon", False):
             return
+        # Cancela la recarga del arma a la que se va a cambiar
+        next_slot = "secondary" if self.player.inventory.active_weapon_slot == "primary" else "primary"
+        next_weapon = self.player.inventory.get_weapon(next_slot)
+        if isinstance(next_weapon, Ranged):
+            next_weapon.cancel_reload()
         self.player.inventory.swap_weapons()
         input_handler.actions["swap_weapon"] = False
 

@@ -15,7 +15,6 @@ from item.item_loader import ItemRegistry
 from ui import ui_manager
 from weapons.ranged.ranged import Ranged
 from weapons.melee.melee import Melee
-from weapons.ranged.ranged_types import AK47, MP5
 from weapons.melee.melee_types import TacticalKnife
 from weapons.weapon_controller import WeaponController
 import scenes.level1_map   as lmap
@@ -91,8 +90,6 @@ class Level1Scene(Scene):
 
         self.crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
 
-    # Ciclo de vida
-
     def on_enter(self):
         MonoliteBehaviour.time_scale = 1.0
         pygame.mouse.set_visible(False)
@@ -113,8 +110,6 @@ class Level1Scene(Scene):
     def on_resume(self):
         MonoliteBehaviour.time_scale = 1.0
         pygame.mouse.set_visible(False)
-
-    # Construccion
 
     def _build_level(self):
         CollisionManager.dynamic_colliders.clear()
@@ -138,7 +133,8 @@ class Level1Scene(Scene):
         self.controller = CharacterController(250, self.player)
         AudioManager.instance().set_listener(self.player.audio_listener)
 
-        weapon = AK47()
+        weapon = Ranged("assets/weapons/AK47.png", "AK-47", 60, 1500,
+                        "7.62", 45, 0.15, 0.6, muzzle_offset=(35, 15))
         self.player.inventory.add_weapon(self.player, weapon, "primary")
         self.player.inventory.add_weapon(self.player, TacticalKnife(), "secondary")
         if hasattr(weapon, "emitter"):
@@ -273,8 +269,6 @@ class Level1Scene(Scene):
             self._dialog_manager.end_dialog()
         self._dialog_manager = None
 
-    # Input
-
     def handle_events(self, input_handler):
         aim_now = input_handler.actions.get("aim", False)
         self._inv_right_click = aim_now and not self._aim_was_pressed
@@ -331,6 +325,7 @@ class Level1Scene(Scene):
         if input_handler.actions.get("inventory"):
             input_handler.actions["inventory"] = False
             self._inventory_open = not self._inventory_open
+            pygame.mouse.set_visible(self._inventory_open)
             return
 
         if self._inventory_open:
@@ -391,8 +386,6 @@ class Level1Scene(Scene):
         self._pending_weapon_item  = None
         self._pending_weapon_index = -1
 
-    # Update
-
     def update(self, delta_time):
         from core.audio.music_manager import MusicManager
         MusicManager.instance().set_category("idle")
@@ -400,7 +393,11 @@ class Level1Scene(Scene):
         if self._cutscene_active:
             logic.update_cutscene(self, delta_time)
             return
-        if self._dialog_manager and self._dialog_manager.is_dialog_active:
+
+        dialog_active = self._dialog_manager and self._dialog_manager.is_dialog_active
+        MonoliteBehaviour.time_scale = 0.0 if dialog_active else 1.0
+
+        if dialog_active:
             return
         if self._inventory_open:
             return
@@ -415,8 +412,6 @@ class Level1Scene(Scene):
             logic.check_player_death(self)
 
         logic.update_flow(self, delta_time)
-
-    # Render
 
     def render(self, screen):
         im         = self.director._input_handler
@@ -439,7 +434,9 @@ class Level1Scene(Scene):
                 emitter.camera  = self.camera
                 emitter.update()
 
-        movement = (pygame.Vector2(0, 0) if self._cutscene_active
+        dialog_active = self._dialog_manager and self._dialog_manager.is_dialog_active
+
+        movement = (pygame.Vector2(0, 0) if (self._cutscene_active or dialog_active)
                     else pygame.Vector2(im.actions["move_x"], im.actions["move_y"]))
 
         self.controller.speed = self.player.get_stat("speed")

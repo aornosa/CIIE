@@ -41,9 +41,10 @@ class MainMenuScene(Scene):
         option = self.options[self.selected]
         if option in ("Jugar", "Nueva Partida"):
             from scenes.level1_scene import Level1Scene
+            director = self.director
             if self._has_active_game:
-                self.director.pop()
-            self.director.replace(Level1Scene())
+                director.pop()
+            director.replace(Level1Scene())
         elif option == "Continuar":
             self.director.pop()
         elif option == "Opciones":

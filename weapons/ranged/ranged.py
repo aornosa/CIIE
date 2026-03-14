@@ -8,7 +8,6 @@ from core.particles.particle_emitter import ParticleEmitter
 from core.particles.particle import Particle
 from weapons.weapon_module import Weapon, AMMO_TYPES
 
-
 class Ranged(Weapon, MonoliteBehaviour):
     def __init__(self, asset, name, damage, max_range, ammo_type, clip_size,
                  fire_rate, reload_time, muzzle_speed=3000, muzzle_offset=(0, 0), lock_time=0):
@@ -23,12 +22,10 @@ class Ranged(Weapon, MonoliteBehaviour):
         self.muzzle_speed = muzzle_speed
         self.muzzle_offset = muzzle_offset
         self.lock_time    = lock_time
-
         self.current_clip       = self.clip_size
         self._last_shot_time    = 0
         self._is_reloading      = False
         self._reload_start_time = 0
-
         particle_asset   = self._load_ammo_particle()
         particle_factory = lambda: Particle(particle_asset)
         self.emitter     = ParticleEmitter(particle_factory, speed=muzzle_speed, lifespan=0.5)
@@ -61,6 +58,13 @@ class Ranged(Weapon, MonoliteBehaviour):
     def _finish_reload(self):
         self._is_reloading = False
         self.current_clip  = self.clip_size
+
+    def cancel_reload(self):
+        self._is_reloading = False
+
+    def on_unequipped(self):
+        self.cancel_reload()
+        super().on_unequipped()
 
     def can_shoot(self) -> bool:
         return (
