@@ -1,7 +1,6 @@
 from core.monolite_behaviour import MonoliteBehaviour
 from core.pools.poolable_object import PoolableObject
 
-
 class Particle(PoolableObject):
     def __init__(self, asset, lifespan=10):
         super().__init__()
@@ -12,7 +11,6 @@ class Particle(PoolableObject):
         self.scale = 0.2
         self.velocity = (0, 0)
         self.age = lifespan
-
 
     def update(self):
         if not self.is_active():

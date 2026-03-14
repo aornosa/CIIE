@@ -2,17 +2,11 @@ from __future__ import annotations
 import pygame
 from item.item_type_data import ItemDefinition
 
-
 class ItemInstance:
     def __init__(self, definition: ItemDefinition):
-        self.definition = definition
-        # Cooldown state — stored directly on the instance (NOT proxied to definition)
+        self.definition      = definition
         self._cooldown_timer = 0.0
-
-        if definition.ammo:
-            self.current_ammo = definition.ammo.capacity
-        else:
-            self.current_ammo = None
+        self.current_ammo    = definition.ammo.capacity if definition.ammo else None
 
     @property
     def cooldown_timer(self) -> float:
@@ -24,12 +18,10 @@ class ItemInstance:
 
     def update(self, delta_time: float):
         if self._cooldown_timer > 0:
-            self._cooldown_timer -= delta_time
-            if self._cooldown_timer < 0:
-                self._cooldown_timer = 0.0
+            self._cooldown_timer = max(0.0, self._cooldown_timer - delta_time)
 
+    # Delega atributos desconocidos a la definición para acceder a name, asset, etc.
     def __getattr__(self, attr):
-        # Only called when attr is NOT found on the instance itself
         return getattr(self.definition, attr)
 
 
@@ -44,12 +36,7 @@ class DroppedItem:
         self.velocity       = velocity
         self.last_drop_time = pygame.time.get_ticks()
         self._registered    = False
-
         self._register()
-
-    @property
-    def interact_radius(self):
-        return self.INTERACT_RADIUS
 
     def get_tooltip(self) -> str:
         return f"[E] Recoger {self.item_instance.name}"
@@ -57,19 +44,16 @@ class DroppedItem:
     def is_player_in_range(self, player_position: pygame.Vector2) -> bool:
         if not self._registered:
             return False
+        # Evita recoger el item inmediatamente tras soltarlo
         if pygame.time.get_ticks() - self.last_drop_time < 1000:
             return False
         return self.position.distance_to(player_position) <= self.INTERACT_RADIUS
 
     def interact(self, player):
         if player.inventory.check_full():
-            print(f"[PICKUP] Inventario lleno, no se puede recoger {self.item_instance.name}")
             return
-
         player.inventory.add_item(self.item_instance)
-        print(f"[PICKUP] Recogido: {self.item_instance.name}")
         self._unregister()
-
         dm = player.inventory.drop_manager
         if self in dm.dropped_items:
             dm.dropped_items.remove(self)
@@ -85,19 +69,15 @@ class DroppedItem:
         self._registered = False
 
     def draw(self, screen: pygame.Surface, camera):
-        screen_pos = self.position - camera.position
-
+        screen_pos  = self.position - camera.position
         shadow_surf = pygame.Surface((self.ICON_SIZE + 8, self.ICON_SIZE + 8), pygame.SRCALPHA)
         shadow_surf.fill((0, 0, 0, 80))
         screen.blit(shadow_surf, (screen_pos.x - self.ICON_SIZE // 2 - 4,
-                                   screen_pos.y - self.ICON_SIZE // 2 + 4))
-
-        icon = pygame.transform.scale(self.item_instance.asset,
-                                      (self.ICON_SIZE, self.ICON_SIZE))
+                                  screen_pos.y - self.ICON_SIZE // 2 + 4))
+        icon = pygame.transform.scale(self.item_instance.asset, (self.ICON_SIZE, self.ICON_SIZE))
         screen.blit(icon, (screen_pos.x - self.ICON_SIZE // 2,
-                            screen_pos.y - self.ICON_SIZE // 2))
-
-        font = pygame.font.SysFont("consolas", 14)
-        label = font.render(self.item_instance.name, True, self.TOOLTIP_COLOR)
+                           screen_pos.y - self.ICON_SIZE // 2))
+        label = pygame.font.SysFont("consolas", 14).render(
+            self.item_instance.name, True, self.TOOLTIP_COLOR)
         screen.blit(label, (screen_pos.x - label.get_width() // 2,
-                             screen_pos.y - self.ICON_SIZE // 2 - 18))
+                            screen_pos.y - self.ICON_SIZE // 2 - 18))

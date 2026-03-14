@@ -6,8 +6,7 @@ LAYERS = {
     "projectile": 4,
 }
 
-def get_layer_value(name):
-    return LAYERS.get(name, 0)
+def get_layer_value(name): return LAYERS.get(name, 0)
 
 def get_layer_name(value):
     for name, val in LAYERS.items():

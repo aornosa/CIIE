@@ -2,11 +2,10 @@ class DialogNode:
     def __init__(self, speaker, text, portrait=None, options=None, next_node=None, on_complete=None):
         self.speaker = speaker
         self.text = text
-        self.portrait = portrait       # path to portrait image, or None
+        self.portrait = portrait       
         self.options = options or []
         self.next_node = next_node
         self.on_complete = on_complete
-
 
 class DialogTree:
     def __init__(self, start_node_id, nodes):
@@ -23,5 +22,4 @@ class DialogTree:
             return True
         return False
     
-    def reset(self):
-        self.current_node_id = self.start_node_id
+    def reset(self): self.current_node_id = self.start_node_id

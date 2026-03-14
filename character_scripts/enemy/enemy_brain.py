@@ -1,24 +1,7 @@
-"""
-character_scripts/enemy/enemy_brain.py
-----------------------------------------
-Sistema de IA de enemigos.
-
-Melee:
-  InfectedCommonBrain  — persigue directo al jugador
-  InfectedSoldierBrain — persigue directo al jugador
-  LabSubjectBrain      — persigue sin condición de alerta
-
-Arena (Nivel 1):
-  TankBrain    — persigue directo, ataca al contacto
-  ToxicBrain   — persigue y genera charcos; ataca al contacto
-  ShooterBrain — dispara proyectiles reales, huye si el jugador se acerca
-"""
-
 import pygame
 from character_scripts.character_controller import CharacterController
 from character_scripts.enemy.enemy_base import Enemy
 from character_scripts.player.player import Player
-
 
 class EnemyBrain:
     def __init__(self, enemy: Enemy, controller: CharacterController, player: Player):
@@ -31,13 +14,9 @@ class EnemyBrain:
             return
         self.decide_action(delta_time)
 
-    def decide_action(self, delta_time):
-        pass
+    def decide_action(self, delta_time): pass
 
-    # ── Utilidades compartidas ─────────────────────────────────────────────
-
-    def distance_to_player(self):
-        return self.enemy.position.distance_to(self.player.position)
+    def distance_to_player(self): return self.enemy.position.distance_to(self.player.position)
 
     def direction_to_player(self):
         delta = self.player.position - self.enemy.position
@@ -59,83 +38,28 @@ class EnemyBrain:
                 and self.enemy.can_attack(delta_time)):
             self.player.take_damage(self.enemy.strength)
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# MELEE — todos persiguen sin fases de espera
-# ══════════════════════════════════════════════════════════════════════════════
-
-class InfectedCommonBrain(EnemyBrain):
-    """Persigue directamente al jugador en todo momento."""
+class MeleeBrain(EnemyBrain):
+    """Comportamiento base para enemigos cuerpo a cuerpo: seguir y atacar al llegar al rango."""
     def decide_action(self, delta_time):
         self.face_player()
-        dist = self.distance_to_player()
-        if dist <= self.enemy.ATTACK_RANGE:
+        if self.distance_to_player() <= self.enemy.ATTACK_RANGE:
             self.controller.move(pygame.Vector2(0, 0), delta_time)
             self.try_attack(delta_time)
         else:
             self.follow(delta_time)
 
+class InfectedCommonBrain(MeleeBrain):  pass
+class InfectedSoldierBrain(MeleeBrain): pass
+class LabSubjectBrain(MeleeBrain):      pass
+class TankBrain(MeleeBrain):            pass
 
-class InfectedSoldierBrain(EnemyBrain):
-    """Persigue al jugador sin fases de acecho ni patrulla."""
+class ToxicBrain(MeleeBrain):
     def decide_action(self, delta_time):
-        self.face_player()
-        dist = self.distance_to_player()
-        if dist <= self.enemy.ATTACK_RANGE:
-            self.controller.move(pygame.Vector2(0, 0), delta_time)
-            self.try_attack(delta_time)
-        else:
-            self.follow(delta_time)
-
-
-class LabSubjectBrain(EnemyBrain):
-    """Persigue sin condición de alerta — siempre va a por el jugador."""
-    def decide_action(self, delta_time):
-        self.face_player()
-        dist = self.distance_to_player()
-        if dist <= self.enemy.ATTACK_RANGE:
-            self.controller.move(pygame.Vector2(0, 0), delta_time)
-            self.try_attack(delta_time)
-        else:
-            self.follow(delta_time)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# ARENA — Nivel 1
-# ══════════════════════════════════════════════════════════════════════════════
-
-class TankBrain(EnemyBrain):
-    """Persigue directo al jugador y golpea al contacto."""
-    def decide_action(self, delta_time):
-        self.face_player()
-        dist = self.distance_to_player()
-        if dist <= self.enemy.ATTACK_RANGE:
-            self.controller.move(pygame.Vector2(0, 0), delta_time)
-            self.try_attack(delta_time)
-        else:
-            self.follow(delta_time)
-
-
-class ToxicBrain(EnemyBrain):
-    """Persigue al jugador generando charcos. Ataca al contacto."""
-    def decide_action(self, delta_time):
-        self.face_player()
         # update() del ToxicEnemy gestiona la generación de charcos
         self.enemy.update(delta_time)
-        dist = self.distance_to_player()
-        if dist <= self.enemy.ATTACK_RANGE:
-            self.controller.move(pygame.Vector2(0, 0), delta_time)
-            self.try_attack(delta_time)
-        else:
-            self.follow(delta_time)
-
+        super().decide_action(delta_time)
 
 class ShooterBrain(EnemyBrain):
-    """
-    Dispara proyectiles físicos al jugador.
-    Huye si el jugador entra en FLEE_RANGE.
-    Se acerca hasta ATTACK_RANGE para disparar.
-    """
     def decide_action(self, delta_time):
         self.face_player()
         dist = self.distance_to_player()
@@ -148,13 +72,9 @@ class ShooterBrain(EnemyBrain):
             flee_dir = -self.direction_to_player()
             self.controller.speed = self.enemy.speed
             self.controller.move(flee_dir, delta_time)
-
         elif dist <= self.enemy.ATTACK_RANGE:
-            # En rango de disparo: pararse y disparar
             self.controller.move(pygame.Vector2(0, 0), delta_time)
             if self.enemy.can_attack(delta_time):
                 self.enemy.shoot(self.player)
-
         else:
-            # Acercarse hasta rango de disparo
             self.follow(delta_time)

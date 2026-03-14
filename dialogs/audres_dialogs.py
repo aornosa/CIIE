@@ -1,6 +1,3 @@
-"""
-Árboles de diálogo para AUDReS-01 (Audrey).
-"""
 from dialogs.dialog_data import DialogNode, DialogTree
 
 _P = "assets/characters/audres/"

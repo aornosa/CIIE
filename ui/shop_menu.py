@@ -9,10 +9,8 @@ DESC_FONT    = pygame.font.SysFont("consolas", 22)
 MSG_FONT     = pygame.font.SysFont("consolas", 28)
 VENDOR_FONT  = pygame.font.SysFont("consolas", 22)
 STAT_FONT    = pygame.font.SysFont("consolas", 20)
-
 _PORTRAIT_PATH = "assets/characters/audres/portrait_shop.jpg"
 _PORTRAIT_SIZE = 220
-
 
 def _draw_vendor_portrait(screen):
     surf = _get_portrait(_PORTRAIT_PATH)
@@ -42,9 +40,7 @@ def _draw_vendor_portrait(screen):
     ny = panel_y + _PORTRAIT_SIZE + 6
     screen.blit(name_surf, (nx, ny))
 
-
 def _get_current_value_label(item, player):
-    """Return a short string showing the player's current value for this upgrade."""
     if player is None:
         return ""
     t = item["type"]
@@ -61,7 +57,6 @@ def _get_current_value_label(item, player):
             if val is None:
                 return "Sin atributo"
             try:
-                # fire_rate es float — mostrar con 2 decimales en vez de int
                 if isinstance(val, float):
                     return f"Actual: {val:.2f}"
                 return f"Actual: {int(val)}"
@@ -70,7 +65,6 @@ def _get_current_value_label(item, player):
         return "Sin arma"
     if t == "heal":
         return f"HP: {int(player.health)} / {int(player.get_stat('max_health'))}"
-    # buy_weapon, item, equip_weapon, etc. → sin badge
     return ""
 
 

@@ -4,9 +4,7 @@ from core.audio.audio_manager import AudioManager
 from core.audio.audio_mixer_category import SoundCategory
 from ui.settings_menu import draw_settings_menu
 
-_STEP = 0.05  # 5% por pulsación
-
-# Definición estática de las opciones del menú
+_STEP = 0.05  
 _OPTIONS_DEF = [
     {"label": "Controles", "type": "action"},
     {"label": "Música",    "type": "slider", "category": SoundCategory.MUSIC},
@@ -14,15 +12,11 @@ _OPTIONS_DEF = [
     {"label": "Volver",    "type": "action"},
 ]
 
-
 class SettingsScene(Scene):
-    """Menú de opciones accesible desde el menú principal o la pausa."""
 
     def __init__(self):
         super().__init__()
         self.selected = 0
-
-    # ── Construye la lista renderizable con los valores actuales ──────────────
 
     def _render_options(self):
         am = AudioManager.instance()
@@ -36,8 +30,6 @@ class SettingsScene(Scene):
             else:
                 result.append({"label": opt["label"]})
         return result
-
-    # ── Eventos ───────────────────────────────────────────────────────────────
 
     def handle_events(self, input_handler):
         if input_handler.actions.get("pause"):
@@ -67,8 +59,6 @@ class SettingsScene(Scene):
         elif jp.get(pygame.K_RETURN):
             self._activate(opt)
 
-    # ── Update / Render ───────────────────────────────────────────────────────
-
     def update(self, delta_time):
         pass
 
@@ -77,8 +67,6 @@ class SettingsScene(Scene):
 
     def on_enter(self):
         pygame.mouse.set_visible(True)
-
-    # ── Acciones ──────────────────────────────────────────────────────────────
 
     def _activate(self, opt):
         if opt["label"] == "Controles":

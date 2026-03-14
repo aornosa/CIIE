@@ -1,16 +1,10 @@
-"""
-weapons/weapon_controller.py
-------------------------------
-Gestiona disparo, recarga, cambio de arma y el bonus de velocidad
-al llevar un arma melee equipada.
-"""
 import pygame
 from weapons.ranged.ranged import Ranged
 from weapons.melee.melee import Melee
 from core.status_effects import StatusEffect
 
 _MELEE_SPEED_EFFECT_NAME = "Melee Agility"
-_MELEE_SPEED_BONUS       = 80    # +80 de velocidad con melee equipado
+_MELEE_SPEED_BONUS       = 80    
 
 
 class WeaponController:
@@ -22,8 +16,6 @@ class WeaponController:
         self._last_attack_time  = 0
         self._attack_hold_time  = 0
         self._melee_bonus_active = False
-
-    # ── Actualización principal ───────────────────────────────────────────────
 
     def update(self, input_handler, delta_time, mouse_pos=None):
         if not self.player or not self.player.inventory:
@@ -68,8 +60,6 @@ class WeaponController:
         self._handle_reload(input_handler, active_weapon)
         self._handle_weapon_swap(input_handler)
 
-    # ── Melee speed bonus ─────────────────────────────────────────────────────
-
     def _apply_melee_bonus(self):
         if not self._melee_bonus_active:
             effect = StatusEffect(
@@ -87,8 +77,6 @@ class WeaponController:
             self.player.remove_effect(_MELEE_SPEED_EFFECT_NAME)
             self._melee_bonus_active = False
 
-    # ── Trail visual ──────────────────────────────────────────────────────────
-
     def setup_emitter(self, screen):
         """Configura el emitter de partículas del arma ranged activa."""
         weapon = self.player.inventory.get_weapon(self.player.inventory.active_weapon_slot)
@@ -100,8 +88,6 @@ class WeaponController:
         if isinstance(active_weapon, Ranged) and hasattr(active_weapon, 'emitter'):
             active_weapon.emitter.surface = screen
             active_weapon.emitter.camera  = self.camera
-
-    # ── Acciones ──────────────────────────────────────────────────────────────
 
     def _handle_attack(self, input_handler, weapon, delta_time):
         if not input_handler.actions.get("attack", False):
@@ -125,8 +111,6 @@ class WeaponController:
             return
         self.player.inventory.swap_weapons()
         input_handler.actions["swap_weapon"] = False
-
-    # ── Info ──────────────────────────────────────────────────────────────────
 
     def get_active_weapon_info(self) -> dict:
         weapon = self.player.inventory.get_weapon(self.player.inventory.active_weapon_slot)

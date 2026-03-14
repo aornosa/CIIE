@@ -2,9 +2,6 @@ import pygame
 from core.scene import Scene
 from ui.keybindings_menu import draw_keybindings_menu
 
-# ---------------------------------------------------------------------------
-# KEYBINDINGS CONFIG
-# ---------------------------------------------------------------------------
 KEYBINDINGS = {
     "Movimiento": [
         ("W / A / S / D",      "Mover al jugador"),
@@ -34,16 +31,11 @@ KEYBINDINGS = {
 
 
 class KeybindingsScene(Scene):
-    """Pantalla de controles — navegable por categorías con ← →."""
 
     def __init__(self):
         super().__init__()
         self.categories  = list(KEYBINDINGS.keys())
         self.page        = 0   # Índice de categoría activa
-
-    # ------------------------------------------------------------------
-    # Scene interface
-    # ------------------------------------------------------------------
 
     def handle_events(self, input_handler):
         if input_handler.actions.get("pause"):

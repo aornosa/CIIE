@@ -10,15 +10,11 @@ AMMO_TYPES = {
 
 
 class Weapon:
-    """Base class for all weapons in the game."""
-
     def __init__(self, asset, name, damage, pullout_time=0):
         self.asset = pygame.image.load(asset)
         self.name = name
         self.damage = damage
         self.pullout_time = pullout_time
-
-        # Set by character when equipped
         self.parent = None
         self.audio_emitter = None
 

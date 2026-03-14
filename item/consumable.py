@@ -4,6 +4,7 @@ from core.status_effects import StatusEffect
 if TYPE_CHECKING:
     from character_scripts.character import Character
 
+# Contador de usos del inyector por jugador, indexado por id() del objeto
 _addiction_counters: dict[int, int] = {}
 
 def _get_addiction(player: "Character") -> int:
@@ -17,45 +18,29 @@ def _increment_addiction(player: "Character") -> int:
 def reset_addiction(player: "Character"):
     _addiction_counters[id(player)] = 0
 
+
 def _make_speed_buff(duration: float, amount: int) -> "StatusEffect":
-    return StatusEffect(
-        icon=None,
-        name="Fénix Rush",
-        modifiers={"speed": amount},
-        duration=duration,
-        is_buff=True,
-    )
+    return StatusEffect(icon=None, name="Fénix Rush",
+                        modifiers={"speed": amount}, duration=duration, is_buff=True)
 
 def _make_addiction_debuff(stack: int) -> "StatusEffect":
-    return StatusEffect(
-        icon=None,
-        name="Adicción Fénix",
-        modifiers={"max_health": -5 * stack},
-        duration=-1,
-        is_buff=False,
-    )
+    # Penaliza max_health de forma acumulativa con cada uso del inyector
+    return StatusEffect(icon=None, name="Adicción Fénix",
+                        modifiers={"max_health": -5 * stack}, duration=-1, is_buff=False)
 
 def _make_speed_burst(duration: float, amount: int) -> "StatusEffect":
-    return StatusEffect(
-        icon=None,
-        name="Adrenalina",
-        modifiers={"speed": amount},
-        duration=duration,
-        is_buff=True,
-    )
+    return StatusEffect(icon=None, name="Adrenalina",
+                        modifiers={"speed": amount}, duration=duration, is_buff=True)
 
 def use_consumable(item_def, player: "Character") -> bool:
-    effect_id = item_def.effect
-    if effect_id is None:
-        return False
-    handler = _EFFECT_HANDLERS.get(effect_id)
+    handler = _EFFECT_HANDLERS.get(item_def.effect)
     if handler is None:
         return False
     return handler(player, item_def)
 
 def _effect_regen_health(player: "Character", item_def) -> bool:
     if player.health >= player.get_stat("max_health"):
-        return False  # No consume el item si ya está a vida máxima
+        return False
     player.heal(30)
     return True
 
@@ -79,18 +64,13 @@ def _effect_rad_suppressor(player: "Character", item_def) -> bool:
 
 def _effect_dash(player: "Character", item_def) -> bool:
     import pygame
-    dash_distance = 150.0
-
-    # Use the last movement direction, stored as `_dash_direction` on the player.
-    # Falls back to facing direction if no movement was recorded.
+    # Usa la última dirección de movimiento; si no hay, usa la dirección de cara
     direction = getattr(player, "_dash_direction", None)
     if direction is None or direction.length() < 0.01:
-        # Fallback: use player facing direction
         direction = pygame.Vector2(0, -1).rotate(-player.rotation)
     else:
         direction = direction.normalize()
-
-    player.position += direction * dash_distance
+    player.position += direction * 150.0
     return True
 
 _EFFECT_HANDLERS = {

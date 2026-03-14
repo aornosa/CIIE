@@ -5,14 +5,7 @@ class Camera:
         self.position = pygame.Vector2(position)
         self.zoom = 1.0
 
-    def set_position(self, position):
-        self.position = pygame.Vector2(position)
-
-    def move(self, offset):
-        self.position += pygame.Vector2(offset)
-
-    def set_zoom(self, zoom):
-        self.zoom = zoom
-
-    def get_zoom(self):
-        return self.zoom
+    def set_position(self, position): self.position = pygame.Vector2(position)
+    def move(self, offset): self.position += pygame.Vector2(offset)
+    def set_zoom(self, zoom): self.zoom = zoom
+    def get_zoom(self): return self.zoom

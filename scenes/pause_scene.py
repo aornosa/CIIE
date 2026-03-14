@@ -2,9 +2,7 @@ import pygame
 from core.scene import Scene
 from ui.pause_menu import draw_pause_menu
 
-
 class PauseScene(Scene):
-    """Pause menu – stacked on top of GameScene."""
 
     def __init__(self, game_scene):
         super().__init__()
@@ -55,10 +53,6 @@ class PauseScene(Scene):
             self.director.push(SettingsScene())
 
         elif option == "Salir al Menu":
-            # Stack antes:    [Level1Scene, PauseScene]
-            # Hacemos pop de PauseScene y push del menú sobre Level1Scene.
-            # Stack resultado: [Level1Scene, MainMenuScene]
-            # "Continuar" en el menú hará pop() y vuelve a Level1Scene intacto.
             from scenes.main_menu_scene import MainMenuScene
             director = self.director
             director.pop()   # quita PauseScene — Level1Scene queda debajo

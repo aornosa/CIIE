@@ -1,40 +1,31 @@
 import pygame
 
-TITLE_FONT        = None
-OPTION_FONT       = None
-OPTION_FONT_BOLD  = None
+_TITLE_FONT       = None
+_OPTION_FONT      = None
+_OPTION_FONT_BOLD = None
 
-
-def _get_fonts():
-    global TITLE_FONT, OPTION_FONT, OPTION_FONT_BOLD
-    if TITLE_FONT is None:
-        TITLE_FONT       = pygame.font.SysFont("consolas", 52, bold=True)
-        OPTION_FONT      = pygame.font.SysFont("consolas", 32, bold=False)
-        OPTION_FONT_BOLD = pygame.font.SysFont("consolas", 32, bold=True)
-    return TITLE_FONT, OPTION_FONT, OPTION_FONT_BOLD
-
+def _fonts():
+    global _TITLE_FONT, _OPTION_FONT, _OPTION_FONT_BOLD
+    if _TITLE_FONT is None:
+        _TITLE_FONT       = pygame.font.SysFont("consolas", 52, bold=True)
+        _OPTION_FONT      = pygame.font.SysFont("consolas", 32)
+        _OPTION_FONT_BOLD = pygame.font.SysFont("consolas", 32, bold=True)
 
 def draw_pause_menu(screen, options, selected_index):
-    title_font, option_font, option_font_bold = _get_fonts()
-
-    cx = screen.get_width()  // 2
-    H  = screen.get_height()
+    _fonts()
+    cx      = screen.get_width() // 2
+    H       = screen.get_height()
+    start_y = int(H * 0.45)
 
     screen.fill((20, 20, 30))
 
-    title_surface = title_font.render("PAUSA", True, (255, 255, 255))
-    screen.blit(title_surface, (cx - title_surface.get_width() // 2, int(H * 0.30)))
+    title = _TITLE_FONT.render("PAUSA", True, (255, 255, 255))
+    screen.blit(title, (cx - title.get_width() // 2, int(H * 0.30)))
 
-    start_y = int(H * 0.45)
     for i, option in enumerate(options):
-        if i == selected_index:
-            color  = (255, 220, 50)
-            font   = option_font_bold
-            prefix = "> "
-        else:
-            color  = (200, 200, 200)
-            font   = option_font
-            prefix = "  "
-
-        text_surface = font.render(prefix + option, True, color)
-        screen.blit(text_surface, (cx - text_surface.get_width() // 2, start_y + i * 55))
+        selected = (i == selected_index)
+        font     = _OPTION_FONT_BOLD if selected else _OPTION_FONT
+        color    = (255, 220, 50) if selected else (200, 200, 200)
+        prefix   = "> " if selected else "  "
+        surf     = font.render(prefix + option, True, color)
+        screen.blit(surf, (cx - surf.get_width() // 2, start_y + i * 55))

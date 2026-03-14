@@ -1,22 +1,9 @@
-"""
-ui/inventory_menu.py
----------------------
-CAMBIOS:
-  • WeaponItem muestra badge "ARMA" y borde azul
-  • Al hacer clic izquierdo en un WeaponItem se muestra un overlay de selección
-    de slot (Primario / Secundario / Cancelar)
-  • draw_inventory_screen acepta un estado de overlay externo vía
-    draw_inventory_screen(..., weapon_assign_state=state)
-"""
 import pygame
 
-# ── Layout ────────────────────────────────────────────────────────────────────
 ITEM_SLOT_ORIGIN = (100, 510)
 ITEM_SLOT_SIZE   = 96
 ITEM_SLOT_GAP    = 110
 ITEM_COLS        = 8
-
-# ── Colores ───────────────────────────────────────────────────────────────────
 COLOR_SLOT_BG          = (50,  50,  50)
 COLOR_SLOT_HOVER_BG    = (80,  75,  40)
 COLOR_SLOT_SELECTED_BG = (80,  70,  20)
@@ -29,7 +16,6 @@ COLOR_WEAPON_BADGE     = (80,  140, 255)
 COLOR_WEAPON_BORDER    = (80,  140, 255)
 COLOR_TOOLTIP_BG       = (15,  15,  25, 210)
 COLOR_TOOLTIP_TEXT     = (255, 255, 200)
-
 _FONTS: dict = {}
 
 
@@ -40,8 +26,7 @@ def _font(size: int, bold: bool = False) -> pygame.font.Font:
     return _FONTS[key]
 
 
-# ── Geometría ─────────────────────────────────────────────────────────────────
-
+# Geometría
 def get_item_slot_rect(index: int) -> pygame.Rect:
     col = index % ITEM_COLS
     row = index // ITEM_COLS
@@ -63,8 +48,6 @@ def _get_hovered_index(mouse_pos, inventory) -> int:
             return i
     return -1
 
-
-# ── Slot individual ───────────────────────────────────────────────────────────
 
 def draw_item_box(screen, item, position, selected=False, hovered=False):
     rect     = pygame.Rect(position[0], position[1], ITEM_SLOT_SIZE, ITEM_SLOT_SIZE)
@@ -104,8 +87,6 @@ def draw_item_box(screen, item, position, selected=False, hovered=False):
                         (position[0] + 4, position[1] + ITEM_SLOT_SIZE - 16))
 
 
-# ── Tooltip ───────────────────────────────────────────────────────────────────
-
 def _draw_tooltip(screen, item, slot_rect: pygame.Rect):
     lines = [
         (item.name,        _font(22, bold=True), COLOR_TOOLTIP_TEXT),
@@ -137,8 +118,6 @@ def _draw_tooltip(screen, item, slot_rect: pygame.Rect):
         cy += surf.get_height() + 4
 
 
-# ── Weapon box ────────────────────────────────────────────────────────────────
-
 def draw_weapon_box(screen, weapon, position):
     box_w, box_h = 550, 400
     pygame.draw.rect(screen, (40, 40, 50), (*position, box_w, box_h), border_radius=8)
@@ -154,8 +133,6 @@ def draw_weapon_box(screen, weapon, position):
         screen.blit(_font(22).render("{ Sin arma }", True, (140, 140, 140)),
                     (position[0] + 180, position[1] + 185))
 
-
-# ── Player status ─────────────────────────────────────────────────────────────
 
 def draw_player_status(screen, player, position):
     pygame.draw.rect(screen, (30, 30, 30), (*position, 300, 400), border_radius=8)
@@ -173,33 +150,24 @@ def draw_player_status(screen, player, position):
                     (position[0] + 20, position[1] + 90))
 
 
-# ── Overlay de asignación de slot ─────────────────────────────────────────────
-# Selección por teclado: [1] Primario  [2] Secundario  [ESC] Cancelar
 
 def draw_slot_assign_overlay(screen, weapon_item) -> None:
-    """
-    Dibuja el popup de selección de slot sobre el inventario.
-    Selección por teclado: 1 = Primario, 2 = Secundario, ESC = Cancelar.
-    """
     sw, sh = screen.get_size()
     bw, bh = 500, 220
     bx     = sw // 2 - bw // 2
     by     = sh // 2 - bh // 2
 
-    # Fondo del popup
     panel = pygame.Surface((bw, bh), pygame.SRCALPHA)
     panel.fill((20, 20, 35, 235))
     pygame.draw.rect(panel, (80, 140, 255), (0, 0, bw, bh), 2, border_radius=10)
     screen.blit(panel, (bx, by))
 
-    # Título
     title = _font(22, bold=True).render(f"Equipar: {weapon_item.name}", True, (255, 255, 255))
     screen.blit(title, (bx + bw // 2 - title.get_width() // 2, by + 16))
 
     subtitle = _font(17).render("¿En qué ranura?", True, (160, 160, 210))
     screen.blit(subtitle, (bx + bw // 2 - subtitle.get_width() // 2, by + 46))
 
-    # Opciones apiladas verticalmente con atajo de teclado
     options = [
         ("[1]  Primario",   (60, 140, 60),  (90, 200, 90)),
         ("[2]  Secundario", (60, 80,  160), (90, 120, 220)),
@@ -207,7 +175,6 @@ def draw_slot_assign_overlay(screen, weapon_item) -> None:
     ]
     btn_w, btn_h = 360, 36
     gap          = 8
-    total_h      = len(options) * btn_h + (len(options) - 1) * gap
     btn_x        = bx + bw // 2 - btn_w // 2
     btn_y_start  = by + 82
 
@@ -225,17 +192,37 @@ def draw_slot_assign_overlay(screen, weapon_item) -> None:
 
 
 def get_overlay_rects() -> dict:
-    return {}  # ya no se usa — selección por teclado
+    return {}  
 
 
-# ── Pantalla completa ─────────────────────────────────────────────────────────
+def _draw_controls_hint(screen: pygame.Surface):
+    grid_right = ITEM_SLOT_ORIGIN[0] + ITEM_COLS * ITEM_SLOT_GAP + 10
+    box_x      = grid_right
+    box_y      = ITEM_SLOT_ORIGIN[1]
+    box_w      = 260
+    box_h      = 80
+    pad        = 12
+
+    box = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+    box.fill((20, 20, 30, 200))
+    screen.blit(box, (box_x, box_y))
+    pygame.draw.rect(screen, (70, 70, 90), (box_x, box_y, box_w, box_h), 1, border_radius=4)
+
+    lines = [
+        ("LMB", "  usar objeto"),
+        ("RMB", "  soltar al suelo"),
+    ]
+    for i, (key, desc) in enumerate(lines):
+        y         = box_y + pad + i * 26
+        key_surf  = _font(17, bold=True).render(key, True, (255, 220, 50))
+        desc_surf = _font(17).render(desc, True, (180, 180, 180))
+        screen.blit(key_surf,  (box_x + pad, y))
+        screen.blit(desc_surf, (box_x + pad + key_surf.get_width(), y))
+
 
 def draw_inventory_screen(screen: pygame.Surface, player, mouse_pos,
                            pending_weapon_item=None):
-    """
-    Dibuja el inventario completo.
-    Si pending_weapon_item no es None, dibuja encima el overlay de selección de slot.
-    """
+    """Dibuja el inventario. Si pending_weapon_item no es None muestra el overlay de asignación de slot."""
     overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 160))
     screen.blit(overlay, (0, 0))
@@ -269,6 +256,7 @@ def draw_inventory_screen(screen: pygame.Surface, player, mouse_pos,
     if tooltip_item and tooltip_rect and pending_weapon_item is None:
         _draw_tooltip(screen, tooltip_item, tooltip_rect)
 
-    # Overlay de asignación (encima de todo)
+    _draw_controls_hint(screen)
+
     if pending_weapon_item is not None:
         draw_slot_assign_overlay(screen, pending_weapon_item)

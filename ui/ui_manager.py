@@ -2,53 +2,48 @@ import pygame
 from weapons.ranged.ranged import Ranged
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT
 
-FONT_28 = None
-FONT_22 = None
-FONT_18 = None
-
-_last_hp        = None
-_flash_alpha    = 0.0
-_FLASH_PEAK     = 90
-_FLASH_DECAY    = 70
-
-
-def _get_fonts():
-    global FONT_28, FONT_22, FONT_18
-    if FONT_28 is None:
-        FONT_28 = pygame.font.SysFont("consolas", 28, bold=True)
-        FONT_22 = pygame.font.SysFont("consolas", 22, bold=True)
-        FONT_18 = pygame.font.SysFont("consolas", 18)
-    return FONT_28, FONT_22, FONT_18
-
-
+_FONT_28 = None
+_FONT_22 = None
+_FONT_18 = None
+_last_hp     = None
+_flash_alpha = 0.0
+_FLASH_PEAK  = 90
+_FLASH_DECAY = 70
 SLOT_COUNT  = 6
 SLOT_SIZE   = 64
 SLOT_GAP    = 8
 TOTAL_WIDTH = SLOT_COUNT * SLOT_SIZE + (SLOT_COUNT - 1) * SLOT_GAP
 BAR_X       = (SCREEN_WIDTH - TOTAL_WIDTH) // 2
 BAR_Y       = SCREEN_HEIGHT - SLOT_SIZE - 20
-
 PANEL_W = 260
 PANEL_H = 70
 PANEL_Y = BAR_Y
 
 
+def _fonts():
+    global _FONT_28, _FONT_22, _FONT_18
+    if _FONT_28 is None:
+        _FONT_28 = pygame.font.SysFont("consolas", 28, bold=True)
+        _FONT_22 = pygame.font.SysFont("consolas", 22, bold=True)
+        _FONT_18 = pygame.font.SysFont("consolas", 18)
+
+
 def draw_overlay(screen, player, wave_manager=None, delta_time=0.016):
     global _last_hp, _flash_alpha
-
-    font_big, font_med, font_sml = _get_fonts()
+    _fonts()
 
     current_hp = player.health
     if _last_hp is not None and current_hp < _last_hp:
         _flash_alpha = _FLASH_PEAK
     _last_hp = current_hp
 
-    _draw_hotkey_bar(screen, player, font_sml)
-    _draw_health(screen, player, font_med)
-    _draw_weapon(screen, player, font_big, font_med, font_sml)
+    _draw_hotkey_bar(screen, player, _FONT_18)
+    _draw_health(screen, player, _FONT_22)
+    _draw_weapon(screen, player, _FONT_28, _FONT_22, _FONT_18)
     _draw_interaction_tooltip(screen, player)
+
     if wave_manager is not None:
-        _draw_wave_hud(screen, wave_manager, player, font_big, font_med, font_sml)
+        _draw_wave_hud(screen, wave_manager, player, _FONT_28, _FONT_22, _FONT_18)
 
     if _flash_alpha > 0:
         _draw_damage_flash(screen, delta_time)
@@ -56,8 +51,7 @@ def draw_overlay(screen, player, wave_manager=None, delta_time=0.016):
 
 def _draw_damage_flash(screen, delta_time):
     global _flash_alpha
-    W, H = screen.get_width(), screen.get_height()
-    overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+    overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
     overlay.fill((180, 0, 0, int(_flash_alpha)))
     screen.blit(overlay, (0, 0))
     _flash_alpha = max(0.0, _flash_alpha - _FLASH_DECAY * delta_time)
@@ -79,6 +73,7 @@ def _draw_health(screen, player, font_med):
     screen.blit(val, (panel_x + PANEL_W - val.get_width() - 12, PANEL_Y + 8))
 
     bar_x, bar_y, bar_w, bar_h = panel_x + 12, PANEL_Y + 42, PANEL_W - 24, 14
+    # Color de la barra según porcentaje de vida
     color = (60, 220, 90) if ratio > 0.6 else (230, 190, 40) if ratio > 0.3 else (220, 50, 50)
     pygame.draw.rect(screen, (30, 15, 15), (bar_x, bar_y, bar_w, bar_h), border_radius=3)
     pygame.draw.rect(screen, color, (bar_x, bar_y, max(2, int(bar_w * ratio)), bar_h), border_radius=3)
@@ -107,20 +102,8 @@ def _draw_weapon(screen, player, font_big, font_med, font_sml):
         else:
             ammo_color = (220, 50, 50) if clip / max(1, clip_max) <= 0.25 else (220, 220, 180)
             screen.blit(font_big.render(f"{clip} / {clip_max}", True, ammo_color), (panel_x + 12, PANEL_Y + 38))
-            res_txt = font_sml.render(f"[{_get_reserve(weapon)}]", True, (130, 130, 110))
-            screen.blit(res_txt, (panel_x + PANEL_W - res_txt.get_width() - 12, PANEL_Y + 44))
     else:
         screen.blit(font_big.render("MELEE", True, (255, 160, 40)), (panel_x + 12, PANEL_Y + 38))
-
-
-def _get_reserve(weapon) -> int:
-    if weapon.parent is None:
-        return 0
-    total = 0
-    for item in weapon.parent.inventory.items:
-        if hasattr(item, "ammo") and item.ammo and item.ammo.ammo_type == weapon.ammo_type:
-            total += item.current_ammo if hasattr(item, "current_ammo") and item.current_ammo else item.ammo.capacity
-    return total
 
 
 def _draw_hotkey_bar(screen, player, font_sml):
@@ -128,12 +111,10 @@ def _draw_hotkey_bar(screen, player, font_sml):
     bar_surf  = pygame.Surface((TOTAL_WIDTH + SLOT_GAP, SLOT_SIZE + SLOT_GAP), pygame.SRCALPHA)
 
     for i in range(SLOT_COUNT):
-        slot_x        = i * (SLOT_SIZE + SLOT_GAP)
-        slot_rect     = pygame.Rect(slot_x, 0, SLOT_SIZE, SLOT_SIZE)
-        item          = inventory.items[i] if i < len(inventory.items) else None
-        # FIX: guard para items sin atributo .type (e.g. TacticalKnife directo en inventario)
-        item_type     = getattr(item, "type", None)
-        is_consumable = item is not None and item_type == "consumable"
+        slot_x    = i * (SLOT_SIZE + SLOT_GAP)
+        slot_rect = pygame.Rect(slot_x, 0, SLOT_SIZE, SLOT_SIZE)
+        item      = inventory.items[i] if i < len(inventory.items) else None
+        is_consumable = item is not None and getattr(item, "type", None) == "consumable"
 
         bg_color     = (70, 65, 20, 220) if is_consumable else ((30, 30, 35, 200) if item else (20, 20, 22, 140))
         border_color = (255, 220, 50)    if is_consumable else ((60, 60, 70)       if item else (90, 90, 100))
@@ -168,7 +149,7 @@ def _draw_interaction_tooltip(screen, player):
         screen.get_width() // 2 - surface.get_width() // 2 - padding,
         screen.get_height() - 120,
         surface.get_width() + padding * 2,
-        surface.get_height() + padding
+        surface.get_height() + padding,
     )
     bg = pygame.Surface((bg_rect.width, bg_rect.height), pygame.SRCALPHA)
     bg.fill((0, 0, 0, 180))
@@ -199,24 +180,3 @@ def _draw_wave_hud(screen, wave_manager, player, font_big, font_med, font_sml):
                 (panel_x + 12, panel_y + 74))
     screen.blit(font_sml.render(f"$ {getattr(player, 'coins', 0)}", True, (255, 220, 80)),
                 (panel_x + 120, panel_y + 74))
-def _draw_next_wave_banner(screen, font_big, font_med, info):
-    """Banner minimalista: número de oleada entrante + cuenta atrás."""
-    next_wave = info['wave'] + 1
-    total     = info['total_waves']
-    secs      = info['rest_timer']
-
-    line1 = font_big.render(f"OLEADA {next_wave} / {total}", True, (255, 220, 50))
-    line2 = font_med.render(f"Comenzando en {secs:.1f}s", True, (200, 200, 200))
-
-    banner_w = max(line1.get_width(), line2.get_width()) + 80
-    banner_h = 96
-    bx = SCREEN_WIDTH  // 2 - banner_w // 2
-    by = SCREEN_HEIGHT // 2 - banner_h // 2 - 60
-
-    banner = pygame.Surface((banner_w, banner_h), pygame.SRCALPHA)
-    banner.fill((10, 10, 20, 210))
-    pygame.draw.rect(banner, (100, 100, 130), (0, 0, banner_w, banner_h), 2, border_radius=8)
-    screen.blit(banner, (bx, by))
-
-    screen.blit(line1, (bx + banner_w // 2 - line1.get_width() // 2, by + 12))
-    screen.blit(line2, (bx + banner_w // 2 - line2.get_width() // 2, by + 56))
