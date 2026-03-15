@@ -8,7 +8,7 @@ def create_audres_intro():
         "s1": DialogNode(
             speaker="AUDReS-01",
             portrait=_P + "portrait_neutral.jpg",
-            text="THola, soldado. Soy AUDReS-01, el robot de abastecimiento militar autónomo.",
+            text="Hola, soldado. Soy AUDReS-01, el robot de abastecimiento militar autónomo.",
             next_node="s2",
         ),
         "s2": DialogNode(
