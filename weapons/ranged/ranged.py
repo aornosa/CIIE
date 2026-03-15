@@ -1,6 +1,5 @@
 import json
 import pygame.draw
-
 from core.audio.sound_cache import SOUNDS
 from core.collision.layers import LAYERS
 from core.collision.raycast import raycast_segment
@@ -8,7 +7,6 @@ from core.monolite_behaviour import MonoliteBehaviour
 from core.particles.particle_emitter import ParticleEmitter
 from core.particles.particle import Particle
 from weapons.weapon_module import Weapon, AMMO_TYPES
-
 
 class Ranged(Weapon, MonoliteBehaviour):
     def __init__(self, asset, name, damage, max_range, ammo_type, clip_size,

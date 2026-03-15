@@ -2,9 +2,8 @@ from dialogs.dialog_data import DialogNode, DialogTree
 
 _P = "assets/characters/audres/"
 
-
 def create_audres_intro():
-    """Diálogo de presentación — se activa cuando Audrey llega al jugador."""
+    """Diálogo de presentación """
     nodes = {
         "s1": DialogNode(
             speaker="AUDReS-01",
@@ -47,7 +46,7 @@ def create_audres_intro():
 
 
 def create_audres_idle():
-    """Diálogo de espera — se activa al interactuar con Audrey después del intro."""
+    """Diálogo de espera """
     nodes = {
         "idle_root": DialogNode(
             speaker="AUDReS-01",
@@ -69,7 +68,7 @@ def create_audres_idle():
 
 
 def create_audres_shop_hint():
-    """Diálogo post-oleada — explica la tienda y pista sobre el Doc."""
+    """Diálogo post-oleada."""
     nodes = {
         "shop1": DialogNode(
             speaker="AUDReS-01",
@@ -106,7 +105,7 @@ def create_audres_shop_hint():
 
 
 def create_audres_wave2_clear():
-    """Diálogo post-oleada 2 — Audrey felicita al jugador y lo guía al laboratorio."""
+    """Diálogo post-oleada 2"""
     nodes = {
         "w2_1": DialogNode(
             speaker="AUDReS-01",
@@ -131,7 +130,7 @@ def create_audres_wave2_clear():
 
 
 def create_audres_north_room_entry():
-    """Diálogo provisional al entrar en la sala norte — puerta se cierra tras esto."""
+    """Diálogo provisional al entrar en la sala norte"""
     nodes = {
         "n1": DialogNode(
             speaker="AUDReS-01",
@@ -149,7 +148,7 @@ def create_audres_north_room_entry():
     return DialogTree("n1", nodes)
 
 def create_audres_exit_door():
-    """Diálogo al abrir la puerta de salida — helicóptero de evacuación."""
+    """Diálogo al abrir la puerta de salida"""
     nodes = {
         "exit1": DialogNode(
             speaker="AUDReS-01",

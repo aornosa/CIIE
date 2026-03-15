@@ -1,6 +1,4 @@
-"""Lógica del flujo del nivel 1: cutscene, oleadas, puertas, contacto y muerte."""
 import pygame
-
 from core.collision.collider import Collider
 from core.collision.collision_manager import CollisionManager
 from core.collision.layers import LAYERS
@@ -17,7 +15,6 @@ _CUTSCENE_ENEMY_SPAWNS = [
 
 
 def update_enemies(scene, delta_time):
-    """Actualiza enemigos iniciales (pre-wave) o los wave managers activos."""
     kills = 0
 
     if scene._wave_manager is not None:
@@ -63,7 +60,6 @@ def update_enemies(scene, delta_time):
 
 
 def update_idle_timeout(scene, delta_time):
-    """Elimina enemigos restantes si el jugador deja de disparar demasiado tiempo."""
     all_enemies = all_enemies_list(scene)
     if scene._idle_shot_timer >= 0:
         if all_enemies:
@@ -77,7 +73,6 @@ def update_idle_timeout(scene, delta_time):
 
 
 def update_puddles(scene, delta_time):
-    """Actualiza charcos tóxicos cuando no hay wave manager activo."""
     if scene._wave_manager is None and scene._wave_manager_north is None:
         for puddle in list(scene._toxic_puddles):
             puddle.update(delta_time, scene.player)
@@ -85,7 +80,6 @@ def update_puddles(scene, delta_time):
 
 
 def update_flow(scene, delta_time):
-    """Gestiona las transiciones de estado del nivel: sala norte, oleadas, diálogos."""
     dialog_active = scene._dialog_manager and scene._dialog_manager.is_dialog_active
 
     if (not scene._north_room_entered

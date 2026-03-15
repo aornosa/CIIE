@@ -6,24 +6,23 @@ from item.item_loader import ItemRegistry
 
 SHOP_CATALOG = [
     # Mejoras de personaje
-    {"name": "Vida Reforzada",    "desc": "+25 Vida máxima",               "cost": 200, "type": "stat",       "stat": "max_health", "value": 25},
-    {"name": "Botas de Acero",    "desc": "+30 Velocidad",                  "cost": 100, "type": "stat",       "stat": "speed",      "value": 30},
+    {"name": "Vida Reforzada",    "desc": "+25 Vida máxima",               "cost": 300, "type": "stat",       "stat": "max_health", "value": 25},
+    {"name": "Botas de Acero",    "desc": "+30 Velocidad",                  "cost": 300, "type": "stat",       "stat": "speed",      "value": 30},
     # Mejoras ranged (todas las armas de fuego equipadas)
     {"name": "Cargador Ampliado", "desc": "+10 balas (todas las ranged)",   "cost": 600, "type": "weapon_all_ranged", "attr": "clip_size",  "value": 10},
     {"name": "Gatillo Mejorado",  "desc": "-0.03s disparo (todas ranged)",  "cost": 600, "type": "weapon_all_ranged", "attr": "fire_rate",  "value": -0.03},
     {"name": "Munición Perforante","desc": "+10 daño (todas las ranged)",   "cost": 600, "type": "weapon_all_ranged", "attr": "damage",      "value": 10},
-    {"name": "Recarga Rápida",    "desc": "-0.1s recarga (todas ranged)",   "cost": 800, "type": "weapon_all_ranged", "attr": "reload_time", "value": -0.1},
+    {"name": "Recarga Rápida",    "desc": "-0.2s recarga (todas ranged)",   "cost": 600, "type": "weapon_all_ranged", "attr": "reload_time", "value": -0.2},
     # Mejoras melee (todas las armas cuerpo a cuerpo equipadas)
     {"name": "Filo Afilado",      "desc": "+15 daño (todas las melee)",     "cost": 600, "type": "weapon_all_melee",  "attr": "damage",       "value": 15},
-    {"name": "Ataque Rápido",     "desc": "+0.2 velocidad ataque (melee)",  "cost": 600, "type": "weapon_all_melee",  "attr": "attack_speed", "value": 0.2},
+    {"name": "Ataque Rápido",     "desc": "-0.05s ataque (todas melee)",    "cost": 600, "type": "weapon_all_melee",  "attr": "fire_rate",    "value": -0.05},
     # Armas
-    {"name": "Bastón",            "desc": "Porra antidisturbios · melee",   "cost": 200, "type": "buy_weapon", "weapon_class": "Baton",  "unique": True},
+    {"name": "Bastón",            "desc": "Porra antidisturbios · melee",   "cost": 350, "type": "buy_weapon", "weapon_class": "Baton",  "unique": True},
     {"name": "MP5",               "desc": "Subfusil 9mm · 60 balas",        "cost": 350, "type": "buy_weapon", "weapon_class": "MP5",    "unique": True},
-    {"name": "SPAS-12",           "desc": "Escopeta 12ga · 15 balas",       "cost": 500, "type": "buy_weapon", "weapon_class": "SPAS12", "unique": True},
+    {"name": "SPAS-12",           "desc": "Escopeta 12ga · 15 balas",       "cost": 350, "type": "buy_weapon", "weapon_class": "SPAS12", "unique": True},
     # Habilidad
     {"name": "Habilidad: Dash",   "desc": "Impulso rápido · Shift · CD: 3s",  "cost": 900, "type": "dash",        "unique": True},
 ]
-
 
 def _build_weapon(weapon_class: str):
     if weapon_class == "MP5":
@@ -37,7 +36,6 @@ def _build_weapon(weapon_class: str):
     if weapon_class == "Baton":
         from weapons.melee.melee_types import Baton;         return Baton()
     return None
-
 
 class ShopScene(Scene):
     def __init__(self, game_scene, player):
@@ -88,7 +86,6 @@ class ShopScene(Scene):
                        owned_items=self._get_owned_weapon_names())
 
     def _get_owned_weapon_names(self) -> set:
-        # Devuelve los nombres de armas únicas y habilidades que el jugador ya posee
         owned = set()
         for slot in ("primary", "secondary"):
             w = self.player.inventory.get_weapon(slot)
@@ -150,7 +147,7 @@ class ShopScene(Scene):
             weapons = [self.player.inventory.get_weapon(s) for s in ("primary", "secondary")]
             if not any(isinstance(w, Melee) for w in weapons):
                 return self._fail(entry, "¡Necesitas un arma melee equipada!")
-            key_map = {"damage": "melee_damage", "attack_speed": "melee_attack_speed"}
+            key_map = {"damage": "melee_damage", "fire_rate": "melee_fire_rate"}
             self.player.weapon_upgrades[key_map[entry["attr"]]] += entry["value"]
 
         elif t == "buy_weapon":

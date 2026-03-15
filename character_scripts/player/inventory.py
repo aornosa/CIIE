@@ -2,7 +2,6 @@ import ui.inventory_menu as menu
 from item.consumable import use_consumable
 from item.item_drop_manager import DropManager
 
-
 class Inventory:
     def __init__(self):
         self.active_weapon_slot  = "primary"
@@ -104,7 +103,6 @@ class Inventory:
         return False
 
     def equip_weapon_from_item(self, player, weapon_item, item_index: int, slot: str):
-        # Equipa un WeaponItem del inventario en el slot indicado, devolviendo el arma anterior al inventario
         weapon               = weapon_item.weapon
         weapon.parent        = player
         weapon.audio_emitter = player.audio_emitter

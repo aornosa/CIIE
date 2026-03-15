@@ -4,7 +4,7 @@ from core.status_effects import StatusEffect
 if TYPE_CHECKING:
     from character_scripts.character import Character
 
-# Contador de usos del inyector por jugador, indexado por id() del objeto
+# Contador de usos del inyector por jugador
 _addiction_counters: dict[int, int] = {}
 
 def _get_addiction(player: "Character") -> int:
@@ -64,7 +64,6 @@ def _effect_rad_suppressor(player: "Character", item_def) -> bool:
 
 def _effect_dash(player: "Character", item_def) -> bool:
     import pygame
-    # Usa la última dirección de movimiento; si no hay, usa la dirección de cara
     direction = getattr(player, "_dash_direction", None)
     if direction is None or direction.length() < 0.01:
         direction = pygame.Vector2(0, -1).rotate(-player.rotation)

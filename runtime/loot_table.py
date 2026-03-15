@@ -5,31 +5,30 @@ if TYPE_CHECKING:
     from character_scripts.enemy.enemy_base import Enemy
     from character_scripts.player.player import Player
 
-# Drop rates reducidos — los items deben ser escasos
 LOOT_TABLES: dict[str, list[tuple[str, float]]] = {
     "InfectedCommon": [
-        ("stim_patch", 0.02),
+        ("stim_patch", 0.03),
     ],
     "InfectedSoldier": [
-        ("stim_patch",     0.04),
-        ("health_injector", 0.01),
+        ("stim_patch",      0.05),
+        ("health_injector", 0.02),
     ],
     "LabSubject": [
-        ("health_injector", 0.05),
-        ("adrenaline_shot", 0.03),
-        ("rad_suppressor",  0.02),
+        ("health_injector", 0.07),
+        ("adrenaline_shot", 0.04),
+        ("rad_suppressor",  0.03),
     ],
     "TankEnemy": [
-        ("health_injector", 0.04),
-        ("stim_patch",      0.03),
+        ("health_injector", 0.05),
+        ("stim_patch",      0.04),
     ],
     "ToxicEnemy": [
-        ("stim_patch",     0.03),
-        ("rad_suppressor", 0.02),
+        ("stim_patch",     0.04),
+        ("rad_suppressor", 0.03),
     ],
     "ShooterEnemy": [
-        ("stim_patch",      0.03),
-        ("adrenaline_shot", 0.02),
+        ("stim_patch",      0.04),
+        ("adrenaline_shot", 0.03),
     ],
 }
 

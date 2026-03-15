@@ -3,7 +3,6 @@ import pygame
 from map.interactables.interactable import Interactable
 from map.interactables.interaction_manager import InteractionManager
 
-
 class Door(Interactable):
     _IMAGE_PATH = "assets/interactables/door.png"
 

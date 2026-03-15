@@ -1,6 +1,4 @@
-"""Escena principal del juego."""
 import pygame
-
 from core.audio.audio_manager import AudioManager
 from core.camera import Camera
 from core.collision.collision_manager import CollisionManager
@@ -19,7 +17,6 @@ from weapons.ranged.ranged import Ranged
 from weapons.melee.melee import Melee
 from weapons.melee.melee_types import TacticalKnife
 from weapons.weapon_controller import WeaponController
-
 import scenes.level1_map   as lmap
 import scenes.level1_logic as logic
 
@@ -43,21 +40,17 @@ class Level1Scene(Scene):
         self.weapon_controller = None
         self.enemies: list       = []
         self._toxic_puddles: list = []
-
         self._contact_dmg_cd = 1.0
-
         self._dialog_manager     = None
         self.audres              = None
         self._audres_intro_tree  = None
         self._cutscene_active    = False
         self._cutscene_phase     = "idle"
         self._audres_walk_target = None
-
         self._wave_manager       = None
         self._wave_manager_north = None
         self._zone1_complete     = False
         self._zone2_complete     = False
-
         self._enemies_spawned       = False
         self._shop_hint_triggered   = False
         self._shop_unlocked         = False
@@ -69,10 +62,8 @@ class Level1Scene(Scene):
         self._inventory_open        = False
         self._inv_right_click       = False
         self._aim_was_pressed       = False
-
         self._pending_weapon_item  = None
         self._pending_weapon_index = -1
-
         self._door              = None
         self._door_rect         = None
         self._door_collider     = None
@@ -81,7 +72,6 @@ class Level1Scene(Scene):
         self._north_room_entered  = False
         self._north_room_sealed   = False
         self._north_seal_collider = None
-
         self._exit_door          = None
         self._exit_door_rect     = None
         self._exit_door_collider = None
@@ -89,13 +79,9 @@ class Level1Scene(Scene):
         self._exit_corridor_rect = None
         self._helicopter         = None
         self._helicopter_spawned = False
-
         self._idle_shot_timer   = -1.0
         self._IDLE_SHOT_TIMEOUT = 40.0
-
         self.crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
-
-    # Ciclo de vida
 
     def on_enter(self):
         MonoliteBehaviour.time_scale = 1.0
@@ -117,8 +103,6 @@ class Level1Scene(Scene):
     def on_resume(self):
         MonoliteBehaviour.time_scale = 1.0
         pygame.mouse.set_visible(False)
-
-    # Construccion
 
     def _build_level(self):
         CollisionManager.dynamic_colliders.clear()
@@ -261,8 +245,6 @@ class Level1Scene(Scene):
             self._dialog_manager.end_dialog()
         self._dialog_manager = None
 
-    # Input
-
     def handle_events(self, input_handler):
         aim_now = input_handler.actions.get("aim", False)
         self._inv_right_click = aim_now and not self._aim_was_pressed
@@ -363,8 +345,6 @@ class Level1Scene(Scene):
         self._pending_weapon_item  = None
         self._pending_weapon_index = -1
 
-    # Update
-
     def update(self, delta_time):
         from core.audio.music_manager import MusicManager
         MusicManager.instance().set_category("idle")
@@ -391,8 +371,6 @@ class Level1Scene(Scene):
             logic.check_player_death(self)
 
         logic.update_flow(self, delta_time)
-
-    # Render
 
     def render(self, screen):
         im         = self.director._input_handler

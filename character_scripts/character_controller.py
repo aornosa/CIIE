@@ -8,7 +8,8 @@ class CharacterController:
         self.speed     = speed
         self.velocity  = pygame.Vector2(0, 0)
 
-    def get_position(self): return self.character.position
+    def get_position(self):
+        return self.character.position
 
     def move(self, direction, delta_time):
         if direction.length() > 0:

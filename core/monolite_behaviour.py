@@ -28,7 +28,6 @@ class MonoliteBehaviour:
         # list() evita errores si algún update() llama a destroy() y modifica _instances
         for instance in list(cls._instances):
             try:
-                # Inspecciona la firma para pasar delta_time solo si el método lo requiere
                 params   = inspect.signature(instance.update).parameters
                 required = [p for p in params.values()
                             if p.name != "self"

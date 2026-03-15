@@ -5,27 +5,21 @@ from settings import SCREEN_WIDTH, SCREEN_HEIGHT
 _FONT_28 = None
 _FONT_22 = None
 _FONT_18 = None
-
 _last_hp     = None
 _flash_alpha = 0.0
 _FLASH_PEAK  = 90
 _FLASH_DECAY = 70
-
 SLOT_COUNT  = 6
 SLOT_SIZE   = 64
 SLOT_GAP    = 8
 TOTAL_WIDTH = SLOT_COUNT * SLOT_SIZE + (SLOT_COUNT - 1) * SLOT_GAP
 BAR_X       = (SCREEN_WIDTH - TOTAL_WIDTH) // 2
 BAR_Y       = SCREEN_HEIGHT - SLOT_SIZE - 20
-
 PANEL_W = 260
 PANEL_H = 70
 PANEL_Y = BAR_Y
 
-
-
 def _fmt(n: int) -> str:
-    # Formatea números con punto como separador de miles (estilo español)
     return f"{n:,}".replace(",", ".")
 
 def _fonts():
@@ -117,17 +111,19 @@ def _draw_weapon(screen, player, font_big, font_med, font_sml):
 
 
 def _draw_hotkey_bar(screen, player, font_sml):
-    inventory = player.inventory
-    bar_surf  = pygame.Surface((TOTAL_WIDTH + SLOT_GAP, SLOT_SIZE + SLOT_GAP), pygame.SRCALPHA)
+    inventory  = player.inventory
+    # Solo consumibles en la hotbar — las armas no aparecen
+    consumables = [item for item in inventory.items
+                   if getattr(item, "type", None) == "consumable"]
+    bar_surf = pygame.Surface((TOTAL_WIDTH + SLOT_GAP, SLOT_SIZE + SLOT_GAP), pygame.SRCALPHA)
 
     for i in range(SLOT_COUNT):
         slot_x    = i * (SLOT_SIZE + SLOT_GAP)
         slot_rect = pygame.Rect(slot_x, 0, SLOT_SIZE, SLOT_SIZE)
-        item      = inventory.items[i] if i < len(inventory.items) else None
-        is_consumable = item is not None and getattr(item, "type", None) == "consumable"
+        item      = consumables[i] if i < len(consumables) else None
 
-        bg_color     = (70, 65, 20, 220) if is_consumable else ((30, 30, 35, 200) if item else (20, 20, 22, 140))
-        border_color = (255, 220, 50)    if is_consumable else ((60, 60, 70)       if item else (90, 90, 100))
+        bg_color     = (70, 65, 20, 220) if item else (20, 20, 22, 140)
+        border_color = (255, 220, 50)    if item else (90, 90, 100)
 
         pygame.draw.rect(bar_surf, bg_color,     slot_rect, border_radius=6)
         pygame.draw.rect(bar_surf, border_color, slot_rect, 2, border_radius=6)
@@ -135,20 +131,17 @@ def _draw_hotkey_bar(screen, player, font_sml):
         if item is not None:
             try:
                 icon = pygame.transform.scale(item.asset, (SLOT_SIZE - 14, SLOT_SIZE - 14))
-                if not is_consumable:
-                    icon.set_alpha(120)
                 bar_surf.blit(icon, (slot_x + 7, 7))
             except Exception:
                 pass
 
-        label_color = (255, 255, 180) if is_consumable else (200, 200, 200)
-        bar_surf.blit(font_sml.render(str(i + 1), True, label_color), (slot_x + 4, 2))
+        bar_surf.blit(font_sml.render(str(i + 1), True, (255, 255, 180) if item else (80, 80, 80)),
+                      (slot_x + 4, 2))
 
     screen.blit(bar_surf, (BAR_X, BAR_Y))
 
 
 def _draw_dash_indicator(screen, player, font_sml):
-    # Dibujado a la derecha de la barra de hotkeys
     x   = BAR_X + TOTAL_WIDTH + SLOT_GAP + 8
     y   = BAR_Y
     w, h = 70, SLOT_SIZE
@@ -175,23 +168,6 @@ def _draw_dash_indicator(screen, player, font_sml):
     panel.blit(key, (w // 2 - key.get_width() // 2, h - key.get_height() - 4))
 
     screen.blit(panel, (x, y))
-    from map.interactables.interaction_manager import InteractionManager
-    tooltip = InteractionManager().get_tooltip_in_range(player)
-    if not tooltip:
-        return
-    font    = pygame.font.SysFont("consolas", 28)
-    padding = 12
-    surface = font.render(tooltip, True, (255, 255, 180))
-    bg_rect = pygame.Rect(
-        screen.get_width() // 2 - surface.get_width() // 2 - padding,
-        screen.get_height() - 120,
-        surface.get_width() + padding * 2,
-        surface.get_height() + padding,
-    )
-    bg = pygame.Surface((bg_rect.width, bg_rect.height), pygame.SRCALPHA)
-    bg.fill((0, 0, 0, 180))
-    screen.blit(bg, bg_rect.topleft)
-    screen.blit(surface, (bg_rect.x + padding, bg_rect.y + padding // 2))
 
 
 def _draw_interaction_tooltip(screen, player):

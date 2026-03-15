@@ -1,5 +1,4 @@
 import pygame
-
 from core.camera import Camera
 from core.collision.collider import Collider
 from core.collision.collision_manager import CollisionManager
@@ -10,12 +9,10 @@ from settings import SCREEN_WIDTH, SCREEN_HEIGHT, _CAM_BORDER_RADIUS
 _BG_COLOR    = (20, 20, 28)
 _FLOOR_COLOR = (45, 45, 55)
 _WALL_COLOR  = (110, 90, 70)
-
 ARENA_HALF = 1000
 WALL_THICK = 80
 ACX        = SCREEN_WIDTH  // 2
 ACY        = SCREEN_HEIGHT // 2
-
 CORRIDOR_W      = 240
 CORRIDOR_H      = 800
 NORTH_SQ        = int(ARENA_HALF * 1.2)
@@ -24,9 +21,7 @@ EXIT_CORRIDOR_W = 240
 EXIT_CORRIDOR_H = 300
 EXIT_SQ_HALF    = 400
 
-
 def build_room_rects():
-    """Devuelve los pygame.Rect de cada sala y pasillo."""
     cx, cy = ACX, ACY
     h      = ARENA_HALF
 
@@ -52,7 +47,6 @@ def build_room_rects():
 
 
 def build_walls():
-    """Crea todos los Collider estáticos de paredes y devuelve (door_collider, exit_door_collider)."""
     cx, cy = ACX, ACY
     h, t   = ARENA_HALF, WALL_THICK
     door_w = 240
@@ -199,7 +193,6 @@ def camera_follow(camera, target, delta_time, speed=10):
 
 
 def build_interactables(scene):
-    # Crea puertas y helicóptero con las posiciones calculadas desde las constantes del mapa
     from map.interactables.door import Door
     from item.item_drop_manager import HelicopterInteractable
     import scenes.level1_logic as logic

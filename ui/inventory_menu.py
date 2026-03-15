@@ -1,18 +1,13 @@
 import pygame
 
-# Layout consumibles
 ITEM_SLOT_ORIGIN = (100, 680)
 ITEM_SLOT_SIZE   = 96
 ITEM_SLOT_GAP    = 110
 ITEM_COLS        = 8
-
-# Layout armas del inventario
 WEAPON_INV_ORIGIN = (100, 530)
 WEAPON_INV_SIZE   = 96
 WEAPON_INV_GAP    = 130
 WEAPON_INV_MAX    = 3
-
-# Colores
 COLOR_SLOT_BG          = (50,  50,  50)
 COLOR_SLOT_HOVER_BG    = (80,  75,  40)
 COLOR_SLOT_SELECTED_BG = (80,  70,  20)
@@ -25,9 +20,7 @@ COLOR_WEAPON_BADGE     = (80,  140, 255)
 COLOR_WEAPON_BORDER    = (80,  140, 255)
 COLOR_TOOLTIP_BG       = (15,  15,  25, 210)
 COLOR_TOOLTIP_TEXT     = (255, 255, 200)
-
 _FONTS: dict = {}
-
 
 def _font(size: int, bold: bool = False) -> pygame.font.Font:
     key = (size, bold)
@@ -37,7 +30,6 @@ def _font(size: int, bold: bool = False) -> pygame.font.Font:
 
 
 def get_item_slot_rect(index: int) -> pygame.Rect:
-    # Solo cuenta consumibles — index es posición en la lista filtrada
     col = index % ITEM_COLS
     row = index // ITEM_COLS
     x   = ITEM_SLOT_ORIGIN[0] + col * ITEM_SLOT_GAP
@@ -263,7 +255,6 @@ def _draw_controls_hint(screen: pygame.Surface):
 
 def draw_inventory_screen(screen: pygame.Surface, player, mouse_pos,
                            pending_weapon_item=None):
-    """Dibuja el inventario. Si pending_weapon_item no es None muestra el overlay de asignación de slot."""
     overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 160))
     screen.blit(overlay, (0, 0))

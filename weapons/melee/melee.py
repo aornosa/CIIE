@@ -10,25 +10,21 @@ from core.particles.particle import Particle
 
 CONE_RAY_COUNT = 7
 
-
 def _ray_angles(half_angle: float) -> list[float]:
-    """Devuelve los ángulos de los rayos del cono, de -half_angle a +half_angle."""
     if CONE_RAY_COUNT == 1:
         return [0.0]
     return [(i / (CONE_RAY_COUNT - 1) * 2 - 1) * half_angle for i in range(CONE_RAY_COUNT)]
 
-
 class Melee(Weapon, MonoliteBehaviour):
-    def __init__(self, asset, name, damage, reach, attack_speed=1.0, reach_radius=40):
+    def __init__(self, asset, name, damage, reach, fire_rate=0.4, reach_radius=40):
         super().__init__(asset, name, damage)
         MonoliteBehaviour.__init__(self)
 
         self.reach        = reach
         self.reach_radius = reach_radius
 
-        # Stats base — las propiedades suman los upgrades del jugador encima
-        self._base_damage       = damage
-        self._base_attack_speed = attack_speed
+        self._base_damage    = damage
+        self._base_fire_rate = fire_rate
 
         self.cone_half_angle = max(15.0, min(60.0, math.degrees(math.atan2(reach_radius, reach))))
 
@@ -45,7 +41,7 @@ class Melee(Weapon, MonoliteBehaviour):
     def _upgrades(self):
         if self.parent and hasattr(self.parent, "weapon_upgrades"):
             return self.parent.weapon_upgrades
-        return {"melee_damage": 0, "melee_attack_speed": 0.0}
+        return {"melee_damage": 0, "melee_fire_rate": 0.0}
 
     @property
     def damage(self):
@@ -56,12 +52,12 @@ class Melee(Weapon, MonoliteBehaviour):
         self._base_damage = value
 
     @property
-    def attack_speed(self):
-        return max(0.5, self._base_attack_speed + self._upgrades().get("melee_attack_speed", 0.0))
+    def fire_rate(self):
+        return max(0.1, self._base_fire_rate + self._upgrades().get("melee_fire_rate", 0.0))
 
-    @attack_speed.setter
-    def attack_speed(self, value):
-        self._base_attack_speed = value
+    @fire_rate.setter
+    def fire_rate(self, value):
+        self._base_fire_rate = value
 
     def _create_impact_particle(self):
         surface = pygame.Surface((12, 12))
@@ -81,8 +77,7 @@ class Melee(Weapon, MonoliteBehaviour):
                 self._hit_targets.clear()
 
     def can_attack(self) -> bool:
-        # Cooldown calculado directamente desde attack_speed, sin atributo intermedio
-        return pygame.time.get_ticks() - self._last_attack_time >= (1.0 / self.attack_speed) * 1000
+        return pygame.time.get_ticks() - self._last_attack_time >= self.fire_rate * 1000
 
     def attack(self):
         if self.parent is None or not self.can_attack():
@@ -148,7 +143,6 @@ class Melee(Weapon, MonoliteBehaviour):
         muzzle_world  = self.parent.position + forward * 20
         origin_screen = muzzle_world - camera.position
 
-        # Construye los puntos del arco en coordenadas de pantalla
         arc_screen = [
             (muzzle_world + forward.rotate((i / 16 * 2 - 1) * self.cone_half_angle) * self.reach) - camera.position
             for i in range(17)

@@ -7,7 +7,7 @@ class TacticalKnife(Melee):
             name="Cuchillo Táctico",
             damage=70,
             reach=180,
-            attack_speed=3.5,
+            fire_rate=0.29,
             reach_radius=120,
         )
         self.attack_sound_key = "knife_slash"
@@ -19,7 +19,7 @@ class Baton(Melee):
             name="Porra Antidisturbios",
             damage=130,
             reach=340,
-            attack_speed=1.4,
+            fire_rate=0.71,
             reach_radius=260,
         )
         self.attack_sound_key = "baton_hit"

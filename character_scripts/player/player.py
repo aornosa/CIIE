@@ -14,7 +14,6 @@ DEFAULT_STATS = {
 _DASH_DISTANCE = 150.0
 _DASH_COOLDOWN = 3.0
 
-
 class Player(Character):
     def __init__(self, asset, position=(0, 0), rotation=0, scale=0.3, name="Player", health=100):
         super().__init__(asset, position, rotation, scale, name, health)
@@ -23,22 +22,17 @@ class Player(Character):
         self.inventory       = Inventory()
         self.inventory.owner = self
         self.collider.layer  = LAYERS["player"]
-
-        # Mejoras de armas acumuladas desde la tienda
         self.weapon_upgrades = {
             "ranged_damage":      0,
             "ranged_clip":        0,
             "ranged_fire_rate":   0.0,
             "ranged_reload_time": 0.0,
             "melee_damage":       0,
-            "melee_attack_speed": 0.0,
+            "melee_fire_rate": 0.0,
         }
-
-        # Habilidad de dash — se desbloquea en la tienda
         self.has_dash          = False
         self._dash_cooldown    = 0.0
         self._dash_direction   = None
-
         self.base_stats["speed"] = 370
         self.audio_listener = AudioListener(self)
         self._recalculate_stats()

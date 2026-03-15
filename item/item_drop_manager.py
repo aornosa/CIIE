@@ -17,7 +17,6 @@ class DropManager(MonoliteBehaviour):
             item.draw(screen, camera)
 
 class DroppedWeapon:
-    """Arma colocada en el escenario que el jugador puede recoger con [E]."""
     INTERACT_RADIUS = 100
     ICON_SIZE       = 48
     TOOLTIP_COLOR   = (255, 255, 180)
@@ -70,7 +69,6 @@ class DroppedWeapon:
                             screen_pos.y - self.ICON_SIZE // 2 - 18))
 
 class HelicopterInteractable:
-    """Helicóptero de extracción — interactuar aquí completa el juego."""
     INTERACT_RADIUS = 400
     TOOLTIP_COLOR   = (180, 255, 200)
     SIZE            = 500
@@ -112,7 +110,7 @@ class HelicopterInteractable:
             img = pygame.image.load(self._IMAGE_PATH).convert_alpha()
             self._image = pygame.transform.scale(img, (self.SIZE, self.SIZE))
         except Exception:
-            # False indica fallo de carga — evita reintentar cada frame
+            # False indica fallo de carga
             self._image = False
 
     def draw(self, screen: pygame.Surface, camera):

@@ -2,9 +2,7 @@ import math
 import pygame
 from character_scripts.enemy.enemy_base import Enemy
 
-
 class InfectedCommon(Enemy):
-    """Civil infectado. Bajo HP, bajo daño, velocidad media."""
     ATTACK_RANGE    = 32
     DETECTION_RANGE = 500
     ATTACK_COOLDOWN = 1.2
@@ -16,9 +14,7 @@ class InfectedCommon(Enemy):
             name="Infectado", health=120, strength=12, speed=150,
         )
 
-
 class InfectedSoldier(Enemy):
-    """Exsoldado infectado. Rápido, corre en zigzag hacia el jugador."""
     ATTACK_RANGE    = 38
     DETECTION_RANGE = 600
     ATTACK_COOLDOWN = 1.8
@@ -30,9 +26,7 @@ class InfectedSoldier(Enemy):
             name="Soldado Infectado", health=260, strength=28, speed=165,
         )
 
-
 class LabSubject(Enemy):
-    """Sujeto de laboratorio. Lento a distancia, carga a máxima velocidad al llegar al rango."""
     ATTACK_RANGE    = 42
     DETECTION_RANGE = 400
     ATTACK_COOLDOWN = 2.5
@@ -45,9 +39,7 @@ class LabSubject(Enemy):
             name="Sujeto de Laboratorio", health=450, strength=70, speed=85,
         )
 
-
 class TankEnemy(Enemy):
-    """Tanque: muy resistente. Carga en línea recta cuando el jugador está lejos."""
     ATTACK_RANGE    = 40
     DETECTION_RANGE = 800
     ATTACK_COOLDOWN = 2.0
@@ -62,9 +54,7 @@ class TankEnemy(Enemy):
         self.collider.rect.w = 25
         self.collider.rect.h = 25
 
-
 class ToxicPuddle:
-    """Charco tóxico dejado por ToxicEnemy."""
     DAMAGE_INTERVAL = 0.75
     LIFETIME        = 12.0
     RADIUS          = 30
@@ -139,9 +129,7 @@ class ToxicPuddle:
         else:
             screen.blit(self._surf, rect)
 
-
 class ToxicEnemy(Enemy):
-    """Tóxico: deja charcos. Huye si el jugador se acerca demasiado."""
     ATTACK_RANGE    = 35
     DETECTION_RANGE = 600
     ATTACK_COOLDOWN = 1.5
@@ -160,11 +148,9 @@ class ToxicEnemy(Enemy):
         self.collider.rect.h = 20
 
     def register_puddle_list(self, puddle_list: list):
-        """La escena/WaveManager debe llamar esto para conectar la lista compartida."""
         self._puddle_list = puddle_list
 
     def update(self, delta_time):
-        """Genera charcos periódicamente. Llamar desde ToxicBrain cada frame."""
         if self._puddle_list is None:
             return
         self._puddle_timer += delta_time
@@ -172,9 +158,7 @@ class ToxicEnemy(Enemy):
             self._puddle_timer -= self.PUDDLE_INTERVAL
             self._puddle_list.append(ToxicPuddle(self.position))
 
-
 class ShooterEnemy(Enemy):
-    """Tirador a distancia: huye si el jugador se acerca, dispara proyectiles."""
     ATTACK_RANGE    = 350
     FLEE_RANGE      = 180
     DETECTION_RANGE = 700

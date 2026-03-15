@@ -1,5 +1,4 @@
 import pygame
-
 from core.audio.audio_emitter import AudioEmitter
 
 AMMO_TYPES = {
@@ -7,7 +6,6 @@ AMMO_TYPES = {
     "7.62": "assets/ammo/7.62/data.json",
     "12gauge": "assets/ammo/12Gauge/data.json",
 }
-
 
 class Weapon:
     def __init__(self, asset, name, damage, pullout_time=0):

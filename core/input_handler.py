@@ -5,7 +5,6 @@ HOTKEY_KEYS = [
     pygame.K_4, pygame.K_5, pygame.K_6,
 ]
 
-
 class InputHandler:
     def __init__(self):
         self.actions = {
@@ -125,9 +124,7 @@ class InputHandler:
             self.mouse_position = pygame.Vector2(event.pos)
 
     def get_keys_pressed(self):
-        """Get current state of all keys"""
         return pygame.key.get_pressed()
 
     def get_keys_just_pressed(self):
-        """Get dictionary of keys pressed this frame"""
         return self.keys_just_pressed
