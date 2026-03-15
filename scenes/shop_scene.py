@@ -62,12 +62,39 @@ class ShopScene(Scene):
             input_handler.actions["pause"] = False
             self.director.pop()
             return
+        catalog_len = len(self.catalog)
+        close_index = catalog_len
+
         if input_handler.keys_just_pressed.get(pygame.K_UP) or \
            input_handler.keys_just_pressed.get(pygame.K_w):
-            self.selected = (self.selected - 1) % self.total_options
+            if self.selected == close_index:
+                self.selected = max(0, catalog_len - 1)
+            elif self.selected >= 2:
+                self.selected -= 2
+            else:
+                self.selected = close_index
+
         if input_handler.keys_just_pressed.get(pygame.K_DOWN) or \
            input_handler.keys_just_pressed.get(pygame.K_s):
-            self.selected = (self.selected + 1) % self.total_options
+            if self.selected == close_index:
+                self.selected = 0
+            else:
+                next_idx = self.selected + 2
+                self.selected = next_idx if next_idx < catalog_len else close_index
+
+        if input_handler.keys_just_pressed.get(pygame.K_LEFT) or \
+           input_handler.keys_just_pressed.get(pygame.K_a):
+            if self.selected == close_index:
+                self.selected = max(0, catalog_len - 1)
+            elif self.selected % 2 == 1:
+                self.selected -= 1
+
+        if input_handler.keys_just_pressed.get(pygame.K_RIGHT) or \
+           input_handler.keys_just_pressed.get(pygame.K_d):
+            if self.selected == close_index:
+                self.selected = 0
+            elif self.selected % 2 == 0 and self.selected + 1 < catalog_len:
+                self.selected += 1
         if input_handler.keys_just_pressed.get(pygame.K_RETURN):
             self._select_option()
 

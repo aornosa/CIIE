@@ -81,12 +81,22 @@ def draw_shop_menu(screen, catalog, selected_index, player_coins, message="", pl
     coin_surface = COIN_FONT.render(f"Monedas: {player_coins}", True, (255, 215, 0))
     screen.blit(coin_surface, (SCREEN_WIDTH // 2 - coin_surface.get_width() // 2, 150))
 
-    start_y = 240
-    spacing = 75
+    start_y = 230
+    row_h   = 92
+    gap_x   = 24
+
+    portrait_right = (SCREEN_WIDTH // 2 - 360 - _PORTRAIT_SIZE - 20) + _PORTRAIT_SIZE
+    content_left   = max(SCREEN_WIDTH // 2 - 520, portrait_right + 24)
+    content_right  = SCREEN_WIDTH - 80
+    card_w         = max(320, (content_right - content_left - gap_x) // 2)
+    col_x          = [content_left, content_left + card_w + gap_x]
 
     for i, item in enumerate(catalog):
         is_selected = (i == selected_index)
-        row_y       = start_y + i * spacing
+        row_i       = i // 2
+        col_i       = i % 2
+        row_y       = start_y + row_i * row_h
+        item_x      = col_x[col_i]
 
         # Arma única ya poseída — mostrar en gris con badge "Comprada"
         weapon_name = item["name"].split(" (")[0]
@@ -95,7 +105,7 @@ def draw_shop_menu(screen, catalog, selected_index, player_coins, message="", pl
         can_afford  = player_coins >= item["cost"]
 
         if is_selected:
-            bar = pygame.Rect(SCREEN_WIDTH // 2 - 360, row_y - 6, 720, 66)
+            bar = pygame.Rect(item_x - 8, row_y - 6, card_w + 16, 76)
             pygame.draw.rect(screen, (255, 220, 50), bar, 2, border_radius=6)
 
         if is_owned:
@@ -116,40 +126,42 @@ def draw_shop_menu(screen, catalog, selected_index, player_coins, message="", pl
             OPTION_FONT.bold = False
 
         name_surface = OPTION_FONT.render(f"{prefix}{item['name']}", True, name_color)
-        screen.blit(name_surface, (SCREEN_WIDTH // 2 - 340, row_y))
+        screen.blit(name_surface, (item_x, row_y))
 
         desc_color   = (90, 90, 90) if is_owned else ((170, 170, 170) if can_afford else (80, 80, 80))
         DESC_FONT.bold = False
         desc_surface = DESC_FONT.render(item["desc"], True, desc_color)
-        screen.blit(desc_surface, (SCREEN_WIDTH // 2 - 340, row_y + 30))
+        screen.blit(desc_surface, (item_x, row_y + 30))
 
         # Badge "Comprada" para armas únicas ya poseídas
         if is_owned:
             badge = STAT_FONT.render("Comprada", True, (90, 90, 90))
-            screen.blit(badge, (SCREEN_WIDTH // 2 + 320 - badge.get_width(), row_y + 32))
+            screen.blit(badge, (item_x + card_w - badge.get_width(), row_y + 32))
         else:
             cur_label = _get_current_value_label(item, player)
             if cur_label:
                 badge_color = (100, 220, 255) if can_afford else (60, 100, 110)
                 cur_surf = STAT_FONT.render(cur_label, True, badge_color)
-                screen.blit(cur_surf, (SCREEN_WIDTH // 2 + 320 - cur_surf.get_width(), row_y + 32))
+                screen.blit(cur_surf, (item_x + card_w - cur_surf.get_width(), row_y + 32))
 
             cost_color   = (255, 215, 0) if can_afford else (150, 70, 70)
             OPTION_FONT.bold = is_selected
             cost_surface = OPTION_FONT.render(f"${item['cost']}", True, cost_color)
-            screen.blit(cost_surface, (SCREEN_WIDTH // 2 + 320 - cost_surface.get_width(), row_y))
+            screen.blit(cost_surface, (item_x + card_w - cost_surface.get_width(), row_y))
 
-    close_y  = start_y + len(catalog) * spacing + 20
+    rows     = (len(catalog) + 1) // 2
+    close_y  = start_y + rows * row_h + 20
     is_close = selected_index >= len(catalog)
 
     OPTION_FONT.bold = is_close
     color  = (255, 220, 50) if is_close else (200, 200, 200)
     prefix = "> " if is_close else "  "
     close_surface = OPTION_FONT.render(f"{prefix}Cerrar [P]", True, color)
-    screen.blit(close_surface, (SCREEN_WIDTH // 2 - close_surface.get_width() // 2, close_y))
+    content_center_x = content_left + (card_w * 2 + gap_x) // 2
+    screen.blit(close_surface, (content_center_x - close_surface.get_width() // 2, close_y))
 
     if message:
         MSG_FONT.bold = True
         msg_color = (100, 255, 100) if "comprado" in message.lower() or "añadida" in message.lower() else (255, 100, 100)
         msg_surface = MSG_FONT.render(message, True, msg_color)
-        screen.blit(msg_surface, (SCREEN_WIDTH // 2 - msg_surface.get_width() // 2, close_y + 70))
+        screen.blit(msg_surface, (content_center_x - msg_surface.get_width() // 2, close_y + 70))
