@@ -5,25 +5,28 @@ from ui.keybindings_menu import draw_keybindings_menu
 KEYBINDINGS = {
     "Movimiento": [
         ("W / A / S / D",      "Mover al jugador"),
-        ("LCtrl  (mantener)",  "Mover la cámara libremente"),
+        ("LShift",             "Dash (si está desbloqueado)"),
     ],
     "Combate": [
         ("Clic izquierdo",     "Disparar / Atacar"),
-        ("Clic derecho",       "Apuntar (ADS)"),
         ("R",                  "Recargar arma"),
         ("Q",                  "Cambiar arma activa"),
     ],
     "Inventario": [
-        ("1 – 6",              "Seleccionar hueco del inventario"),
+        ("1 - 6",              "Usar consumible en hotbar"),
         ("F",                  "Usar el item seleccionado"),
         ("Tab",                "Abrir / cerrar inventario"),
+        ("LMB (inventario)",   "Usar consumible / elegir arma"),
+        ("RMB (inventario)",   "Soltar item al suelo"),
+        ("1 / 2 (overlay)",    "Asignar arma a primario / secundario"),
+        ("Esc (inventario)",   "Cerrar inventario (no pausa)"),
     ],
     "Interacción": [
-        ("E",                  "Interactuar / hablar con NPC"),
-        ("P",                  "Abrir tienda"),
+        ("E",                  "Interactuar"),
+        ("P",                  "Abrir tienda (si está desbloqueada)"),
     ],
     "Menú": [
-        ("Escape",             "Pausar / volver atrás"),
+        ("Escape",             "Pausar"),
         ("↑ / ↓  o  W / S",   "Navegar opciones"),
         ("Enter",              "Confirmar selección"),
     ],
