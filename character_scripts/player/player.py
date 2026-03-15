@@ -53,15 +53,6 @@ class Player(Character):
             return False
         if self._dash_cooldown > 0:
             return False
-        # No dashear si se está recargando o atacando
-        if weapon_controller:
-            active = self.inventory.get_weapon(self.inventory.active_weapon_slot)
-            from weapons.ranged.ranged import Ranged
-            from weapons.melee.melee import Melee
-            if isinstance(active, Ranged) and active.is_reloading():
-                return False
-            if isinstance(active, Melee) and active._is_attacking:
-                return False
 
         direction = self._dash_direction
         if direction is None or direction.length() < 0.01:
