@@ -19,6 +19,7 @@ class Character(Object):
         self.current_stats = dict(DEFAULT_STATS)
         self.effects      = {}
         self.collider     = Collider(self, Rectangle.from_rect(self.asset.get_rect()))
+        self.collider.sync_with_owner()
         self.audio_emitter = AudioEmitter(self, position, None)
 
     def is_alive(self):

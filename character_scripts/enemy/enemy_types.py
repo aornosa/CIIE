@@ -10,7 +10,7 @@ class InfectedCommon(Enemy):
     def __init__(self, position=(0, 0)):
         super().__init__(
             asset="assets/enemies/infected_common/infected_common.png",
-            position=position, scale=0.20,
+            position=position, scale=0.07,
             name="Infectado", health=120, strength=12, speed=150,
         )
 
@@ -22,7 +22,7 @@ class InfectedSoldier(Enemy):
     def __init__(self, position=(0, 0)):
         super().__init__(
             asset="assets/enemies/infected_soldier/infected_soldier.png",
-            position=position, scale=0.22,
+            position=position, scale=0.09,
             name="Soldado Infectado", health=260, strength=28, speed=165,
         )
 
@@ -35,8 +35,8 @@ class LabSubject(Enemy):
     def __init__(self, position=(0, 0)):
         super().__init__(
             asset="assets/enemies/lab_subject/lab_subject.png",
-            position=position, scale=0.28,
-            name="Sujeto de Laboratorio", health=450, strength=70, speed=85,
+            position=position, scale=0.12,
+            name="Sujeto de Laboratorio", health=500, strength=70, speed=115,
         )
 
 class TankEnemy(Enemy):
@@ -48,11 +48,9 @@ class TankEnemy(Enemy):
     def __init__(self, position=(0, 0)):
         super().__init__(
             asset="assets/enemies/red.png",
-            position=position, scale=0.15,
-            name="Tanque", health=600, strength=35, speed=80,
+            position=position, scale=0.2,
+            name="Tanque", health=800, strength=35, speed=80,
         )
-        self.collider.rect.w = 25
-        self.collider.rect.h = 25
 
 class ToxicPuddle:
     DAMAGE_INTERVAL = 0.75
@@ -139,13 +137,11 @@ class ToxicEnemy(Enemy):
     def __init__(self, position=(0, 0)):
         super().__init__(
             asset="assets/enemies/green.png",
-            position=position, scale=0.12,
+            position=position, scale=0.08,
             name="Tóxico", health=170, strength=15, speed=140,
         )
         self._puddle_timer = 0.0
         self._puddle_list  = None
-        self.collider.rect.w = 20
-        self.collider.rect.h = 20
 
     def register_puddle_list(self, puddle_list: list):
         self._puddle_list = puddle_list
@@ -160,22 +156,20 @@ class ToxicEnemy(Enemy):
 
 class ShooterEnemy(Enemy):
     ATTACK_RANGE    = 350
-    FLEE_RANGE      = 180
+    FLEE_RANGE      = 220
     DETECTION_RANGE = 700
-    ATTACK_COOLDOWN = 1.8
+    ATTACK_COOLDOWN = 1.5
     BULLET_SPEED    = 420
     BULLET_DAMAGE   = 18
 
     def __init__(self, position=(0, 0)):
         super().__init__(
             asset="assets/enemies/yellow.png",
-            position=position, scale=0.10,
+            position=position, scale=0.06,
             name="Tirador", health=140, strength=self.BULLET_DAMAGE, speed=155,
         )
         self._attack_timer   = self.ATTACK_COOLDOWN * 0.5
         self._bullets: list  = []
-        self.collider.rect.w = 20
-        self.collider.rect.h = 20
 
     def shoot(self, player):
         direction = player.position - self.position
@@ -209,4 +203,4 @@ class ShooterEnemy(Enemy):
     def draw_bullets(self, screen, camera):
         for b in self._bullets:
             pos = b["pos"] - camera.position
-            pygame.draw.circle(screen, (255, 200, 0), (int(pos.x), int(pos.y)), 5)
+            pygame.draw.circle(screen, (255, 200, 0), (int(pos.x), int(pos.y)), 10)

@@ -33,11 +33,17 @@ class Collider:
         if sync_rotation and hasattr(self.owner, 'rotation'):
             pass
 
-        # Escala el rect al 50 % del asset para aproximar el área visible del sprite
+        # Alinea el collider con el sprite renderizado (ya escalado y con el mismo redondeo).
+        # Rectangle guarda semiancho/semialto, por eso se divide entre 2.
         if sync_scale and hasattr(self.owner, 'scale'):
-            s            = self.owner.scale
-            self.rect.h  = s * self.owner.asset.get_height() * 0.5
-            self.rect.w  = s * self.owner.asset.get_width()  * 0.5
+            if hasattr(self.owner, '_get_scaled_asset'):
+                scaled = self.owner._get_scaled_asset()
+                self.rect.w = scaled.get_width() / 2
+                self.rect.h = scaled.get_height() / 2
+            else:
+                s            = self.owner.scale
+                self.rect.h  = s * self.owner.asset.get_height() * 0.5
+                self.rect.w  = s * self.owner.asset.get_width()  * 0.5
 
     def check_collision(self, layers=None, tags=None, include_self=False):
         return CollisionManager.get_collisions_active(
