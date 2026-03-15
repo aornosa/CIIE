@@ -36,7 +36,7 @@ class LabSubject(Enemy):
         super().__init__(
             asset="assets/enemies/lab_subject/lab_subject.png",
             position=position, scale=0.12,
-            name="Sujeto de Laboratorio", health=500, strength=70, speed=115,
+            name="Sujeto de Laboratorio", health=500, strength=70, speed=70,
         )
 
 class TankEnemy(Enemy):

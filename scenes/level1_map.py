@@ -202,18 +202,26 @@ def build_interactables(scene):
     door_w = 240
 
     dx, dy           = cx, cy - ARENA_HALF - t // 2
-    # Puerta norte: gratuita pero solo abre al completar oleada 10
-    scene._door      = Door("Puerta Norte", (dx, dy), 0,
-                            lambda: logic.on_north_door_open(scene),
-                            unlock_condition=lambda: getattr(scene, "_zone1_complete", False))
+    # Puerta norte: se desbloquea solo al completar la oleada 10.
+    scene._door      = Door(
+        name="Puerta Norte",
+        position=(dx, dy),
+        on_open=lambda: logic.on_north_door_open(scene),
+        unlock_condition=lambda: getattr(scene, "_zone1_complete", False),
+    )
+    scene._door.interact_text = "Se abrira cuando completes la oleada 10 [E]"
     scene._door_rect = pygame.Rect(dx - door_w // 2, dy - t // 2, door_w, t)
 
     north_top_y           = cy - ARENA_HALF - CORRIDOR_H - NORTH_SQ * 2
     ex, ey                = cx, north_top_y - t // 2
-    # Puerta salida: gratuita pero solo abre al completar oleada 25
-    scene._exit_door      = Door("Puerta de Salida", (ex, ey), 0,
-                                 lambda: logic.on_exit_door_open(scene),
-                                 unlock_condition=lambda: getattr(scene, "_zone2_complete", False))
+    # Puerta salida: se desbloquea solo al completar la oleada 25.
+    scene._exit_door      = Door(
+        name="Puerta de Salida",
+        position=(ex, ey),
+        on_open=lambda: logic.on_exit_door_open(scene),
+        unlock_condition=lambda: getattr(scene, "_zone2_complete", False),
+    )
+    scene._exit_door.interact_text = "Se abrira cuando completes la oleada 25 [E]"
     scene._exit_door_rect = pygame.Rect(ex - door_w // 2, north_top_y - t, door_w, t)
 
     heli_y                    = north_top_y - EXIT_CORRIDOR_H - EXIT_SQ_HALF * 2

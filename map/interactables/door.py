@@ -47,18 +47,6 @@ class Door(Interactable):
             self._image = False
 
     def draw(self, screen, camera):
-        if self.is_open:
-            return
-        if self._image is None:
-            self._load_image()
-        sp = self.position - camera.position
-        if self._image:
-            img = self._image if self.orientation == "horizontal" else pygame.transform.rotate(self._image, 90)
-            screen.blit(img, (sp.x - img.get_width() // 2, sp.y - img.get_height() // 2))
-        else:
-            if self.orientation == "vertical":
-                rect = pygame.Rect(sp.x - 40, sp.y - 70, 80, 140)
-            else:
-                rect = pygame.Rect(sp.x - 70, sp.y - 40, 140, 80)
-            pygame.draw.rect(screen, (80,  50,  20), rect)
-            pygame.draw.rect(screen, (150, 100, 50), rect, 3)
+        # El render visual de puertas se maneja en scenes/level1_map.py.
+        # Aquí no dibujamos sprite para mantenerlas sin textura.
+        return

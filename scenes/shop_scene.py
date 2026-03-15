@@ -7,21 +7,21 @@ from item.item_loader import ItemRegistry
 SHOP_CATALOG = [
     # Mejoras de personaje
     {"name": "Vida Reforzada",    "desc": "+25 Vida máxima",               "cost": 300, "type": "stat",       "stat": "max_health", "value": 25},
-    {"name": "Botas de Acero",    "desc": "+30 Velocidad",                  "cost": 300, "type": "stat",       "stat": "speed",      "value": 30},
+    {"name": "Botas de Acero",    "desc": "+30 Velocidad",                  "cost": 600, "type": "stat",       "stat": "speed",      "value": 30},
     # Mejoras ranged (todas las armas de fuego equipadas)
     {"name": "Cargador Ampliado", "desc": "+10 balas (todas las ranged)",   "cost": 600, "type": "weapon_all_ranged", "attr": "clip_size",  "value": 10},
     {"name": "Gatillo Mejorado",  "desc": "-0.03s disparo (todas ranged)",  "cost": 600, "type": "weapon_all_ranged", "attr": "fire_rate",  "value": -0.03},
-    {"name": "Munición Perforante","desc": "+10 daño (todas las ranged)",   "cost": 600, "type": "weapon_all_ranged", "attr": "damage",      "value": 10},
-    {"name": "Recarga Rápida",    "desc": "-0.2s recarga (todas ranged)",   "cost": 600, "type": "weapon_all_ranged", "attr": "reload_time", "value": -0.2},
+    {"name": "Munición Perforante","desc": "+30 daño (todas las ranged)",   "cost": 600, "type": "weapon_all_ranged", "attr": "damage",      "value": 30},
+    {"name": "Recarga Rápida",    "desc": "-0.2s recarga (todas ranged)",   "cost": 300, "type": "weapon_all_ranged", "attr": "reload_time", "value": -0.2},
     # Mejoras melee (todas las armas cuerpo a cuerpo equipadas)
-    {"name": "Filo Afilado",      "desc": "+15 daño (todas las melee)",     "cost": 600, "type": "weapon_all_melee",  "attr": "damage",       "value": 15},
+    {"name": "Filo Afilado",      "desc": "+25 daño (todas las melee)",     "cost": 600, "type": "weapon_all_melee",  "attr": "damage",       "value": 25},
     {"name": "Ataque Rápido",     "desc": "-0.05s ataque (todas melee)",    "cost": 600, "type": "weapon_all_melee",  "attr": "fire_rate",    "value": -0.05},
     # Armas
     {"name": "Bastón",            "desc": "Porra antidisturbios · melee",   "cost": 350, "type": "buy_weapon", "weapon_class": "Baton",  "unique": True},
     {"name": "MP5",               "desc": "Subfusil 9mm · 60 balas",        "cost": 350, "type": "buy_weapon", "weapon_class": "MP5",    "unique": True},
     {"name": "SPAS-12",           "desc": "Escopeta 12ga · 15 balas",       "cost": 350, "type": "buy_weapon", "weapon_class": "SPAS12", "unique": True},
     # Habilidad
-    {"name": "Habilidad: Dash",   "desc": "Impulso rápido · Shift · CD: 3s",  "cost": 900, "type": "dash",        "unique": True},
+    {"name": "Habilidad: Dash",   "desc": "Impulso rápido · Shift · CD: 3s",  "cost": 400, "type": "dash",        "unique": True},
 ]
 
 def _build_weapon(weapon_class: str):

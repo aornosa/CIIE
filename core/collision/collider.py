@@ -26,9 +26,13 @@ class Collider:
             CollisionManager.add_collider(self)
 
     def sync_with_owner(self, sync_position=True, sync_rotation=False, sync_scale=True):
-        if sync_position and hasattr(self.owner, 'position'):
-            self.rect.x = self.owner.position[0]
-            self.rect.y = self.owner.position[1]
+        pos_x = pos_y = None
+        if hasattr(self.owner, 'position'):
+            pos_x = self.owner.position[0]
+            pos_y = self.owner.position[1]
+            if sync_position:
+                self.rect.x = pos_x
+                self.rect.y = pos_y
 
         if sync_rotation and hasattr(self.owner, 'rotation'):
             pass
@@ -38,8 +42,21 @@ class Collider:
         if sync_scale and hasattr(self.owner, 'scale'):
             if hasattr(self.owner, '_get_scaled_asset'):
                 scaled = self.owner._get_scaled_asset()
-                self.rect.w = scaled.get_width() / 2
-                self.rect.h = scaled.get_height() / 2
+                # Usa solo el area visible (no transparente) para evitar hitboxes infladas.
+                vis = scaled.get_bounding_rect(min_alpha=1)
+                if vis.width <= 0 or vis.height <= 0:
+                    vis = scaled.get_rect()
+
+                self.rect.w = vis.width / 2
+                self.rect.h = vis.height / 2
+
+                # Corrige el centro del collider si el contenido visible esta desplazado
+                # dentro del sprite (padding transparente asimetrico).
+                if sync_position and pos_x is not None and pos_y is not None:
+                    off_x = vis.centerx - (scaled.get_width() / 2)
+                    off_y = vis.centery - (scaled.get_height() / 2)
+                    self.rect.x = pos_x + off_x
+                    self.rect.y = pos_y + off_y
             else:
                 s            = self.owner.scale
                 self.rect.h  = s * self.owner.asset.get_height() * 0.5
