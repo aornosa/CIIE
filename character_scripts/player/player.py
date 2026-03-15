@@ -66,6 +66,7 @@ class Player(Character):
         return True
 
     def update(self, delta_time: float):
+        self.update_effects(delta_time)
         self.inventory.update(delta_time)
         if self._dash_cooldown > 0:
             self._dash_cooldown = max(0.0, self._dash_cooldown - delta_time)

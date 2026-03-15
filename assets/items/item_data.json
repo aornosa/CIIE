@@ -2,7 +2,7 @@
   "ammo_clip_9mm": {
     "asset": "assets/ammo/9x19/clip.png",
     "name": "9mm Ammo Clip",
-    "description": "Standard low caliber ammunition",
+    "description": "Munición estándar de bajo calibre.",
     "type": "ammo_clip",
     "ammo": {
       "ammo_type": "9x19",
@@ -13,7 +13,7 @@
   "ammo_clip_12gauge": {
     "asset": "assets/ammo/12Gauge/clip.png",
     "name": "12 Gauge Shotgun Shells",
-    "description": "Powerful shotgun shells for close combat",
+    "description": "Cartuchos de escopeta potentes para combate a corta distancia.",
     "type": "ammo_clip",
     "ammo": {
       "ammo_type": "12gauge",
@@ -24,7 +24,7 @@
   "ammo_clip_762": {
     "asset": "assets/ammo/7.62/clip.png",
     "name": "7.62mm Rifle Ammo",
-    "description": "High caliber rounds for assault rifles and sniper rifles",
+    "description": "Munición de alto calibre para rifles de asalto y de francotirador.",
     "type": "ammo_clip",
     "ammo": {
       "ammo_type": "7.62",
@@ -35,7 +35,7 @@
   "health_injector": {
     "asset": "assets/items/phoenix_injector/phoenix_injector.png",
     "name": "Phoenix Injector",
-    "description": "Phoenix Auto-Injector. Restores 60HP and boosts speed for 8s. Highly addictive: each use permanently reduces max health.",
+    "description": "Autoinyector Fénix. Restaura 60 de vida y aumenta la velocidad durante 8 s. Es altamente adictivo: cada uso reduce de forma permanente la vida máxima.",
     "type": "consumable",
     "effect": "phoenix_injector"
   },
@@ -43,7 +43,7 @@
   "stim_patch": {
     "asset": "assets/items/stim_patch/stim_patch.png",
     "name": "Stim Patch",
-    "description": "Standard military-grade medpatch. Restores 30HP. No side effects.",
+    "description": "Parche médico militar estándar. Restaura 30 de vida. Sin efectos secundarios.",
     "type": "consumable",
     "effect": "regen_health"
   },
@@ -51,7 +51,7 @@
   "adrenaline_shot": {
     "asset": "assets/items/adrenaline_shot/adrenaline_shot.png",
     "name": "Adrenaline Shot",
-    "description": "Combat stimulant. Greatly increases movement speed for 5s. No healing.",
+    "description": "Estimulante de combate. Aumenta mucho la velocidad de movimiento durante 5 s. No cura vida.",
     "type": "consumable",
     "effect": "adrenaline_shot"
   },
@@ -59,7 +59,7 @@
   "rad_suppressor": {
     "asset": "assets/items/rad_suppressor/rad_suppressor.png",
     "name": "RAD Suppressor",
-    "description": "Experimental Armengard compound. Neutralises Phoenix Injector addiction and restores lost max health.",
+    "description": "Compuesto experimental de Armengard. Neutraliza la adicción al Inyector Fénix y restaura la vida máxima perdida.",
     "type": "consumable",
     "effect": "rad_suppressor"
   },
@@ -67,7 +67,7 @@
   "dash_ability": {
     "asset": "assets/items/dash_ability/dash_ability.png",
     "name": "Dash",
-    "description": "Permite realizar un impulso rápido en la dirección en la que miras.",
+    "description": "Permite realizar un impulso rápido en la dirección hacia la que miras.",
     "type": "consumable",
     "effect": "dash",
     "cooldown": 3.0,

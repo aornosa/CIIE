@@ -57,3 +57,16 @@ class Character(Object):
 
     def get_stat(self, key):
         return self.current_stats.get(key, 0)
+
+    def update_effects(self, delta_time: float):
+        changed = False
+        for effect_name in list(self.effects.keys()):
+            effect = self.effects[effect_name]
+            if hasattr(effect, "tick"):
+                effect.tick(delta_time)
+            if hasattr(effect, "is_expired") and effect.is_expired():
+                del self.effects[effect_name]
+                changed = True
+
+        if changed:
+            self._recalculate_stats()
