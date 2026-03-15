@@ -1,50 +1,76 @@
 import pygame
 from core.scene import Scene
+from core.audio.audio_manager import AudioManager
+from core.audio.audio_mixer_category import SoundCategory
 from ui.settings_menu import draw_settings_menu
 
+_STEP = 0.05  
+_OPTIONS_DEF = [
+    {"label": "Controles", "type": "action"},
+    {"label": "Música",    "type": "slider", "category": SoundCategory.MUSIC},
+    {"label": "Efectos",   "type": "slider", "category": SoundCategory.SFX},
+    {"label": "Volver",    "type": "action"},
+]
 
 class SettingsScene(Scene):
-    """Settings / options menu – can be reached from MainMenu or PauseMenu."""
 
     def __init__(self):
         super().__init__()
-        self.options = ["Controles", "Audio (placeholder)", "Video (placeholder)", "Volver"]
         self.selected = 0
 
+    def _render_options(self):
+        am = AudioManager.instance()
+        result = []
+        for opt in _OPTIONS_DEF:
+            if opt["type"] == "slider":
+                result.append({
+                    "label":  opt["label"],
+                    "slider": am.mixer_volumes.get(opt["category"], 1.0),
+                })
+            else:
+                result.append({"label": opt["label"]})
+        return result
+
     def handle_events(self, input_handler):
-        # ESC to go back
         if input_handler.actions.get("pause"):
             input_handler.actions["pause"] = False
             self.director.pop()
             return
 
-        if input_handler.keys_just_pressed.get(pygame.K_UP) or \
-           input_handler.keys_just_pressed.get(pygame.K_w):
-            self.selected = (self.selected - 1) % len(self.options)
+        jp = input_handler.keys_just_pressed
 
-        if input_handler.keys_just_pressed.get(pygame.K_DOWN) or \
-           input_handler.keys_just_pressed.get(pygame.K_s):
-            self.selected = (self.selected + 1) % len(self.options)
+        # Navegar arriba/abajo
+        if jp.get(pygame.K_UP) or jp.get(pygame.K_w):
+            self.selected = (self.selected - 1) % len(_OPTIONS_DEF)
+        if jp.get(pygame.K_DOWN) or jp.get(pygame.K_s):
+            self.selected = (self.selected + 1) % len(_OPTIONS_DEF)
 
-        if input_handler.keys_just_pressed.get(pygame.K_RETURN):
-            self._select_option()
+        opt = _OPTIONS_DEF[self.selected]
+
+        if opt["type"] == "slider":
+            am  = AudioManager.instance()
+            cat = opt["category"]
+            vol = am.mixer_volumes.get(cat, 1.0)
+            if jp.get(pygame.K_LEFT)  or jp.get(pygame.K_a):
+                am.set_mixer_volume(cat, vol - _STEP)
+            if jp.get(pygame.K_RIGHT) or jp.get(pygame.K_d):
+                am.set_mixer_volume(cat, vol + _STEP)
+
+        elif jp.get(pygame.K_RETURN):
+            self._activate(opt)
 
     def update(self, delta_time):
         pass
 
     def render(self, screen):
-        draw_settings_menu(screen, self.options, self.selected)
+        draw_settings_menu(screen, self._render_options(), self.selected)
 
     def on_enter(self):
         pygame.mouse.set_visible(True)
 
-
-    def _select_option(self):
-        option = self.options[self.selected]
-
-        if option == "Controles":
+    def _activate(self, opt):
+        if opt["label"] == "Controles":
             from scenes.keybindings_scene import KeybindingsScene
             self.director.push(KeybindingsScene())
-
-        elif option == "Volver":
+        elif opt["label"] == "Volver":
             self.director.pop()

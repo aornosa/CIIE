@@ -1,23 +1,21 @@
 import pygame
-
 from core.collision.layers import LAYERS, get_layer_name
 from core.collision.quadtree import QuadTree
 from core.monolite_behaviour import MonoliteBehaviour
 from settings import ENABLE_COLLISION_DEBUG
 
-
 class CollisionManager(MonoliteBehaviour):
-    static_colliders = set()
+    static_colliders  = set()
     dynamic_colliders = set()
 
-    _active = None
+    _active      = None
     static_dirty = True
 
     def __init__(self, world_bounds, camera=None, set_active=True):
         MonoliteBehaviour.__init__(self)
         self.world_bounds = world_bounds
 
-        self.static_qtree = QuadTree(self.world_bounds, 4)
+        self.static_qtree  = QuadTree(self.world_bounds, 4)
         self.dynamic_qtree = QuadTree(self.world_bounds, 4)
 
         if set_active:
@@ -26,8 +24,7 @@ class CollisionManager(MonoliteBehaviour):
         self.camera = camera
 
     @classmethod
-    def set_active(cls, instance):
-        cls._active = instance
+    def set_active(cls, instance): cls._active = instance
 
     @classmethod
     def active(cls):
@@ -47,12 +44,13 @@ class CollisionManager(MonoliteBehaviour):
             cls.active().dynamic_qtree.insert(collider)
 
     def update(self):
+        # Reconstruye el quadtree dinámico cada frame con las posiciones actualizadas
         self.dynamic_qtree.clear()
         for c in self.dynamic_colliders:
-            # collider should be in bounds
             self.dynamic_qtree.insert(c)
-            c.sync_with_owner() # TODO: Move later into character update loop
+            c.sync_with_owner()  # TODO: Move later into character update loop
 
+        # El quadtree estático solo se reconstruye cuando algo cambia
         if self.static_dirty:
             self.static_qtree.clear()
             for c in self.static_colliders:
@@ -63,25 +61,22 @@ class CollisionManager(MonoliteBehaviour):
             self.draw_debug_boxes(pygame.display.get_surface(), self.camera)
 
     def draw_debug_boxes(self, surface, camera=None):
-        self._draw_node(surface, self.dynamic_qtree,(255, 0, 255), camera)
-        self._draw_node(surface, self.static_qtree, (255, 255, 0), camera)
-        if self.dynamic_colliders:
-            for c in self.dynamic_colliders:
-                r = c.rect.to_rect()
-                if camera is not None:
-                    r = r.move(-camera.position[0], -camera.position[1])
-                pygame.draw.rect(surface, (255, 0, 0), r, 1)
-                self._draw_collider_label(surface, r, c)
+        self._draw_node(surface, self.dynamic_qtree, (255, 0, 255), camera)
+        self._draw_node(surface, self.static_qtree,  (255, 255, 0), camera)
+        for c in self.dynamic_colliders:
+            r = c.rect.to_rect()
+            if camera is not None:
+                r = r.move(-camera.position[0], -camera.position[1])
+            pygame.draw.rect(surface, (255, 0, 0), r, 1)
+            self._draw_collider_label(surface, r, c)
+        for c in self.static_colliders:
+            r = c.rect.to_rect()
+            if camera is not None:
+                r = r.move(-camera.position[0], -camera.position[1])
+            pygame.draw.rect(surface, (0, 150, 255), r, 1)
+            self._draw_collider_label(surface, r, c)
 
-        if self.static_colliders:
-            for c in self.static_colliders:
-                r = c.rect.to_rect()
-                if camera is not None:
-                    r = r.move(-camera.position[0], -camera.position[1])
-                pygame.draw.rect(surface, (0, 150, 255), r, 1)
-                self._draw_collider_label(surface, r, c)
-
-
+    # Dibuja recursivamente los nodos del quadtree como rectángulos de debug
     def _draw_node(self, surface: pygame.Surface, node: QuadTree, color, camera=None):
         r = node.boundary.to_rect()
         if camera is not None:
@@ -95,13 +90,11 @@ class CollisionManager(MonoliteBehaviour):
     @staticmethod
     def _draw_collider_label(surface: pygame.Surface, rect: pygame.Rect, collider):
         text = f"L:{get_layer_name(collider.layer)}"
-        img = pygame.font.SysFont("consolas", 16).render(text, True, (255, 255, 255))
-        pad = 2
-
-        bg = img.get_rect(topleft=(rect.x, rect.y - img.get_height() - pad))
+        img  = pygame.font.SysFont("consolas", 16).render(text, True, (255, 255, 255))
+        pad  = 2
+        bg   = img.get_rect(topleft=(rect.x, rect.y - img.get_height() - pad))
         bg.inflate_ip(pad * 2, pad * 2)
         pygame.draw.rect(surface, (0, 0, 0), bg)
-
         surface.blit(img, (bg.x + pad, bg.y + pad))
 
     @classmethod
@@ -117,83 +110,35 @@ class CollisionManager(MonoliteBehaviour):
     def collides_any_active(cls, collider, *, layers=None, tags=None, include_self=False):
         return cls.active().collides_any(collider, layers=layers, tags=tags, include_self=include_self)
 
-    def get_collisions(self, collider, *, layers=None, tags=None, include_self=False):
-        results = []
-
+    def _get_candidates(self, collider):
+        # Los colisores estáticos solo colisionan contra dinámicos, no entre sí
         if collider.static:
-            candidates = self.dynamic_qtree.query(collider.rect)
-        else:
-            candidates = (self.dynamic_qtree.query(collider.rect) +
-                          self.static_qtree.query(collider.rect))
+            return self.dynamic_qtree.query(collider.rect)
+        return (self.dynamic_qtree.query(collider.rect) +
+                self.static_qtree.query(collider.rect))
 
+    def _filter_candidates(self, collider, candidates, layers, tags, include_self):
         for other in candidates:
-            # Skip self unless explicitly included
             if not include_self and other is collider:
                 continue
-
-            # Layer filtering
             if layers is not None:
-                if isinstance(layers, (list, tuple, set)):
-                    if other.layer not in layers:
-                        continue
-                else:
-                    if other.layer != layers:
-                        continue
-
-            # Tag filtering
+                target = layers if isinstance(layers, (list, tuple, set)) else (layers,)
+                if other.layer not in target:
+                    continue
             if tags is not None:
-                if isinstance(tags, (list, tuple, set)):
-                    if other.tag not in tags:
-                        continue
-                else:
-                    if other.tag != tags:
-                        continue
-
-            # Narrow-phase precise check (rectangle intersection)
-            if (
-                    collider.rect.contains(other.rect)
+                target = tags if isinstance(tags, (list, tuple, set)) else (tags,)
+                if other.tag not in target:
+                    continue
+            # Fase estrecha: comprueba intersección real tras el filtrado broadphase del quadtree
+            if (collider.rect.contains(other.rect)
                     or collider.rect.fully_contains(other.rect)
-                    or other.rect.contains(collider.rect)
-            ):
-                results.append(other)
+                    or other.rect.contains(collider.rect)):
+                yield other
 
-        return results
+    def get_collisions(self, collider, *, layers=None, tags=None, include_self=False):
+        return list(self._filter_candidates(
+            collider, self._get_candidates(collider), layers, tags, include_self))
 
     def collides_any(self, collider, *, layers=None, tags=None, include_self=False):
-        if collider.static:
-            candidates = self.dynamic_qtree.query(collider.rect)
-        else:
-            candidates = (
-                    self.dynamic_qtree.query(collider.rect) +
-                    self.static_qtree.query(collider.rect)
-            )
-
-        #FIXME: Duplicated code
-        for other in candidates:
-            if not include_self and other is collider:
-                continue
-
-            if layers is not None:
-                if isinstance(layers, (list, tuple, set)):
-                    if other.layer not in layers:
-                        continue
-                else:
-                    if other.layer != layers:
-                        continue
-
-            if tags is not None:
-                if isinstance(tags, (list, tuple, set)):
-                    if other.tag not in tags:
-                        continue
-                else:
-                    if other.tag != tags:
-                        continue
-
-            if (
-                    collider.rect.contains(other.rect)
-                    or collider.rect.fully_contains(other.rect)
-                    or other.rect.contains(collider.rect)
-            ):
-                return True
-
-        return False
+        return next(self._filter_candidates(
+            collider, self._get_candidates(collider), layers, tags, include_self), None) is not None

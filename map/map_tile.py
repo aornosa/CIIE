@@ -2,7 +2,6 @@ class Tile:
     def __init__(self, pos, tile_sheet, walkable=True, collision=False):
         self.position = pos
         self.tile_sheet = tile_sheet
-
         self.walkable = walkable
         self.collision = collision
 

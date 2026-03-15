@@ -1,7 +1,5 @@
 from dataclasses import dataclass
-
 import pygame
-
 
 @dataclass
 class AmmoData:
@@ -17,3 +15,5 @@ class ItemDefinition:
     type: str
     effect: str | None = None
     ammo: AmmoData | None = None
+    cooldown: float = 0.0
+    reusable: bool = False

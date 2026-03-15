@@ -6,7 +6,7 @@
     "type": "ammo_clip",
     "ammo": {
       "ammo_type": "9x19",
-      "capacity": 15
+      "capacity": 30
     }
   },
 
@@ -17,26 +17,60 @@
     "type": "ammo_clip",
     "ammo": {
       "ammo_type": "12gauge",
-      "capacity": 8
+      "capacity": 16
     }
   },
 
-  "ammo_clip_762" : {
+  "ammo_clip_762": {
     "asset": "assets/ammo/7.62/clip.png",
     "name": "7.62mm Rifle Ammo",
     "description": "High caliber rounds for assault rifles and sniper rifles",
     "type": "ammo_clip",
     "ammo": {
       "ammo_type": "7.62",
-      "capacity": 30
+      "capacity": 60
     }
   },
 
   "health_injector": {
-    "asset": "assets/items/phoenix_injector/injector.png",
+    "asset": "assets/items/phoenix_injector/phoenix_injector.png",
     "name": "Phoenix Injector",
-    "description": "A high-tech medical device that rapidly regenerates health when used.",
+    "description": "Phoenix Auto-Injector. Restores 60HP and boosts speed for 8s. Highly addictive: each use permanently reduces max health.",
+    "type": "consumable",
+    "effect": "phoenix_injector"
+  },
+
+  "stim_patch": {
+    "asset": "assets/items/stim_patch/stim_patch.png",
+    "name": "Stim Patch",
+    "description": "Standard military-grade medpatch. Restores 30HP. No side effects.",
     "type": "consumable",
     "effect": "regen_health"
+  },
+
+  "adrenaline_shot": {
+    "asset": "assets/items/adrenaline_shot/adrenaline_shot.png",
+    "name": "Adrenaline Shot",
+    "description": "Combat stimulant. Greatly increases movement speed for 5s. No healing.",
+    "type": "consumable",
+    "effect": "adrenaline_shot"
+  },
+
+  "rad_suppressor": {
+    "asset": "assets/items/rad_suppressor/rad_suppressor.png",
+    "name": "RAD Suppressor",
+    "description": "Experimental Armengard compound. Neutralises Phoenix Injector addiction and restores lost max health.",
+    "type": "consumable",
+    "effect": "rad_suppressor"
+  },
+
+  "dash_ability": {
+    "asset": "assets/items/dash_ability/dash_ability.png",
+    "name": "Dash",
+    "description": "Permite realizar un impulso rápido en la dirección en la que miras.",
+    "type": "consumable",
+    "effect": "dash",
+    "cooldown": 3.0,
+    "reusable": true
   }
 }

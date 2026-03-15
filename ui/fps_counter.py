@@ -11,7 +11,6 @@ class FPS_Counter(MonoliteBehaviour):
         self.last_update = 0
         self.update_interval = 0.5
 
-
     def update(self):       
         now = time.time()
         if now - self.last_update >= self.update_interval:

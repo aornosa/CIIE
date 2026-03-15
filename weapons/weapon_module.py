@@ -1,7 +1,5 @@
 import pygame
-
 from core.audio.audio_emitter import AudioEmitter
-from core.object import Object
 
 AMMO_TYPES = {
     "9x19": "assets/ammo/9x19/data.json",
@@ -14,9 +12,27 @@ class Weapon:
         self.asset = pygame.image.load(asset)
         self.name = name
         self.damage = damage
-        self.object = Object(asset, (0, 0), 0, 1)
-        self.pullout_time = pullout_time    # Time in seconds to pull out the weapon
+        self.pullout_time = pullout_time
+        self.parent = None
+        self.audio_emitter = None
 
-        # Will be set when equipped by a character
+    def update(self):
+        pass
+
+    def get_name(self) -> str:
+        return self.name
+
+    def get_damage(self) -> int:
+        return self.damage
+
+    def get_asset(self):
+        return self.asset
+
+    def on_equipped(self, parent):
+        self.parent = parent
+        if parent and hasattr(parent, "audio_emitter"):
+            self.audio_emitter = parent.audio_emitter
+
+    def on_unequipped(self):
         self.parent = None
         self.audio_emitter = None

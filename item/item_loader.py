@@ -1,9 +1,7 @@
 import json
-
 import pygame.image
-
 from core.monolite_behaviour import MonoliteBehaviour
-from item.item_type_data import *
+from item.item_type_data import ItemDefinition, AmmoData
 
 class ItemRegistry(MonoliteBehaviour):
     _items: dict[str, ItemDefinition] = {}
@@ -18,27 +16,19 @@ class ItemRegistry(MonoliteBehaviour):
     def load(cls, filepath: str):
         with open(filepath, "r") as f:
             data = json.load(f)
-
         for item_id, raw in data.items():
-
-            ammo_data = None
-            if "ammo" in raw:
-                ammo_data = AmmoData(**raw["ammo"])
-
-            effect = None
-            if "effect" in raw:
-                effect = raw["effect"]
-
             item = ItemDefinition(
                 id=item_id,
-                asset=pygame.transform.scale(pygame.image.load(raw["asset"]), (50, 50)).convert_alpha(),
+                asset=pygame.transform.scale(
+                    pygame.image.load(raw["asset"]), (50, 50)).convert_alpha(),
                 name=raw["name"],
                 description=raw["description"],
                 type=raw["type"],
-                ammo=ammo_data,
-                effect=effect
+                ammo=AmmoData(**raw["ammo"]) if "ammo" in raw else None,
+                effect=raw.get("effect"),
+                cooldown=raw.get("cooldown", 0.0),
+                reusable=raw.get("reusable", False),
             )
-
             cls._items[item_id] = item
 
     @classmethod
