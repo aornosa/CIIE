@@ -66,6 +66,8 @@ class SettingsScene(Scene):
         draw_settings_menu(screen, self._render_options(), self.selected)
 
     def on_enter(self):
+        from core.audio.music_manager import MusicManager
+        MusicManager.instance().set_category("menu")
         pygame.mouse.set_visible(True)
 
     def _activate(self, opt):

@@ -23,6 +23,7 @@ from core import input_handler as ih
 from core.scene_director import SceneDirector
 from core.monolite_behaviour import MonoliteBehaviour
 from scenes.main_menu_scene import MainMenuScene
+from core.audio.music_manager import MusicManager
 
 pygame.display.set_caption("Armengard")
 pygame.display.set_icon(pygame.image.load("assets/icon.png").convert())
@@ -38,6 +39,7 @@ while director.running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             director.running = False
+        MusicManager.instance().handle_event(event)
         im.handle_event(event)
 
     screen.fill(SCREEN_BACKGROUND_COLOR)

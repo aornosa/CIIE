@@ -12,6 +12,8 @@ class MainMenuScene(Scene):
         self._has_active_game  = has_active_game
 
     def on_enter(self):
+        from core.audio.music_manager import MusicManager
+        MusicManager.instance().set_category("menu")
         pygame.mouse.set_visible(True)
 
     def handle_events(self, input_handler):
