@@ -262,6 +262,12 @@ class Level1Scene(Scene):
                 input_handler.actions["inventory"] = False
             return
 
+        if input_handler.actions.get("pause") and self._inventory_open:
+            input_handler.actions["pause"] = False
+            self._inventory_open = False
+            pygame.mouse.set_visible(False)
+            return
+
         if input_handler.actions.get("pause"):
             input_handler.actions["pause"] = False
             from scenes.pause_scene import PauseScene

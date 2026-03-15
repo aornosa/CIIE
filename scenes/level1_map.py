@@ -214,14 +214,14 @@ def build_interactables(scene):
 
     north_top_y           = cy - ARENA_HALF - CORRIDOR_H - NORTH_SQ * 2
     ex, ey                = cx, north_top_y - t // 2
-    # Puerta salida: se desbloquea solo al completar la oleada 25.
+    # Puerta salida: se desbloquea solo al completar la oleada 20.
     scene._exit_door      = Door(
         name="Puerta de Salida",
         position=(ex, ey),
         on_open=lambda: logic.on_exit_door_open(scene),
         unlock_condition=lambda: getattr(scene, "_zone2_complete", False),
     )
-    scene._exit_door.interact_text = "Se abrira cuando completes la oleada 25 [E]"
+    scene._exit_door.interact_text = "Se abrira cuando completes la oleada 20 [E]"
     scene._exit_door_rect = pygame.Rect(ex - door_w // 2, north_top_y - t, door_w, t)
 
     heli_y                    = north_top_y - EXIT_CORRIDOR_H - EXIT_SQ_HALF * 2

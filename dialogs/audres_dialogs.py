@@ -8,7 +8,7 @@ def create_audres_intro():
         "s1": DialogNode(
             speaker="AUDReS-01",
             portrait=_P + "portrait_neutral.jpg",
-            text="Tuviste suerte de que te haya encontrado, soldado. Soy AUDReS-01, el robot de abastecimiento militar autónomo.",
+            text="THola, soldado. Soy AUDReS-01, el robot de abastecimiento militar autónomo.",
             next_node="s2",
         ),
         "s2": DialogNode(
@@ -26,7 +26,7 @@ def create_audres_intro():
         "s4": DialogNode(
             speaker="AUDReS-01",
             portrait=_P + "portrait_happy.jpg",
-            text="Muévete con WASD, apunta manteniendo el click derecho del ratón, dispara con clic izquierdo y recarga con R.",
+            text="Muévete con WASD, dispara con clic izquierdo y recarga con R.",
             next_node="s5",
         ),
         "s5": DialogNode(
@@ -44,27 +44,6 @@ def create_audres_intro():
     }
     return DialogTree("s1", nodes)
 
-
-def create_audres_idle():
-    """Diálogo de espera """
-    nodes = {
-        "idle_root": DialogNode(
-            speaker="AUDReS-01",
-            portrait=_P + "portrait_neutral.jpg",
-            text="¿Necesitas algo?",
-            options=[
-                ("¿Cómo estás, Audrey?",   "idle_howru"),
-                ("Nada, gracias.",          None),
-            ],
-        ),
-        "idle_howru": DialogNode(
-            speaker="AUDReS-01",
-            portrait=_P + "portrait_happy.jpg",
-            text="¡Funcionando al 97.3%! El 2.7% restante son preocupaciones por ti. Sigue así y ese número podría subir.",
-            next_node=None,
-        ),
-    }
-    return DialogTree("idle_root", nodes)
 
 
 def create_audres_shop_hint():
@@ -135,7 +114,7 @@ def create_audres_north_room_entry():
         "n1": DialogNode(
             speaker="AUDReS-01",
             portrait=_P + "portrait_happy.jpg",
-            text="si no recuerdo mal el laboratorio debería estar por aquí",
+            text="Creo que más adelante hay un helipuerto con una unidad operativa, podemos tomar un atajo por lo aires",
             next_node="n2",
         ),
         "n2": DialogNode(
@@ -153,7 +132,7 @@ def create_audres_exit_door():
         "exit1": DialogNode(
             speaker="AUDReS-01",
             portrait=_P + "portrait_happy.jpg",
-            text="¡Soldado! He llamado a un helicóptero de evacuación. Está aterrizando ahora mismo al norte.",
+            text="Allí se encuentra el helicóptero, deberia tener suficiente combustible",
             next_node="exit2",
         ),
         "exit2": DialogNode(
@@ -165,7 +144,7 @@ def create_audres_exit_door():
         "exit3": DialogNode(
             speaker="AUDReS-01",
             portrait=_P + "portrait_happy.jpg",
-            text="Y no te preocupes por mí... los robots no necesitamos evacuación. Aunque quizás sí un poco de compañía.",
+            text="Y no te preocupes por mí, me engancharé en el tren de aterrizaje.",
             next_node=None,
         ),
     }

@@ -119,9 +119,9 @@ def update_flow(scene, delta_time):
             and not dialog_active):
         create_wave_manager(scene)
 
-    # Desbloquea la puerta de salida cuando el jugador completa la oleada 25
+        # Desbloquea la puerta de salida cuando el jugador completa la oleada 20
     if (scene._wave_manager_north is not None
-            and scene._wave_manager_north.current_wave >= 25
+            and scene._wave_manager_north.current_wave >= 20
             and not scene._wave_manager_north.enemies
             and not scene._wave_manager_north._spawn_queue
             and not getattr(scene, "_zone2_complete", False)):
