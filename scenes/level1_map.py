@@ -111,7 +111,7 @@ def draw_map(screen, camera, scene):
     ax = ACX - ARENA_HALF - cx_cam
     ay = ACY - ARENA_HALF - cy_cam
     arena_rect = pygame.Rect(ax, ay, ARENA_HALF * 2, ARENA_HALF * 2)
-    pygame.draw.rect(screen, _FLOOR_COLOR, arena_rect)
+    #pygame.draw.rect(screen, _FLOOR_COLOR, arena_rect)
     pygame.draw.rect(screen, _WALL_COLOR,  arena_rect, WALL_THICK)
 
     if scene._north_room_rect and scene._corridor_rect:

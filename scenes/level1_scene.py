@@ -33,56 +33,220 @@ class Level1Scene(Scene):
 
     def __init__(self):
         super().__init__()
-        self._last_frame   = None
-        self.player        = None
-        self.controller    = None
-        self.camera        = None
-        self.weapon_controller = None
-        self.enemies: list       = []
-        self._toxic_puddles: list = []
-        self._contact_dmg_cd = 1.0
-        self._dialog_manager     = None
-        self.audres              = None
-        self._audres_intro_tree  = None
-        self._cutscene_active    = False
-        self._cutscene_phase     = "idle"
-        self._audres_walk_target = None
-        self._wave_manager       = None
-        self._wave_manager_north = None
-        self._zone1_complete     = False
-        self._zone2_complete     = False
-        self._enemies_spawned       = False
-        self._shop_hint_triggered   = False
-        self._shop_unlocked         = False
-        self._wave_clear_timer      = -1.0
-        self._wave2_clear_triggered = False
-        self._wave2_clear_timer     = -1.0
-        self._going_level_complete  = False
-        self._total_kills           = 0
-        self._inventory_open        = False
-        self._inv_right_click       = False
-        self._aim_was_pressed       = False
-        self._pending_weapon_item  = None
-        self._pending_weapon_index = -1
-        self._door              = None
-        self._door_rect         = None
-        self._door_collider     = None
-        self._north_room_rect   = None
-        self._corridor_rect     = None
-        self._north_room_entered  = False
-        self._north_room_sealed   = False
-        self._north_seal_collider = None
-        self._exit_door          = None
-        self._exit_door_rect     = None
-        self._exit_door_collider = None
-        self._exit_room_rect     = None
-        self._exit_corridor_rect = None
-        self._helicopter         = None
-        self._helicopter_spawned = False
-        self._idle_shot_timer   = -1.0
-        self._IDLE_SHOT_TIMEOUT = 40.0
-        self.crosshair = pygame.image.load("assets/crosshair.png").convert_alpha()
+        self._last_frame             = None
+        self.player                  = None
+        self.controller              = None
+        self.camera                  = None
+        self.weapon_controller       = None
+        self.enemies: list           = []
+        self._toxic_puddles: list    = []
+        self._contact_dmg_cd         = 1.0
+        self._dialog_manager         = None
+        self.audres                  = None
+        self._audres_intro_tree      = None
+        self._cutscene_active        = False
+        self._cutscene_phase         = "idle"
+        self._audres_walk_target     = None
+        self._wave_manager           = None
+        self._wave_manager_north     = None
+        self._zone1_complete         = False
+        self._zone2_complete         = False
+        self._enemies_spawned        = False
+        self._shop_hint_triggered    = False
+        self._shop_unlocked          = False
+        self._wave_clear_timer       = -1.0
+        self._wave2_clear_triggered  = False
+        self._wave2_clear_timer      = -1.0
+        self._going_level_complete   = False
+        self._total_kills            = 0
+        self._inventory_open         = False
+        self._inv_right_click        = False
+        self._aim_was_pressed        = False
+        self._pending_weapon_item    = None
+        self._pending_weapon_index   = -1
+        self._door                   = None
+        self._door_rect              = None
+        self._door_collider          = None
+        self._north_room_rect        = None
+        self._corridor_rect          = None
+        self._north_room_entered     = False
+        self._north_room_sealed      = False
+        self._north_seal_collider    = None
+        self._exit_door              = None
+        self._exit_door_rect         = None
+        self._exit_door_collider     = None
+        self._exit_room_rect         = None
+        self._exit_corridor_rect     = None
+        self._helicopter             = None
+        self._helicopter_spawned     = False
+        self._idle_shot_timer        = -1.0
+        self._IDLE_SHOT_TIMEOUT      = 40.0
+        self.crosshair               = pygame.image.load("assets/crosshair.png").convert_alpha()
+        # Tiles visuales
+        self._tile_floor             = None
+        self._tile_wall_h            = None  # pared horizontal
+        self._tile_wall_v            = None  # pared vertical (ud_wall rotado 90)
+        self._tile_door              = None
 
+    # ------------------------------------------------------------------
+    # Tiles
+    # ------------------------------------------------------------------
+    def _load_tiles(self):
+        def load(path, size):
+            img = pygame.image.load(path).convert_alpha()
+            return pygame.transform.scale(img, size)
+
+        t = lmap.WALL_THICK  # 80px
+
+        self._tile_floor  = load("assets/map/floor.png",        (128, 128))
+        self._tile_wall_h = load("assets/map/up_down_wall.png", (128, t))
+        # Pared vertical: mismo tile rotado 90 grados → t ancho, 128 alto
+        base              = load("assets/map/up_down_wall.png", (128, t))
+        self._tile_wall_v = pygame.transform.rotate(base, 90)
+        self._tile_door   = load("assets/map/door.png",          (240, t))
+
+    def _blit_h(self, screen, world_x, world_y, total_w):
+        """Repite el tile horizontal, recortando el último si no cabe exacto."""
+        tile = self._tile_wall_h
+        tw   = tile.get_width()
+        th   = tile.get_height()
+        cx   = int(self.camera.position.x)
+        cy   = int(self.camera.position.y)
+        sw, sh = screen.get_size()
+        x = world_x
+        while x < world_x + total_w:
+            sx = x - cx
+            sy = world_y - cy
+            remaining = (world_y + total_w) - x  # unused for h, use width remaining
+            rem_w = min(tw, (world_x + total_w) - x)
+            if -tw < sx < sw and -th < sy < sh:
+                if rem_w < tw:
+                    screen.blit(tile.subsurface(pygame.Rect(0, 0, rem_w, th)), (sx, sy))
+                else:
+                    screen.blit(tile, (sx, sy))
+            x += tw
+
+    def _blit_v(self, screen, world_x, world_y, total_h):
+        """Repite el tile vertical, recortando el último si no cabe exacto."""
+        tile = self._tile_wall_v
+        tw   = tile.get_width()
+        th   = tile.get_height()
+        cx   = int(self.camera.position.x)
+        cy   = int(self.camera.position.y)
+        sw, sh = screen.get_size()
+        y = world_y
+        while y < world_y + total_h:
+            sx = world_x - cx
+            sy = y - cy
+            rem_h = min(th, (world_y + total_h) - y)
+            if -tw < sx < sw and -th < sy < sh:
+                if rem_h < th:
+                    screen.blit(tile.subsurface(pygame.Rect(0, 0, tw, rem_h)), (sx, sy))
+                else:
+                    screen.blit(tile, (sx, sy))
+            y += th
+
+    def _blit_floor(self, screen, world_x, world_y, w, h):
+        tile   = self._tile_floor
+        tw, th = tile.get_width(), tile.get_height()
+        cx     = int(self.camera.position.x)
+        cy     = int(self.camera.position.y)
+        sw, sh = screen.get_size()
+        y = world_y
+        while y < world_y + h:
+            x = world_x
+            while x < world_x + w:
+                sx, sy = x - cx, y - cy
+                if -tw < sx < sw and -th < sy < sh:
+                    screen.blit(tile, (sx, sy))
+                x += tw
+            y += th
+
+    def _blit_once(self, screen, tile, world_cx, world_cy):
+        cx = int(self.camera.position.x)
+        cy = int(self.camera.position.y)
+        screen.blit(tile, (world_cx - tile.get_width() // 2 - cx,
+                            world_cy - tile.get_height() // 2 - cy))
+
+    def _draw_map_tiles(self, screen):
+        if self._tile_floor is None:
+            return
+
+        cx, cy  = lmap.ACX, lmap.ACY
+        h       = lmap.ARENA_HALF
+        t       = lmap.WALL_THICK
+        dw      = 240
+        cw      = lmap.CORRIDOR_W
+        ch      = lmap.CORRIDOR_H
+        nsq     = lmap.NORTH_SQ
+        esq     = lmap.EXIT_SQ_HALF
+        ecw     = lmap.EXIT_CORRIDOR_W
+        ech     = lmap.EXIT_CORRIDOR_H
+
+        # Posiciones clave
+        arena_l  = cx - h
+        arena_r  = cx + h
+        arena_t  = cy - h
+        arena_b  = cy + h
+        north_b  = arena_t - ch          # base del pasillo norte
+        north_t  = north_b - nsq * 2    # tope sala norte
+        exit_b   = north_t - ech         # base del pasillo salida
+        exit_t   = exit_b - esq * 2     # tope sala salida
+
+        # ── Suelos ──────────────────────────────────────────────────────
+        self._blit_floor(screen, arena_l,       arena_t,  h * 2,   h * 2)
+        self._blit_floor(screen, cx - cw // 2,  north_b,  cw,      ch)
+        self._blit_floor(screen, cx - nsq,      north_t,  nsq * 2, nsq * 2)
+        self._blit_floor(screen, cx - ecw // 2, exit_b,   ecw,     ech)
+        self._blit_floor(screen, cx - esq,      exit_t,   esq * 2, esq * 2)
+
+        # ── Paredes arena ───────────────────────────────────────────────
+        # inferior (esquinas incluidas)
+        self._blit_h(screen, arena_l - t,   arena_b,    h * 2 + t * 2)
+        # superior izq y der (hueco puerta norte en centro)
+        self._blit_h(screen, arena_l - t,   arena_t - t, h - dw // 2 + t)
+        self._blit_h(screen, cx + dw // 2,  arena_t - t, h - dw // 2 + t)
+        # laterales (sin esquinas — las cubre la pared h)
+        self._blit_v(screen, arena_l - t,   arena_t,    h * 2)
+        self._blit_v(screen, arena_r,       arena_t,    h * 2)
+
+        # ── Paredes pasillo norte ───────────────────────────────────────
+        self._blit_v(screen, cx - cw // 2 - t, north_b, ch)
+        self._blit_v(screen, cx + cw // 2,      north_b, ch)
+
+        # ── Paredes sala norte ──────────────────────────────────────────
+        # inferior izq y der (flancos del hueco hacia pasillo, con esquinas)
+        self._blit_h(screen, cx - nsq - t,    arena_t - ch, nsq - cw // 2 + t)
+        self._blit_h(screen, cx + cw // 2,    arena_t - ch, nsq - cw // 2 + t)
+        # laterales
+        self._blit_v(screen, cx - nsq - t,  north_t, nsq * 2)
+        self._blit_v(screen, cx + nsq,      north_t, nsq * 2)
+        # superior izq y der (hueco puerta salida, con esquinas)
+        self._blit_h(screen, cx - nsq - t,  north_t - t, nsq - dw // 2 + t)
+        self._blit_h(screen, cx + dw // 2,  north_t - t, nsq - dw // 2 + t)
+
+        # ── Paredes pasillo salida ──────────────────────────────────────
+        self._blit_v(screen, cx - ecw // 2 - t, exit_b, ech)
+        self._blit_v(screen, cx + ecw // 2,      exit_b, ech)
+
+        # ── Paredes sala salida ─────────────────────────────────────────
+        # inferior (con esquinas)
+        self._blit_h(screen, cx - esq - t, exit_b - ech, esq * 2 + t * 2)
+        # laterales
+        self._blit_v(screen, cx - esq - t, exit_t, esq * 2)
+        self._blit_v(screen, cx + esq,     exit_t, esq * 2)
+        # superior (con esquinas)
+        self._blit_h(screen, cx - esq - t, exit_t - t, esq * 2 + t * 2)
+
+        # ── Puertas (siempre al final para quedar encima) ───────────────
+        if self._tile_door and (not self._door or not self._door.is_open):
+            self._blit_once(screen, self._tile_door, cx, arena_t - t // 2)
+        if self._tile_door and (not self._exit_door or not self._exit_door.is_open):
+            self._blit_once(screen, self._tile_door, cx, north_t - t // 2)
+
+    # ------------------------------------------------------------------
+    # Ciclo de vida
+    # ------------------------------------------------------------------
     def on_enter(self):
         MonoliteBehaviour.time_scale = 1.0
         pygame.mouse.set_visible(False)
@@ -112,7 +276,7 @@ class Level1Scene(Scene):
             CollisionManager._active.static_qtree.clear()
             CollisionManager.static_dirty = True
         else:
-            CollisionManager(Rectangle(-4000, -4000, 8000, 8000))
+            CollisionManager(Rectangle(-12000, -12000, 24000, 24000))
 
         if AudioManager._instance is None:
             AudioManager._instance = AudioManager()
@@ -154,8 +318,16 @@ class Level1Scene(Scene):
          self._exit_corridor_rect,
          self._exit_room_rect) = lmap.build_room_rects()
 
-        self._door_collider, self._exit_door_collider = lmap.build_walls()
+        # Colliders desde Tiled
+        from map.map_loader import MapLoader
+        map_json  = MapLoader.load_map("assets/map/level1.tmj")
+        door_cols = MapLoader.load_colliders_from_json(
+            map_json, offset_x=lmap.ACX, offset_y=lmap.ACY)
+        self._door_collider      = door_cols.get('door_north')
+        self._exit_door_collider = door_cols.get('door_exit')
+
         lmap.build_interactables(self)
+        self._load_tiles()
 
         cx, cy = lmap.ACX, lmap.ACY
         h      = lmap.ARENA_HALF
@@ -208,20 +380,27 @@ class Level1Scene(Scene):
             CollisionManager._active.static_qtree.clear()
 
         self.player = self.controller = self.weapon_controller = self.audres = None
-        self._cutscene_active    = False
-        self._cutscene_phase     = "idle"
-        self._audres_walk_target = None
-        self._enemies_spawned    = self._shop_hint_triggered = self._shop_unlocked = False
-        self._wave_clear_timer      = -1.0
-        self._wave_manager          = self._wave_manager_north = None
-        self._toxic_puddles         = []
-        self._wave2_clear_triggered = False
-        self._wave2_clear_timer     = -1.0
-        self._going_level_complete  = False
-        self._total_kills           = 0
-        self._contact_dmg_cd        = 1.0
-        self._pending_weapon_item   = None
-        self._pending_weapon_index  = -1
+        self._cutscene_active        = False
+        self._cutscene_phase         = "idle"
+        self._audres_walk_target     = None
+        self._enemies_spawned        = False
+        self._shop_hint_triggered    = False
+        self._shop_unlocked          = False
+        self._wave_clear_timer       = -1.0
+        self._wave_manager           = None
+        self._wave_manager_north     = None
+        self._toxic_puddles          = []
+        self._wave2_clear_triggered  = False
+        self._wave2_clear_timer      = -1.0
+        self._going_level_complete   = False
+        self._total_kills            = 0
+        self._contact_dmg_cd         = 1.0
+        self._pending_weapon_item    = None
+        self._pending_weapon_index   = -1
+        self._tile_floor             = None
+        self._tile_wall_h            = None
+        self._tile_wall_v            = None
+        self._tile_door              = None
 
         from map.interactables.interaction_manager import InteractionManager
         if self._door:
@@ -230,21 +409,28 @@ class Level1Scene(Scene):
 
         if self._exit_door:
             InteractionManager().unregister(self._exit_door)
-        self._exit_door = self._exit_door_collider = self._exit_door_rect = None
-        self._exit_room_rect = self._exit_corridor_rect = None
+        self._exit_door          = None
+        self._exit_door_collider = None
+        self._exit_door_rect     = None
+        self._exit_room_rect     = None
+        self._exit_corridor_rect = None
 
         if self._helicopter:
             self._helicopter._unregister()
         self._helicopter         = None
         self._helicopter_spawned = False
         self._idle_shot_timer    = -1.0
-        self._north_room_entered  = self._north_room_sealed = False
+        self._north_room_entered  = False
+        self._north_room_sealed   = False
         self._north_seal_collider = None
 
         if self._dialog_manager:
             self._dialog_manager.end_dialog()
         self._dialog_manager = None
 
+    # ------------------------------------------------------------------
+    # Eventos
+    # ------------------------------------------------------------------
     def handle_events(self, input_handler):
         aim_now = input_handler.actions.get("aim", False)
         self._inv_right_click = aim_now and not self._aim_was_pressed
@@ -311,14 +497,12 @@ class Level1Scene(Scene):
             if input_handler.actions.get("click_drop"):
                 input_handler.actions["click_drop"] = False
                 input_handler.actions["attack"]     = False
-                # Click en sección de armas del inventario
                 weapons = _weapons_in_inv(self.player.inventory)
                 for i, item in enumerate(weapons):
                     if get_weapon_inv_slot_rect(i).collidepoint(mouse_pos):
                         self._pending_weapon_item  = item
                         self._pending_weapon_index = self.player.inventory.items.index(item)
                         return
-                # Click en sección de consumibles
                 consumables = _consumables(self.player.inventory)
                 for i, item in enumerate(consumables):
                     if get_item_slot_rect(i).collidepoint(mouse_pos):
@@ -345,6 +529,9 @@ class Level1Scene(Scene):
         self._pending_weapon_item  = None
         self._pending_weapon_index = -1
 
+    # ------------------------------------------------------------------
+    # Update / render
+    # ------------------------------------------------------------------
     def update(self, delta_time):
         from core.audio.music_manager import MusicManager
         MusicManager.instance().set_category("idle")
@@ -356,9 +543,7 @@ class Level1Scene(Scene):
         dialog_active = self._dialog_manager and self._dialog_manager.is_dialog_active
         MonoliteBehaviour.time_scale = 0.0 if dialog_active else 1.0
 
-        if dialog_active:
-            return
-        if self._inventory_open:
+        if dialog_active or self._inventory_open:
             return
 
         logic.update_enemies(self, delta_time)
@@ -377,7 +562,7 @@ class Level1Scene(Scene):
         delta_time = self.director.clock.get_time() / 1000.0
 
         screen.fill(lmap._BG_COLOR)
-        lmap.draw_map(screen, self.camera, self)
+        self._draw_map_tiles(screen)
 
         mouse_pos     = pygame.Vector2(pygame.mouse.get_pos())
         active_weapon = self.player.inventory.get_weapon(
@@ -394,7 +579,6 @@ class Level1Scene(Scene):
                 emitter.update()
 
         dialog_active = self._dialog_manager and self._dialog_manager.is_dialog_active
-
         movement = (pygame.Vector2(0, 0) if (self._cutscene_active or dialog_active)
                     else pygame.Vector2(im.actions["move_x"], im.actions["move_y"]))
 
@@ -405,7 +589,7 @@ class Level1Scene(Scene):
                 self.player._dash_direction = pygame.Vector2(movement)
 
         if (not self._cutscene_active
-                and not (self._dialog_manager and self._dialog_manager.is_dialog_active)
+                and not dialog_active
                 and not self._inventory_open
                 and self.weapon_controller):
             shot_fired = self.weapon_controller.update(im, delta_time, mouse_pos)
